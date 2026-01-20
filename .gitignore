@@ -1,0 +1,25 @@
+# Exclude specific files
+config.local.xml
+secrets.txt
+
+# Exclude by pattern
+*.log
+*.tmp
+*.txt
+*.bak
+*.bat
+*.cmd
+*.cer
+*.pfx
+*.p12
+~$*
+
+# Exclude specific folders
+backup/
+.github/
+uefi/
+FCInfo/
+
+# Exclude everything in a folder except certain files
+logs/*
+!logs/.gitkeep

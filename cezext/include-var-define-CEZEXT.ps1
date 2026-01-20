@@ -1,0 +1,388 @@
+###############################
+# include-var-define
+###############################
+$TenantId   = "e85940c5-a691-4da1-922a-ca217be4685c"
+$TenantName         = "cezext.onmicrosoft.com"
+$TenantShortName    = "CEZEXT"
+$RootSPOURL         = "https://cezext.sharepoint.com/sites"
+$PnPURL             = "https://cezext.sharepoint.com"
+$PnPTenant          = "cezext.onmicrosoft.com"
+$TenantAdminURL     = "https://cezext-admin.sharepoint.com"
+$GraphV1 = "https://graph.microsoft.com/v1.0"
+$GraphBeta = "https://graph.microsoft.com/beta"
+
+$DBFileFolder = "d:\exports-cezext\db\"
+
+$DBFileAADAdmRoles          = $DBFileFolder + "aad-admin-roles.csv"
+
+$DBFileAADPartnerTenants    = $DBFileFolder + "aad-partner-tenants.csv"
+$DBFileExtAADTenants        = $DBFileFolder + "ext-aad-tenants.csv"
+
+$DBFileGuestsStd            = $DBFileFolder + "guests-std.csv"
+$DBFileGuests               = $DBFileGuestsStd
+$DBFileGuestsName           = $DBFileFolder + "guests-name.csv"
+$DBFileGuestsSIA            = $DBFileFolder + "guests-SIA.csv"
+
+$DBFileUsersAllName         = $DBFileFolder + "users-all-name.csv"
+$DBFileUsersAllMin          = $DBFileFolder + "users-all-min.csv"
+$DBFileUsersAllStd          = $DBFileFolder + "users-all-std.csv"
+$DBFileUsersAllSIA          = $DBFileFolder + "users-all-SIA.csv"
+
+$DBFileUsersMemName         = $DBFileFolder + "users-mem-name.csv"
+$DBFileUsersMemMin          = $DBFileFolder + "users-mem-min.csv"
+$DBFileUsersMemStd          = $DBFileFolder + "users-mem-std.csv"
+$DBFileUsersMemSIA          = $DBFileFolder + "users-mem-SIA.csv"
+
+$DBFileGroups               = $DBFileFolder + "groups.csv"
+$DBFileGroupsAllMin         = $DBFileFolder + "groups-all-min.csv"
+$DBFileGroupsO365           = $DBFileFolder + "groups-O365.csv"
+$DBFileO365Groups           = $DBFileFolder + "groups-O365.csv"
+$DBFileTeams                = $DBFileFolder + "teams.csv"
+$DBFileTeamsChannelsOwners  = $DBFileFolder + "teams-channels-owners.csv"
+
+$root_log_folder    = "d:\logs"
+$rootlogfolder      = $root_log_folder
+$RLF                = $root_log_folder
+
+$root_output_folder = "d:\exports"
+$rootoutputfolder   = $root_output_folder
+$ROF                = $root_output_folder
+
+$outputFileReportSuffix = "report"
+$outputFileAuditSuffix 	= "audit"
+
+$ContentTypeJSON            = "application/json"
+$ContentTypeCSV             = "text/csv"
+$ConsistencyLevelEventual   = "eventual"
+
+$Today                  = $(Get-Date).AddDays(0-$daysBackOffset)
+$Yesterday 				= $(Get-Date).AddDays(-1-$daysBackOffset)
+$TodayBOD               = Get-Date -Hour 0 -Minute 0 -Second 0
+$TodayEOD               = Get-Date -Hour 23 -Minute 59 -Second 59
+$YesterdayBOD           = Get-Date ($TodayBOD.AddDays(-1))
+$YesterdayEOD           = Get-Date ($TodayEOD.AddDays(-1))
+
+$strYesterday 			= $(Get-Date).AddDays(-1-$daysBackOffset).ToString("yyyy-MM-dd")
+$strToday 				= $(Get-Date).AddDays(0-$daysBackOffset).ToString("yyyy-MM-dd")
+$currentDate            = $strToday
+
+$strYesterdayUTCStart 	= $strYesterday + "T00:00:00Z"
+$strYesterdayUTCEnd 	= $strToday + "T00:00:00Z"
+
+$OutputFileDate         = Get-Date -Format "yyyy-MM-dd"
+
+$knownServiceAccountPrefixes = @("Q1","QB","QE","QL","QN","QP")
+
+$knownConsumerDomains = (
+    "centrum.cz",
+    "post.cz",
+    "volny.cz",
+    "gmail.com",
+    "hotmail.cz",
+    "hotmail.com",
+    "outlook.com",
+    "outlook.cz",
+    "live.com"
+)
+
+$knownExternalOrgDomains = (
+    "7.cz",
+    "abo-wind.fr","accenture.com","actinet.cz","actumdigital.com","adastra.one","adastracorp.com","adastragrp.com","adlittle.com","administer.cz","advanced-consulting.cz","aec.cz","aerovisiongroup656.onmicrosoft.com","afry.com","agnostix.cz","air-plus.cz","ak-nbn.cz","akomplex.eu","aldautomotive.com","alef.com","alferypartner.com","alstanet.cz","altepro.cz","ami.cz","anacnv.com","andritz.com","anodius.com","aquatis.cz","arcadis.com","arcdata.cz","arkance-systems.com","artexrisk.com","artinel.cz","assystem.com","asystems.as","ataccama.com","atia.cz","atoda.cz","autocont.cz","aveva.com","axpo.com","az-elektrostav.cz","azklima.com",
+    "balcke-duerr.com","bcg.com","bdo.cz","belectric.com","betvar.cz","bighub.cz","bitservis.cz","bnl.engie.com","bohemiamuller.cz","boomerang.agency","borndigital.ai","bs.nttdata.com","btech.cz","bytkomfort.sk",
+    "cadmium.cz","capexus.cz","catta.cz","cbgrid.cz","cbre.com","ccnovasoft.cz","ceitec.vutbr.cz","c-elektro.cz","ceps.cz","cerberos.cz","cesea.cz","cez.bg","cez.hu","cezdeutschland.de","cezenergo.cz","cezenergoservis.cz","cezes.cz","cezesco.ro","ceznet.cz","cezpolska.pl","cgi.com","chrenek-kotrba.cz","cisco.com","cleverlance.com","climat.ro","cloudfield.cz","cnat.es","cogniware.com","comdatagroup.com","complus.cz","comsource.cz","con4pas.com","conectart.cz","confess.cz","construsoft.com","copygeneral.cz","corinex.com","corp.doosan.com","corpussolutions.onmicrosoft.com","cpost.cz","ctp.eu","cvrez.cz","cvut.cz","cyber-rangers.com","cz.ey.com","cz.gt.com","cz.ibm.com","czprg.com",
+    "d3soft.cz","daisy.cz","datacons.cz","dataexpert.cz","datalite.cz","dataseed.cz","datasentics.com","dataspring.cz","davidhajek.cz","dbkp.cz","deepview.cz","deheus.com","delauda.cz","deloittece.com","devro.com","dhl.com","dhtcz.eu","di5.cz","digiskills.cz","directpeople.com","domat.cz","doosan.com","dribo.cz","ds-engineering.cz","dsmachine.cz",
+    "ea-e.cz","ec.europa.eu","ecaza.sk","ecjh.cz","edf.fr","effiis.cz","egd.cz","egem.cz","elcon-bratislava.sk","electurre.cz","elektroradovesice.onmicrosoft.com","elektro-rydval.cz","elektrotrans.cz","elektrovod.eu","elevion.de","elimer.sk","elini.net","elmoz-czech.cz","elvac.eu","elvba.sk","eman.cz","emcp.cz","emera.cz","emsl.cz","encall.cz","energon.cz","energotusimice.cz","energservis.cz","enesa.cz","engie.com","enverus.com","enzasro.sk","eon.cz","epdor.com","eproznov.cz","equans.com","erez.nl","eru.cz","escods.sk","escoslovensko.sk","eservicios.indracompany.com","eskom.co.za","ets-tec.de","euclaboratore.cz","euroenergy.cz","euroklimat.pl","europeanmet.com","e-vc.org","evoltoenergy.com","evrofin.eu","exe.sk",
+    "firstis.eu","fjfi.cvut.cz","fleet-consulting.cz","fme.vutbr.cz","fortum.com","fpak.cz","fs.cvut.cz","fsc-ov.cz","fsv.cvut.cz","fubar.cz",
+    "gaenergo.cz","gapp.cz","gd-team.sk","generaliceska.cz","geometlithium.com","geotechnika.cz","gity.eu","global.ntt","globesy.sk","goodmills.cz","gp-joule.de","greenbuddies.eu","gs-soft.sk","gurobi.com",
+    "happyman.eu","heimstaden.cz","hermos.com","hitachienergy.com","hormen.cz","hrabanek.cz","h-rekultivace.cz","hrone.cz","hullabaloo-eu.com",
+    "i404.cz","ibagroup.onmicrosoft.com","iberdrola.es","ibm.com","ic-energo.eu","ifm.com","impromat.cz","ind-ex.cz","inewa.it","inset.com","int.fubar.cz","intermont-opatrny.cz","ipsos.com","ipsos.cz","iseco.cz","isyatirim.com.tr","itelligence.cz","itmg.sk","ivitas.cz",
+    "jetcon.cz","jirifiala.com","jitsolutions.sk","jpmorgan.com","jufa.cz",
+    "kart.cz","kaspar-consulting.com","kb.cz","kbkfire.cz","kctdata.cz","kearney.com","kkg.ch","klika.cz","koflerenergies.com","kpmg.cz","kpmg.hu","kpsag.cz","kraj-jihocesky.cz","kr-s.cz","kr-vysocina.cz","k-system.cz",
+    "landisgyr.com","lasaygues.com","leasemanagement.sk","leaseplan.com","ledprofes.cz","linksoft.cz","liv-epi.sk","llconsulting.sk","lukasstepka.cz","lundegaard.eu","lytconsulting.es",
+    "magnalink.cz","mainstream.cz","manica.cz","manicalab.cz","martia.cz","maxprogres.cz","mccann.cz","mckinsey.com","mc-triton.cz","mdprojekt.cz","mep-rozvadece.cz","meteringservicesgroup.com","metrolog.com.pl","metrostav.cz","metrostavdiz.cz",
+    "mibcon.cz","mibcon.sk","microsoft.com","microstep-hdo.sk","minsait.com","miraclis.cz","miraclis.sk","mmhk.cz","monetplus.cz","montprojekt.cz","mostecka-montazni.cz","mpo.cz","msem.cz","msg-plaut.cz","mycroftmind.com",
+    "napd.cz","natuvion.com","ness.com","nnb-edfenergy.com","nordictelecom.cz","notix.cz","npp.hu","nuvia.com",
+    "oemenergy.pl","office365.zcu.cz","omexom.com","openwise.cz","operis.cz","orgrez.cz","osc.cz","osii.com",
+    "paks2.hu","partner.tuvsud.com","pentahospitals.cz","petrmara.com","pipesystems.cz","piseckalesni.cz","pi-sro.cz","plantinspekta.cz","pm6.cz","portin.cz","posam.sk","pre.cz","preussenelektra.de","procoma.cz","prodeco.cz","profess.cz","profiemg.cz","profinit.eu","propen.cz","provyko.cz","pvdb.cz","pvk.cz","pwc.com",
+    "quadient.com",
+    "radium.cz","rankenen.com","rceurope.com","realcontrols.onmicrosoft.com","renomia.cz","resolve-it.pl","retia.cz","revitrans.cz","rexonix.cz","riotinto.com","rkl.cz","roez.sk","roiti.com","roklen.cz","rtr-projects.com","rudolf-fritz.de","rvccr.cz",
+    "saarlb.de","sap.com","sap4hr.cz","schalk-and-friends.de","schindlers.com","schindlersbv.onmicrosoft.com","scii.cz","sdas.cz","sd-kd.cz","se.com","seas.sk","securitas.cz","securu.cz","sefira.cz","sezkrompachy.onmicrosoft.com","sgcib.com","sgenit.cz","sgs.com","siemens.com","signosoft.com","sk.ey.com","skoda-js.cz","skodapraha.cz","skvorova-ak.cz","skypartners.cz","smartechorange.com","smartshift.biz","smp.cz","sntcz.cz","sodexo.com","softwareone.com","spravbytkomfort.sk","spro-hr.com","srovnejto.cz","ssee-sokolnice.cz","stavexis.cz","sunconstruct.cz","suptechnik.cz","swietelsky.cz","sykora.cz","symbio.agency","synecotec.com",
+    "tanet.cz","techmania.cz",
+    "technodat.eu","techsys.cz","tedom.com","tekies.eu","tenaur.cz","tes.eu","tesena.com","thetrask.com","topload.cz","toppartners.cz","tpa-group.cz","tractebel.engie.com","transenergy.cz","transtechcz.com","trask.cz","tspdata.cz","ttc.cz","tuca.ro","tuev-nord.de","typ.cz",
+    "uam.cz","ud4d.com","uipath.com","ujv.cz","unicorn.com","uniongrid.cz","usetreno.cz","uss.plus",
+    "valbek.cz","valcon-int.com","vattenfall.com","vfnuclear.com","vgpparks.eu","viableone.com","viamont.cz","vivalogic.cz","vmware.com","vodafone.com","vsb.cz","vscht.cz","vse.cz","vuje.sk","vutbr.cz","vzuplzen.cz",
+    "wellen.cz","westinghouse.com",
+    "xpertdigital.com",
+    "zat.cz","zatopek.org","zentiva.com","zepris.cz","zohd.nl","zonnepanelenophetdak.nl","zpa.cz"
+)
+
+$AIPLabelDB = @{
+    "21615a92-ff74-464e-916e-837184ffdf14"="Public-TEST";
+    "4f2b74ee-639a-49fa-bc49-952e4046126c"="Public-NOCo";
+    "2d2b4be9-438c-43de-af48-384e0197c1b3"="Public-SKC";
+    "2f7041ac-86b1-428b-9fcd-bb5188ce6a77"="Public-CEZ";
+    "23d59f5a-3eab-4089-9401-7068afd5ca8f"="Public-CEZB";
+    "f1a8c68a-6b66-4f7f-8bfd-1895343bc663"="Public-CEZd";
+    "e16a83cc-2ba2-45d3-8060-6a0958da383e"="Public-CEP";
+    "b801cd02-f720-49e4-8913-b1e76d1bda9e"="Public-EGS";
+    "4e1bae42-e289-4de2-8912-40e3bcb76f09"="Public-ESCO";
+    "f11d3e06-187d-4a34-958e-df0c260e7edb"="Public-CKS";
+    "7eb9b733-efbe-45ca-8330-c7ececc4da66"="Public-COZ";
+    "27a1cfd8-778a-45f9-80cb-d6bffa62cd3b"="Public-CRC";
+    "59f7c2a2-7bff-434c-93fc-52f11b8a15ca"="Public-CPR";
+    "79dcb4ff-b7e0-4adc-b5ab-e4701df05a3f"="Public-FKI";
+    "9121cb43-22a4-4a74-9f47-f6080983866a"="Public-CBD";
+    "c7dab522-4e0b-483c-94b3-29c82ab67480"="Public-CSOL";
+    "e7d5deeb-30b2-4ae4-888d-dd6d6c152e7c"="Public-TAS";
+    "ac201090-a295-4276-8adb-288f19ab465b"="Public-MARTIA";
+    "18ee4cba-77a4-4963-a391-363a1c15a1ac"="Public-NDC-CEZ";
+    "0e3b4df8-b522-4dce-a353-57cf5a662f5c"="Public-SDAS";
+    "ae2f1a10-8b9f-4dff-bb40-c57b5f6b3fee"="Public-TPS";
+    "836ed0aa-8fd5-40c1-8551-fc348bbe8465"="Public-EGT";
+    "b9678a64-811b-4164-b7ff-1cc67caff132"="Public-ECJH";
+    "a42d5839-d362-4dd7-bfc5-834b46fb9458"="Public-EDE";
+    "13a0f2b6-761b-4a0a-9522-c0c3d7597fe5"="Public-EDUII";
+    "3a88527b-d007-4c93-ba66-b2b9d84253fa"="Public-EPC";
+    "efb20c35-6a52-4db7-ad6c-f7bcb15c7759"="Public-ETEII";
+    "14df189c-95fd-4fa1-8828-b1a4304abd03"="Public-ICT";
+    "b211cfd1-bb0d-4be6-85ed-49993db5217a"="Public-CEZ-DOKE";
+    "eb09c82a-ef36-4b85-8d10-356afc45fe44"="Public-CEZ-DNE";
+    "e83b9d3f-f536-4704-9fa1-8d022f32e6bb"="Public-CEZ-DJE";
+    "04802d90-fa5d-45d4-90c5-99c9f08cc860"="Public-CEZ-DOS";
+    "b48d3945-75f2-4356-9d46-a8fc77fa5e88"="Public-CEZ-DS";
+    "6c0128ec-1adf-44d4-b494-fe964d6a767d"="Public-CEZ-DF";
+    "353c5f55-d967-4112-b692-2d91647f90be"="Public-CEZ-DGR";
+    "d10df1b9-cf30-4ab4-991e-d2b55dacac00"="Internal-TEST";
+    "1dbc571c-31f2-4283-a369-ffcbccfad89b"="Internal-NOCo";
+    "32ed516f-c10c-4758-81e6-53a5fa1b16db"="Internal-SKC";
+    "d9437214-7c87-42c1-a480-dc7bb9a553e7"="Internal-CEZ";
+    "b138e066-906b-416f-acfb-6c8547abb3b4"="Internal-CEZB";
+    "18a7de8b-b835-422f-923b-5fb336473959"="Internal-CEZd";
+    "1454c00f-c7a9-4878-bfc7-65cb4cbe079a"="Internal-CEP";
+    "44fe4bd2-596f-4b9c-8755-b2064bfafe2d"="Internal-EGS";
+    "2cfb1438-761d-4d3b-b6b0-badfaf4933c5"="Internal-ESCO";
+    "33e3259e-12f9-4720-9d4b-83f6988546d5"="Internal-CKS";
+    "ce8f7dc0-256e-47cb-88f6-b934c9fda773"="Internal-COZ";
+    "6724ba87-a184-44a7-be57-479d6989c585"="Internal-CRC";
+    "bb94c1fb-8f72-40f8-8475-bcea3e1867e7"="Internal-CPR";
+    "0bebca73-78ed-45c2-9a30-2f3de738e05d"="Internal-FKI";
+    "b11f912a-99f1-422d-8780-7fa3387280ab"="Internal-CBD";
+    "c66dd7b8-b48f-4d95-ac79-b9a9390cbe30"="Internal-CSOL";
+    "06c8ea39-36a0-444b-aba8-68f856199653"="Internal-TAS";
+    "94e2dd73-124a-4377-aa03-d469ab720d01"="Internal-MARTIA";
+    "a6ccf833-aa7e-4c46-9b68-b80e51dba358"="Internal-NDC-CEZ";
+    "8d34329c-dff9-443a-99f1-3fc04728cc66"="Internal-SDAS";
+    "17920bd4-6eff-45f9-b86d-d9ab355fc6f2"="Internal-TPS";
+    "4df775e1-ec2b-4306-885b-814f242df573"="Internal-EGT";
+    "e08275d7-4638-40eb-97f0-3c040cf460fc"="Internal-ECJH";
+    "5bd62bb4-dcb3-4820-8f37-089459621f7f"="Internal-EDE";
+    "91ac1f9b-cb5a-4873-83a5-dc7fdf45e6a3"="Internal-EDUII";
+    "76bfe1cf-f0a5-4266-bdad-3c688e0d2188"="Internal-EPC";
+    "7b60460a-d457-4e8f-b7e6-d1979ee1f628"="Internal-ETEII";
+    "0f16304b-a542-4a4d-a3af-c100a4e985c2"="Internal-ICT";
+    "a33b3253-da69-42b4-943e-d791e26624db"="Internal-CEZ-DOKE";
+    "a1355ac8-52dc-41f5-9e77-71adb06d0604"="Internal-CEZ-DNE";
+    "a30918d8-93cb-4bc1-865b-6388e07ebede"="Internal-CEZ-DJE (no marking)";
+    "7985ae2b-61c5-4bcb-84e8-ed38ebb27104"="Internal-CEZ-DJE";
+    "8b2a7b2d-05f3-467a-992c-a02a468b668c"="Internal-CEZ-DS";
+    "579eb1be-3fbc-427d-94ec-2344ec0412cc"="Internal-CEZ-DOS";
+    "acac165f-c1c4-40d3-88ea-7d721bd98779"="Internal-CEZ-DF";
+    "952b1512-c507-42e7-a4b2-0c0a603350ec"="Internal-CEZ-DGR";
+    "6e0a4291-5418-41f2-82ad-8e508c2c0c4d"="Protected-TEST";
+    "53a1120c-e3ee-4786-b554-f516e3fd43e3"="Protected-TEST-encryption_for_CEZ_Group";
+    "8f19fe8e-d535-4c3c-b478-494056e6c4b6"="Protected-TEST-encryption_custom_permissions";
+    "2fd915eb-4976-4b4e-a324-01eea3a1669a"="Protected-TEST-no_encryption";
+    "a1b0430a-7282-4a53-bb51-c81f8deefb16"="Protected-NOCo";
+    "f27e8e4b-0d9f-4cb4-983d-3e5f0cd7b42b"="Protected-NOCo-encryption_for_CEZ_Group";
+    "43d1eed7-0590-45cf-8017-51a3afeaf9e9"="Protected-NOCo-encryption_custom_permissions";
+    "d522af3d-b05d-438e-84ef-8927102d504d"="Protected-NOCo-no_encryption";
+    "6a2af4a8-9af4-4b93-8fb8-66a0fb1f46a0"="Protected-SKC";
+    "7ba70cb2-2acf-47ec-8988-88833ee40c90"="Protected-SKC-encryption_for_CEZ_Group";
+    "0a23677d-7bb6-4970-b6b1-7d7bf8b5d9bb"="Protected-SKC-encryption_custom_permissions";
+    "5252969b-0e0c-4c66-924e-c82345ef0417"="Protected-SKC-no_encryption";
+    "878e57a0-adb5-4df2-9353-031c5ac90ee3"="Protected-CEZ";
+    "a2890084-cfc1-4f67-84e3-63a1c23ce74b"="Protected-CEZ-encryption_for_CEZ_Group";
+    "67d7a0cf-485e-449c-8180-25b4c9536dbd"="Protected-CEZ-encryption_custom_permissions";
+    "ddeb1770-9a6b-4784-a0b4-bcd0ee8aa736"="Protected-CEZ-no_encryption";
+    "d46200f0-32f8-4dc6-9df9-aac70c1dddf4"="Protected-CEZB";
+    "c707ac6a-a43d-43e6-ae75-c1f71da20071"="Protected-CEZB-encryption_for_CEZ_Group";
+    "8067399e-f288-4f0e-801e-e325f97daf07"="Protected-CEZB-encryption_custom_permissions";
+    "28caf9ca-4777-4bfa-b7c5-9edd1a08724c"="Protected-CEZB-no_encryption";
+    "d732bdd1-3a48-463f-9dda-17cbdbc5f181"="Protected-CEZd";
+    "0bde308a-f731-43e6-bc97-38c2a28c7538"="Protected-CEZd-encryption_for_CEZ_Group";
+    "cd81b86d-8e41-474c-b766-e7dda142eb35"="Protected-CEZd-encryption_custom_permissions";
+    "f3a7e6fc-ee68-428a-8f0c-4ae4e37e38f6"="Protected-CEZd-no_encryption";
+    "1bcb0a80-61f2-4dc6-82ae-58252e82662c"="Protected-CEP";
+    "fcb141ae-9086-4d5d-a750-1b61e568274a"="Protected-CEP-encryption_for_CEZ_Group";
+    "ec021148-8d2f-467e-9eeb-0a1516999a62"="Protected-CEP-encryption_custom_permissions";
+    "a1209a4f-3bd2-4836-b554-cbbc5e8961ea"="Protected-CEP-no_encryption";
+    "3a043544-42d8-46c7-8d38-99fa68677d01"="Protected-EGS";
+    "c8fa516f-526f-487a-9eae-062bbba6987c"="Protected-EGS-encryption_for_CEZ_Group";
+    "817c3084-1b6e-4ec1-8d80-a0c216e3b9d3"="Protected-EGS-encryption_custom_permissions";
+    "6ec6cf4d-0443-44b3-9192-b61dc321d6bc"="Protected-EGS-no_encryption";
+    "19f77db0-f9b9-4131-8ef9-3fc137e5710e"="Protected-ESCO";
+    "15ddcf7d-80f3-45ae-bc72-2661574f58e9"="Protected-ESCO-encryption_for_CEZ_Group";
+    "a4881bb5-3075-42a6-a5c2-6648583a2e23"="Protected-ESCO-encryption_custom_permissions";
+    "18984f6b-5983-4b54-9f27-4bad4424befa"="Protected-ESCO-no_encryption";
+    "ac72a180-bfa6-4979-b1bf-081a284ac819"="Protected-CKS";
+    "2787092b-7032-4d81-80e1-2660e87102c6"="Protected-CKS-encryption_for_CEZ_Group";
+    "f59c7d73-c409-4049-ad5f-08d25073e5d0"="Protected-CKS-encryption_custom_permissions";
+    "83593dcb-38d5-4125-a022-c8c9572ae2a2"="Protected-CKS-no_encryption";
+    "c6219130-4890-4c7c-82af-128db446c1c7"="Protected-COZ";
+    "5808afca-36f5-4d59-9e94-b791fefc15a9"="Protected-COZ-encryption_for_CEZ_Group";
+    "6ca0ebf8-3885-4c2b-a5aa-a366ef3e3ec6"="Protected-COZ-encryption_custom_permissions";
+    "dbc75ac4-b470-4bc0-b047-3862026badc9"="Protected-COZ-no_encryption";
+    "2d672416-1ad0-484a-a4ff-b182d19155df"="Protected-CRC";
+    "71eb947c-45be-4e12-aa0a-63584c95c1d4"="Protected-CRC-encryption_for_CEZ_Group";
+    "b287f289-6277-422d-b64f-e95a8db1629f"="Protected-CRC-encryption_custom_permissions";
+    "4d3a972f-e3aa-4e88-950f-8c9f2a2547d3"="Protected-CRC-no_encryption";
+    "362f0439-8f74-419e-a78f-1205fe2e3324"="Protected-CPR";
+    "67401ac2-19d0-41c2-b186-4f11f10d7aeb"="Protected-CPR-encryption_for_CEZ_Group";
+    "e2a67538-a879-42c2-8855-6d41aab523ec"="Protected-CPR-encryption_custom_permissions";
+    "7c76c650-1eba-460a-a899-b6c3907794da"="Protected-CPR-no_encryption";
+    "817c8044-1023-4a8a-b38e-17544c94872f"="Protected-FKI";
+    "371890e9-e3dd-49fc-b9e4-35e6fc361eb9"="Protected-FKI-encryption_for_CEZ_Group";
+    "d85124c2-d063-4bd4-9b1e-cf40c41ac6ad"="Protected-FKI-encryption_custom_permissions";
+    "21b80ed9-4457-4843-91f3-c8209aa98467"="Protected-FKI-no_encryption";
+    "2c1c6e76-1655-439e-b0de-c4fbec354e9b"="Protected-CBD";
+    "e85e43f5-1d2b-4e6b-a321-52c5695ea8f8"="Protected-CBD-encryption_for_CEZ_Group";
+    "5392a7ed-a1ab-4272-967f-916ca03e01be"="Protected-CBD-encryption_custom_permissions";
+    "f12b06de-c08d-495f-bc20-b2b703be1ff8"="Protected-CBD-no_encryption";
+    "5a96df9a-e852-4709-a98c-fcb21bfb71c2"="Protected-CSOL";
+    "f1348aa6-4d50-438b-b133-0837b6d6d47c"="Protected-CSOL-encryption_for_CEZ_Group";
+    "9fe56d49-0375-434e-afe4-d29b791ccd2f"="Protected-CSOL-encryption_custom_permissions";
+    "eb3e7e44-7a9f-4f57-84c9-51c605b4beee"="Protected-CSOL-no_encryption";
+    "cb91db35-ae01-42e9-9b7b-50abafd0b7d9"="Protected-TAS";
+    "b3ac9f24-7e7c-405e-92e8-397489ac5ee3"="Protected-TAS-encryption_for_CEZ_Group";
+    "d4441a63-ded9-4a1b-b985-3bbe02d9693a"="Protected-TAS-encryption_custom_permissions";
+    "442ae072-52ef-49b3-b52a-979b66acb9cd"="Protected-TAS-no_encryption";
+    "fc8699a6-9fc9-460c-8288-3fc069e9c3de"="Protected-MARTIA";
+    "f7588236-2677-4187-8974-9873b938e663"="Protected-MARTIA-encryption_for_CEZ_Group";
+    "54e5c511-0ca5-4a8c-a942-1f0e0e3c6aa6"="Protected-MARTIA-encryption_custom_permissions";
+    "0d6fd556-0711-49e2-8c65-526ca3735b68"="Protected-MARTIA-no_encryption";
+    "be69049d-efb8-4ddf-aaf4-0223a2fe5613"="Protected-NDC-CEZ";
+    "5c0627a1-542f-4a8d-a272-1da6afc80a5e"="Protected-NDC-CEZ-encryption_for_CEZ_Group";
+    "e7583c22-95c0-4ae0-9c0b-74443ad72c75"="Protected-NDC-CEZ-encryption_custom_permissions";
+    "82c043ac-d522-474e-aedd-eaa4f8d19fe8"="Protected-NDC-CEZ-no_encryption";
+    "44e5eb82-b223-44d3-a2de-0b070ea6f7df"="Protected-SDAS";
+    "8bf722f3-ae9f-4e66-b651-e8c06cc0a784"="Protected-SDAS-encryption_for_CEZ_Group";
+    "9fc05d94-e45a-4e2b-b3ec-c587a4df2faf"="Protected-SDAS-encryption_custom_permissions";
+    "57c17e57-da9d-4613-ab7d-a10566598273"="Protected-SDAS-no_encryption";
+    "7f5e2dd5-4728-4b60-8eab-5075b18f0682"="Protected-TPS";
+    "94650b90-b009-470a-a9ca-2eb17dbdb35e"="Protected-TPS-encryption_for_CEZ_Group";
+    "c8296beb-996e-4bb3-9b4d-7143b4a5e279"="Protected-TPS-encryption_custom_permissions";
+    "b642e67b-2a57-4357-b46f-659d60d58732"="Protected-TPS-no_encryption";
+    "fb679ce3-26c9-49f7-9ff1-03df07ab925d"="Protected-EGT";
+    "d0a4dfe1-f620-4856-85ae-63a12e304ec8"="Protected-EGT-encryption_for_CEZ_Group";
+    "ca484ec9-ac81-4f3d-bfe4-c6edc05bb7dd"="Protected-EGT-encryption_custom_permissions";
+    "c01fa645-5893-40cc-b285-2891f5af3a30"="Protected-EGT-no_encryption";
+    "5b1a6d39-4d91-4a17-8d21-2269c61496f2"="Protected-ECJH";
+    "0a4f7ee7-90a1-474e-b1e7-181c1671b62d"="Protected-ECJH-encryption_for_CEZ_Group";
+    "2e8634ea-ff33-4f74-bb15-aa4f8f369ad8"="Protected-ECJH-encryption_custom_permissions";
+    "76e83573-49f5-4647-859a-471bcad6adfb"="Protected-ECJH-no_encryption";
+    "e79f990c-f9cc-4911-8c96-da1832836567"="Protected-EDE";
+    "fee5bfe6-7c8a-4b79-a7f3-71afdc1996fe"="Protected-EDE-encryption_for_CEZ_Group";
+    "56c28906-3c3d-4342-94f1-9cb5f67d5423"="Protected-EDE-encryption_custom_permissions";
+    "469f0aea-ccfe-436c-8939-fe30773f6811"="Protected-EDE-no_encryption";
+    "345bedf7-5184-42d9-9f0e-1d32db7d954d"="Protected-EDUII";
+    "cad74d90-8a9b-49c5-9a9d-3e3cc0ec5d95"="Protected-EDUII-encryption_for_CEZ_Group";
+    "ac49ebfa-a7d6-4717-8fcb-6df2d4877d67"="Protected-EDUII-encryption_custom_permissions";
+    "f4b90899-0597-4492-9e4d-21e111be66e9"="Protected-EDUII-no_encryption";
+    "1d3064eb-1aff-4b51-a8ed-f2b4f3749bfb"="Protected-EPC";
+    "d474e4f2-99bd-4b20-9ee8-5cf14bfd01b1"="Protected-EPC-encryption_for_CEZ_Group";
+    "282349e5-63b9-4e8f-9698-560540f06b75"="Protected-EPC-encryption_custom_permissions";
+    "5b1018a2-5436-40ed-bf99-2366551e8c06"="Protected-EPC-no_encryption";
+    "11adb505-cc66-46f5-969e-562522c5508f"="Protected-ETEII";
+    "e8d21eb7-58b7-41f8-905f-e64c6a1c2148"="Protected-ETEII-encryption_for_CEZ_Group";
+    "eac186c3-6abe-4daa-a914-2d161f8ad763"="Protected-ETEII-encryption_custom_permissions";
+    "f4bc957a-e05f-4790-b069-f1b6f3eb34b0"="Protected-ETEII-no_encryption";
+    "693fa05e-2635-46ab-8299-b09bc87bfa12"="Protected-ICT";
+    "c2632615-59bb-4f13-8227-89f5541ce7de"="Protected-ICT-encryption_for_CEZ_Group";
+    "726f3625-cb4b-438f-936d-f63a820a4538"="Protected-ICT-encryption_custom_permissions";
+    "5a6c15d6-a85d-442c-8538-d6c79880edd7"="Protected-ICT-no_encryption";
+    "e412724e-0779-4fce-aae9-5887d01fda43"="Protected-CEZ-DOKE";
+    "191ca033-f6cc-4bd4-b745-a5577d601ac1"="Protected-CEZ-DOKE-encryption_for_CEZ_Group";
+    "2e18421c-1109-4bfb-b49e-cec1d00d2c23"="Protected-CEZ-DOKE-encryption_custom_permissions";
+    "0bfae543-04c0-41a3-8eaf-32d318d69f14"="Protected-CEZ-DOKE-no_encryption";
+    "9759dbf2-6da0-415b-86fa-6d81dc2d2ed9"="Protected-CEZ-DNE";
+    "0e966b01-f2b9-401c-854f-6e415409338b"="Protected-CEZ-DNE-encryption_for_CEZ_Group";
+    "db631d6e-e199-4588-ad88-d7fd7f7a72d1"="Protected-CEZ-DNE-encryption_custom_permissions";
+    "335b9785-696f-484d-8070-908c5189f6da"="Protected-CEZ-DNE-no_encryption";
+    "0cbe7fe2-1457-476d-aadc-e521768549c4"="Protected-CEZ-DJE";
+    "c5a20a0a-8516-4a78-9484-d6cf000ada5a"="Protected-CEZ-DJE-encryption_for_CEZ_Group";
+    "4e364011-36a5-48a7-8514-a974cbdcdfd9"="Protected-CEZ-DJE-encryption_custom_permissions";
+    "c67ee544-c88d-43ff-a690-cfd26f799b19"="Protected-CEZ-DJE-no_encryption";
+    "037bba7b-bd82-4de3-aae1-36935fd9281d"="Protected-CEZ-DOS";
+    "9403d14f-5c23-46ff-80d5-878aa49ca78c"="Protected-CEZ-DOS-encryption_for_CEZ_Group";
+    "7365d06d-b0ec-470d-8acf-539488a5107e"="Protected-CEZ-DOS-encryption_custom_permissions";
+    "5ceff8e7-3e1c-43df-a614-fe4aed455260"="Protected-CEZ-DOS-no_encryption";
+    "3795ccae-3fa5-4c53-a1d2-838275267077"="Protected-CEZ-DS";
+    "df3917b1-4c37-43bb-a5ed-cb6ca5aaa2c8"="Protected-CEZ-DS-encryption_for_CEZ_Group";
+    "a7963502-df90-4a20-a169-2dcad223e8e3"="Protected-CEZ-DS-encryption_custom_permissions";
+    "0d65fe21-49c1-4bf1-9d53-57fb1275ae49"="Protected-CEZ-DS-no_encryption";
+    "e424c758-a4b6-4045-8e55-27542ed7960b"="Protected-CEZ-DF";
+    "f35e8969-59e3-48e2-a13e-40d598c1f65e"="Protected-CEZ-DF-encryption_for_CEZ_Group";
+    "b7a54464-92e1-4cda-b825-e5e39706e695"="Protected-CEZ-DF-encryption_custom_permissions";
+    "8bd58d55-66a3-4e1d-a25e-b9d9f07811c4"="Protected-CEZ-DF-no_encryption";
+    "06934747-ea5b-4ed4-9077-d1d0ef1a3028"="Protected-CEZ-DGR";
+    "3328e133-ac89-47b6-a730-191093f8a944"="Protected-CEZ-DGR-encryption_for_CEZ_Group";
+    "67ae15e6-eece-469d-b681-c137871636db"="Protected-CEZ-DGR-encryption_custom_permissions";
+    "1f64db43-4e02-492a-bcd8-9d9b823d2de8"="Protected-CEZ-DGR-no_encryption"
+}
+
+$AIPLabelDBSNE = (
+    "2fd915eb-4976-4b4e-a324-01eea3a1669a",
+    "d522af3d-b05d-438e-84ef-8927102d504d",
+    "5252969b-0e0c-4c66-924e-c82345ef0417",
+    "ddeb1770-9a6b-4784-a0b4-bcd0ee8aa736",
+    "28caf9ca-4777-4bfa-b7c5-9edd1a08724c",
+    "f3a7e6fc-ee68-428a-8f0c-4ae4e37e38f6",
+    "a1209a4f-3bd2-4836-b554-cbbc5e8961ea",
+    "6ec6cf4d-0443-44b3-9192-b61dc321d6bc",
+    "18984f6b-5983-4b54-9f27-4bad4424befa",
+    "83593dcb-38d5-4125-a022-c8c9572ae2a2",
+    "dbc75ac4-b470-4bc0-b047-3862026badc9",
+    "4d3a972f-e3aa-4e88-950f-8c9f2a2547d3",
+    "7c76c650-1eba-460a-a899-b6c3907794da",
+    "21b80ed9-4457-4843-91f3-c8209aa98467",
+    "f12b06de-c08d-495f-bc20-b2b703be1ff8",
+    "eb3e7e44-7a9f-4f57-84c9-51c605b4beee",
+    "442ae072-52ef-49b3-b52a-979b66acb9cd",
+    "0d6fd556-0711-49e2-8c65-526ca3735b68",
+    "82c043ac-d522-474e-aedd-eaa4f8d19fe8",
+    "57c17e57-da9d-4613-ab7d-a10566598273",
+    "b642e67b-2a57-4357-b46f-659d60d58732",
+    "c01fa645-5893-40cc-b285-2891f5af3a30",
+    "76e83573-49f5-4647-859a-471bcad6adfb",
+    "469f0aea-ccfe-436c-8939-fe30773f6811",
+    "f4b90899-0597-4492-9e4d-21e111be66e9",
+    "5b1018a2-5436-40ed-bf99-2366551e8c06",
+    "f4bc957a-e05f-4790-b069-f1b6f3eb34b0",
+    "5a6c15d6-a85d-442c-8538-d6c79880edd7",
+    "0bfae543-04c0-41a3-8eaf-32d318d69f14",
+    "335b9785-696f-484d-8070-908c5189f6da",
+    "c67ee544-c88d-43ff-a690-cfd26f799b19",
+    "5ceff8e7-3e1c-43df-a614-fe4aed455260",
+    "0d65fe21-49c1-4bf1-9d53-57fb1275ae49",
+    "8bd58d55-66a3-4e1d-a25e-b9d9f07811c4",
+    "1f64db43-4e02-492a-bcd8-9d9b823d2de8"
+)
+
+$phoneNumberRemoveChars = (" ","-","(",")","#","+")
+
+$prefixLength1 = (1,7)
+$prefixLength2 = (20,27,30,31,32,33,34,36,39,40,41,43,44,45,46,47,48,49,51,52,53,54,55,56,56,57,58,60,61,62,63,64,64,65,66,81,82,84,86,90,91,92,93,94,95,98)
+$prefixLength3 = (211,212,213,216,218,220,
+                221,222,223,224,225,226,227,228,229,
+                230,231,232,233,234,235,236,237,238,239,
+                240,241,242,243,244,245,246,247,248,249,
+                250,251,252,253,254,255,256,257,258,
+                260,261,262,263,264,265,266,267,268,269,290,
+                291,297,298,299,
+                350,351,352,353,354,355,356,357,358,359,370,371,372,373,374,375,376,377,378,380,381,382,383,385,386,387,389,
+                420,421,423,
+                500,501,502,503,504,505,506,507,508,509,590,591,592,593,594,595,596,597,598,599,
+                670,673,674,675,676,677,678,679,680,681,682,683,685,686,687,688,689,690,691,692,
+                800,808,850,852,853,855,856,870,880,881,882,883,886,
+                960,961,962,963,964,965,966,967,968,970,971,972,973,974,975,976,977,992,993,994,995,996,997,998
+)

@@ -1,0 +1,1 @@
+Install-WindowsUpdate -AcceptAll -AutoReboot -Verbose -RecurseCycle 2| Out-File "C:\WU-Log.txt"
