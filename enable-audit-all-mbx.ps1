@@ -1,6 +1,7 @@
 ﻿$EnableOnScreenLogging = $true
 $ScriptName = $MyInvocation.MyCommand.Name
 $Stopwatch  =  [system.diagnostics.stopwatch]::StartNew()
+# test
 
 # Import code for function "GetLogFileName"
 . d:\scripts\include-function-GetLogFileName.ps1
