@@ -29,8 +29,6 @@ $OutputFile 	= New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $Ou
 $OutputFileDeletedUsers = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixDeletedUsers -Ext "csv"
 $OutputFileCopilotLic = New-OutputFile -RootFolder $ROF -Folder $OutputFolderCopilot -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixCopilotLic -Ext "csv"
 
-$ADCredentialPath = $aadauthmobmgmt_cred
-
 [array]$Extensions = @()
 [array]$ExtensionsShort = @()
 [array]$UserListReport = @()
@@ -38,7 +36,6 @@ $ADCredentialPath = $aadauthmobmgmt_cred
 [array]$CopilotLicenseReport = @()
 [hashtable]$SIA_DB = @{}
 [hashtable]$Ext_DB = @{}
-[hashtable]$ADUser_DB = @{}
 
 $now = Get-Date
 
@@ -61,7 +58,6 @@ foreach ($ext in $Result.value.name) {
 }
 $UriSelectExtensions = $Extensions -join ","
 Write-Log "Found $($extensions.count) extension properties."
-
 
 ##############################################################################
 # deleted users
@@ -95,31 +91,6 @@ Remove-Variable deletedUsers
 Remove-Variable DeletedUserListReport
 
 $UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
-
-<#
-if ($TenantShortName -eq "CEZDATA") {
-	$ADProperties = @("userPrincipalName","msDS-cloudExtensionAttribute1","msExchExtensionAttribute29","msExchExtensionAttribute40","cEZIntuneMFAAuthMobile")
-	$ADFilter = "(sAMAccountName -notlike `"qh*`") -and (msExchExtensionAttribute29 -like `"*`") -and (msExchExtensionAttribute40 -like `"*`")"
-	if ($interactiveRun) {
-		[array]$ADUsers = Get-ADUser -Filter $ADFilter -Properties $ADProperties
-	}
-	else {
-		Write-Log "AD credential file: $($ADCredentialPath)"
-		$ADCredential = Import-Clixml -Path $ADCredentialPath
-		[array]$ADUsers = Get-ADUser -Credential $ADCredential -Filter $ADFilter -Properties $ADProperties
-	}
-	Write-Log "AD users: $(Get-Count -Object $ADUsers)"
-	foreach ($ADUser in $ADUsers) {
-		$UserObject = [pscustomobject]@{
-			msDScloudExtensionAttribute1	= $ADUser.'msDS-cloudExtensionAttribute1';
-			msExchExtensionAttribute29		= $ADUser.msExchExtensionAttribute29;
-			msExchExtensionAttribute40		= $ADUser.msExchExtensionAttribute40;
-			cEZIntuneMFAAuthMobile			= $ADUser.cEZIntuneMFAAuthMobile
-		}
-		$ADUser_DB.Add($ADUser.userPrincipalName, $UserObject)
-	}
-}
-#>
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
@@ -295,7 +266,12 @@ ForEach ($User in $Users) {
 	
 	if ($EXT) {
 		foreach ($extension in $ExtensionsShort) {
-			Add-Member -InputObject $UserObject -MemberType NoteProperty -Name $extension -Value $EXT."$extension"
+			$Name = $extension
+			$Value = $EXT."$extension"
+			if ($Value -Match "^\d+$") {
+				[string]$Value = [char]61 + [char]34 + $Value + [char]34
+			}
+			Add-Member -InputObject $UserObject -MemberType NoteProperty -Name $Name -Value $Value
 		}
 	}
 	
