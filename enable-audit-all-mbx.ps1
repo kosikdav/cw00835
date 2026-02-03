@@ -2,7 +2,7 @@
 $ScriptName = $MyInvocation.MyCommand.Name
 $Stopwatch  =  [system.diagnostics.stopwatch]::StartNew()
 # test
-
+# test2
 # Import code for function "GetLogFileName"
 . d:\scripts\include-function-GetLogFileName.ps1
 # Import code for root folders vars
