@@ -1,12 +1,15 @@
 ###############################
 # App name CEZ_SPO_MGMT
 ###############################
-$script:AppName    = "CEZ_SPO_MGMT"
-$script:ClientId   = "15e80ec1-456a-4aa5-8e7a-1cfb0422a393"
-$script:Thumbprint = "935ba43436e8e127b767f9782b43c323c9f400ab"
-$script:CertificateThumbprint = $script:Thumbprint
-$script:ClientCertificate = Get-Item "Cert:\LocalMachine\My\$($script:Thumbprint)"
-$script:Certificate = $script:ClientCertificate
+$AppName    = "CEZ_SPO_MGMT"
+$ClientId   = "15e80ec1-456a-4aa5-8e7a-1cfb0422a393"
+$Thumbprint = "935ba43436e8e127b767f9782b43c323c9f400ab"
+$ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
+$Certificate = $ClientCertificate
+$Thumbprint = $ClientCertificate.Thumbprint
+$CertficateThumbprint = $Thumbprint
+$ApplicationId = $ClientId
+write-host $ClientCertificate -ForegroundColor Green
 
 <#
 $appName = "CEZ_SPO_MGMT"

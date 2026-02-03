@@ -90,9 +90,9 @@ foreach ($User in $ADUsers) {
     $dspn = $User.DisplayName
     $sam  = $User.sAMAccountName
     $dn   = $User.distinguishedName
-    $mobile = Get-MFAFormattedPhoneNumber -PhoneNumber $User.Mobile
+    $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.Mobile -EntraMFAFormat
     $OU = $dn.substring($dn.IndexOf('OU=')+3,($dn.substring(($dn.IndexOf('OU='))+3,30)).IndexOf('OU=')-1)
-    $IDMAuthPhone = Get-MFAFormattedPhoneNumber -PhoneNumber $User.cEZIntuneMFAAuthMobile
+    $IDMAuthPhone = Get-IntlFormatPhoneNumber -PhoneNumber $User.cEZIntuneMFAAuthMobile -EntraMFAFormat
     
     $UriResource = "users/$($userId)/authentication/phoneMethods/$($mobilePhoneMethodId)"
     $Uri = New-GraphUri -Version "beta" -Resource $UriResource
@@ -101,7 +101,7 @@ foreach ($User in $ADUsers) {
       $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
       $MobilePhoneMethod = $ResponseGET | ConvertFrom-Json
       $CurrentMFAPhone = $MobilePhoneMethod.phoneNumber
-      $CurrentMFAPhoneFixed = Get-MFAFormattedPhoneNumber -PhoneNumber $MobilePhoneMethod.phoneNumber
+      $CurrentMFAPhoneFixed = Get-IntlFormatPhoneNumber -PhoneNumber $MobilePhoneMethod.phoneNumber -EntraMFAFormat
     }
     Catch {
       $ErrorMessageGET = $_.Exception.Message

@@ -10,11 +10,13 @@ $PnPURL             = "https://ujvrez.sharepoint.com"
 $PnPTenant          = "ujvrez.onmicrosoft.com"
 $TenantAdminURL     = "https://ujvrez-admin.sharepoint.com"
 $ClientId           = "22b439c7-c86f-45e6-a0dc-7eac35ba8e80"
+$CertSubject        = "L=CEZDATA, S=CZ, C=CZ, CN=UJV_SPO_REPORTS_PnP"
 
-$Thumbprint = "75fbf4c9743cdcafba53bce12863bae8323f8f88"
-$CertificateThumbprint = $Thumbprint
-$ClientCertificate = Get-Item "Cert:\LocalMachine\My\$($Thumbprint)"
+$ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq $CertSubject }
 $Certificate = $ClientCertificate
+$Thumbprint = $ClientCertificate.Thumbprint
+$CertficateThumbprint = $Thumbprint
+$ApplicationId = $ClientId
 
 <#
 $Password = "P@ssw0rd"
@@ -26,8 +28,8 @@ $Props = @{
     CertificatePassword = $SecPassword 
     CommonName          = "UJV_SPO_REPORTS_PnP" 
     Country             = "CZ" 
-    State               = "Prague"
-    Locality            = "cw00835po365log"
+    State               = "CZ"
+    Locality            = "CEZDATA"
 }
 
 $Cert = New-PnPAzureCertificate @Props

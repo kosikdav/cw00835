@@ -31,10 +31,13 @@ $OutputFileCopilotLic = New-OutputFile -RootFolder $ROF -Folder $OutputFolderCop
 
 $ADCredentialPath = $aadauthmobmgmt_cred
 
+[array]$Extensions = @()
+[array]$ExtensionsShort = @()
 [array]$UserListReport = @()
 [array]$DeletedUserListReport = @()
 [array]$CopilotLicenseReport = @()
 [hashtable]$SIA_DB = @{}
+[hashtable]$Ext_DB = @{}
 [hashtable]$ADUser_DB = @{}
 
 $now = Get-Date
@@ -42,6 +45,23 @@ $now = Get-Date
 #######################################################################################################################
 
 . $IncFile_StdLogBeginBlock
+
+##############################################################################
+# extensions
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+$UriResource = "directoryObjects/getAvailableExtensionProperties"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+$body = @{
+	isSyncedFromOnPremises = $true
+} | ConvertTo-Json
+$Result = Invoke-RestMethod -Uri $Uri -Method "POST" -Body $body -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -ContentType "application/json"
+foreach ($ext in $Result.value.name) {	
+	$Extensions += $ext
+	$ExtensionsShort += "ext_" + ($ext -replace '^(?:[^_]*_){2}', '')
+}
+$UriSelectExtensions = $Extensions -join ","
+Write-Log "Found $($extensions.count) extension properties."
+
 
 ##############################################################################
 # deleted users
@@ -68,10 +88,15 @@ foreach ($user in $deletedUsers) {
 		$DeletedUserListReport += $deletedUserObject
     }
 }
+
 Export-Report -Text "AAD deleted users report" -Report $DeletedUserListReport -Path $OutputFileDeletedUsers -SortProperty "userPrincipalName"
+
+Remove-Variable deletedUsers
+Remove-Variable DeletedUserListReport
 
 $UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
+<#
 if ($TenantShortName -eq "CEZDATA") {
 	$ADProperties = @("userPrincipalName","msDS-cloudExtensionAttribute1","msExchExtensionAttribute29","msExchExtensionAttribute40","cEZIntuneMFAAuthMobile")
 	$ADFilter = "(sAMAccountName -notlike `"qh*`") -and (msExchExtensionAttribute29 -like `"*`") -and (msExchExtensionAttribute40 -like `"*`")"
@@ -94,6 +119,7 @@ if ($TenantShortName -eq "CEZDATA") {
 		$ADUser_DB.Add($ADUser.userPrincipalName, $UserObject)
 	}
 }
+#>
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
@@ -110,12 +136,31 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 99 -Select $UriS
 [array]$UsersSIA = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (signInActivity)" -ProgressDots
 $UsersSIA | ForEach-Object {$SIA_DB.Add($_.id, $_.signInActivity)}
 
-Write-Log "Total users: $($Users.Count) SIA users: $($UsersSIA.Count)"
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+
+$UriResource = "users"
+$UriSelect = "id,userPrincipalName," + $UriSelectExtensions
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
+[array]$UsersExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (extensions)" -ProgressDots
+foreach ($user in $UsersExt) {
+	$EXT_DB_Record = [pscustomobject]@{}
+	foreach ($ext in $Extensions) {
+		$Name = "ext_" + ($ext -replace '^(?:[^_]*_){2}', '')
+		$Value = [string]($user."$ext")
+		Add-Member -InputObject $EXT_DB_Record -MemberType NoteProperty -Name $Name -Value $Value
+	}
+	$EXT_DB.Add($user.id, $EXT_DB_Record)
+}
+
+Write-Log "Total users: $($Users.Count) SIA users: $($UsersSIA.Count) Extensions users: $($UsersExt.Count)"
+
+Remove-Variable UsersSIA
+Remove-Variable UsersExt
 
 ForEach ($User in $Users) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
-	$UserLicensingRecord = $null
-	$Mail = $MailDomain = $mobilePhone = $mobilePhoneAuth = $ODfBUrl = [string]::Empty
+	$UserLicensingRecord = $SIA = $EXT = $null
+	$Mail = $MailDomain = $mobilePhone = $ODfBUrl = [string]::Empty
 	$AADPremLicense = $CopilotLicense = $EXOLicense = $SPOLicense = $TMSLicense = $IntuneLicense = $PwrAutLicense = $PwrAppLicense = [string]::Empty
 	$AADPremLicenseNeeded = $false
 	$LastSignInDateTime = $LastSignInDateTime_NI = "never"
@@ -139,6 +184,10 @@ ForEach ($User in $Users) {
 			$LastSignInDateTime_NI = [DateTime]$SIA.LastNonInteractiveSignInDateTime
 			$DaysSinceLastSignIn_NI = (New-TimeSpan -Start $SIA.LastNonInteractiveSignInDateTime -End $Today).Days
 		}	
+	}
+
+	if ($Ext_DB.ContainsKey($User.id)) {
+		$EXT = $Ext_DB.Item($User.id)
 	}
 
 	if ($AADUserReportGroupMemberCount) {
@@ -168,16 +217,15 @@ ForEach ($User in $Users) {
 	}
 
 	if ($User.mobilePhone) {
-		$mobilePhone = "Tel:" + $User.mobilePhone
+		$mobilePhone = "Tel:" + (Get-IntlFormatPhoneNumber -PhoneNumber $User.mobilePhone)
 	}
-	if ($ADUser_DB[$User.UserPrincipalName].cEZIntuneMFAAuthMobile) {
-		$mobilePhoneAuth = "Tel:" + $ADUser_DB[$User.UserPrincipalName].cEZIntuneMFAAuthMobile
-	}
+	
 	if ($User.onPremisesImmutableId) {
 		$onPremisesImmutableId = $User.onPremisesImmutableId.Trim()
 		$onPremisesGUID = ([Guid]([Convert]::FromBase64String($onPremisesImmutableId))).Guid
 	}
 
+	#OneDrive URL
 	if ($User.userType -eq "Member") {
 		$UriResource = "users/$($User.id)/drive"
 		$UriSelect = "driveType,owner,webUrl"
@@ -245,14 +293,25 @@ ForEach ($User in $Users) {
 		AADPremLicenseNeeded		= $UserLicensingRecord.AADPremLicenseNeeded
 	}
 	
-	if ($TenantShortName -eq "CEZDATA") {
-		Add-Member $UserObject -NotePropertyName "mobilePhoneAuth" -NotePropertyValue $mobilePhoneAuth
-		Add-Member $UserObject -NotePropertyName "msExchExtensionAttribute29" -NotePropertyValue $ADUser_DB[$User.UserPrincipalName].msExchExtensionAttribute29
-		Add-Member $UserObject -NotePropertyName "msExchExtensionAttribute40" -NotePropertyValue $ADUser_DB[$User.UserPrincipalName].msExchExtensionAttribute40
+	if ($EXT) {
+		foreach ($extension in $ExtensionsShort) {
+			Add-Member -InputObject $UserObject -MemberType NoteProperty -Name $extension -Value $EXT."$extension"
+		}
 	}
+	
+	if ($TenantShortName -eq "CEZDATA") {
+		if ($AADUserReportTNR) {
+			$Name = $AADUserReportTNR_attr_label
+			$Value = $EXT."$AADUserReportTNR_ext_name"
+			Add-Member -InputObject $UserObject -NotePropertyName $Name -NotePropertyValue $Value
+		}
 
-	if ($AADUserReportTNR) {
-		add-member $UserObject -NotePropertyName "DepartmentTNR" -NotePropertyValue $ADUser_DB[$User.UserPrincipalName].msDScloudExtensionAttribute1
+		$Value = $null
+		if ($EXT."$AADUserReportAuthMobile_ext_name") {
+			$Value = "Tel:" + (Get-IntlFormatPhoneNumber -PhoneNumber $EXT."$AADUserReportAuthMobile_ext_name")
+		}
+		#write-host "$($User.UserPrincipalName) - $($AADUserReportAuthMobile_attr_label) : $($Value)"
+		$UserObject."$AADUserReportAuthMobile_attr_label" = $Value
 	}
 
 	$UserListReport += $UserObject
@@ -283,8 +342,10 @@ ForEach ($User in $Users) {
 			AADPremLicense				= $AADPremLicense
 			AADPremLicenseNeeded		= $AADPremLicenseNeeded
 		}
-		if ($AADUserReportTNR) {
-			add-member $UserMinObject -NotePropertyName "DepartmentTNR" -NotePropertyValue $ADUser_DB[$User.UserPrincipalName].msDScloudExtensionAttribute1
+		if (($TenantShortName -eq "CEZDATA") -and ($AADUserReportTNR)) {
+			$Name = $AADUserReportTNR_attr_label
+			$Value = $EXT."$AADUserReportTNR_ext_name"
+			Add-Member -InputObject $UserMinObject -NotePropertyName $Name -NotePropertyValue $Value
 		}
 		$CopilotLicenseReport += $UserMinObject
 	}

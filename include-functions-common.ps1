@@ -2086,10 +2086,11 @@ function Get-PrimarySMTPAddress {
 	}
 }
 
-function Get-MFAFormattedPhoneNumber {
+function Get-IntlFormatPhoneNumber {
 	[CmdletBinding()]
     param (
-		[Parameter(Mandatory)][AllowNull()]$PhoneNumber
+		[Parameter(Mandatory)][AllowNull()]$PhoneNumber,
+		[switch]$EntraMFAFormat
     )
 	# main function body ##################################
 	if ($PhoneNumber) {
@@ -2109,7 +2110,7 @@ function Get-MFAFormattedPhoneNumber {
 				If ($PhoneString.StartsWith($prefix)) {
 					$prefixLength=1
 					break
-				} 
+				}
 			}
 		}
 		
@@ -2137,8 +2138,13 @@ function Get-MFAFormattedPhoneNumber {
 			If ($nmbr.StartsWith("0")) {
 				$nmbr = $nmbr.Substring(2)
 			}
-			$MFAPhone = "+" + $prfx + [char]32 + $nmbr
-			Return $MFAPhone
+			if ($EntraMFAFormat) {
+				$Result = "+" + $prfx + [char]32 + $nmbr
+			}
+			else {
+				$Result = "+" + $prfx + $nmbr
+			}
+			Return $Result
 		}
 		Else{
 			Return $null		

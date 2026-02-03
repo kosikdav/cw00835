@@ -3,10 +3,12 @@
 ###############################
 $AppName    = "CEZ_EXO_MBX_MGMT"
 $ClientId   = "1f4e0528-c8a5-40da-babc-47e994e14454"
-$Thumbprint = "95091439108119bc724317a7ed6e0bdc52fd379a"
-$CertficateThumbprint = $Thumbprint
-$ClientCertificate = Get-Item "Cert:\LocalMachine\My\$($Thumbprint)"
+$ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
 $Certificate = $ClientCertificate
+$Thumbprint = $ClientCertificate.Thumbprint
+$CertficateThumbprint = $Thumbprint
+$ApplicationId = $ClientId
+write-host $Certificate -ForegroundColor Green
 
 <#
 $appName = "CEZ_EXO_MBX_MGMT"

@@ -1,6 +1,6 @@
 $tenantId     = "b233f9e1-5599-4693-9cef-38858fe25406"
 $clientId     = "eae1a90a-5a4f-42c1-a780-fa8512c58e77"
-$clientSecret = "uT08Q~PwWPkaoy-NZZf8gzaIpxflqIBFbQaqkdjq"
+$clientSecret = ""
 [array]$AADUsers = @()
 [hashtable]$AADUsers_DB = @{}
 

@@ -22,11 +22,18 @@ $MaxReceiveSize = "150MB"
 $MaxSendSize 	= "150MB"
 $MSGraphResourceId  = "5796a0fc-bded-497c-ad31-4b35e292bc88"
 $InactivityLimitGuests = 190
-$InactivityLimitPendingInvites = 10
+$InactivityLimitPendingInvites = 30
 
 $EXOMbxReportPermissions = $false
 $EXOMbxReportTNR = $true
+
 $AADUserReportTNR = $true
+$AADUserReportTNR_attr_label = "DepartmentTNR"
+$AADUserReportTNR_ext_name = "ext_msDScloudExtensionAttribute1"
+$AADUserReportAuthMobile_attr_label = "ext_cEZIntuneMFAAuthMobile"
+$AADUserReportAuthMobile_ext_name = "ext_cEZIntuneMFAAuthMobile"
+
+
 $AADUserReportGroupMemberCount = $true
 
 $string_divider = "-------------------------------------------------------------------------------"

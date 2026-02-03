@@ -5,10 +5,12 @@ $AppName    = "CEZ_M365DSC_Graph_App"
 $TenantId   = "b233f9e1-5599-4693-9cef-38858fe25406"
 $TenantName = "cezdata.onmicrosoft.com"
 $ClientId   = "e1be2293-4cf4-4a22-aa67-ebeececc6f1d"
-$Thumbprint = "517fb00c0e53c91be15bcf0ce91ca359481bfda1"
-$CertificateThumbprint = $Thumbprint
-$ClientCertificate = Get-Item "Cert:\LocalMachine\My\$($Thumbprint)"
+$ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
 $Certificate = $ClientCertificate
+$Thumbprint = $ClientCertificate.Thumbprint
+$CertficateThumbprint = $Thumbprint
+$ApplicationId = $ClientId
+write-host $Certificate -ForegroundColor Green
 
 <#
 $AppName    = "CEZ_M365DSC_Graph_App"
