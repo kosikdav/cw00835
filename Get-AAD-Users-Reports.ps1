@@ -267,10 +267,7 @@ ForEach ($User in $Users) {
 	if ($EXT) {
 		foreach ($extension in $ExtensionsShort) {
 			$Name = $extension
-			$Value = $EXT."$extension"
-			if ($Value -Match "^\d+$") {
-				[string]$Value = [char]61 + [char]34 + $Value + [char]34
-			}
+			[string]$Value = [char]61 + [char]34 + $Value + [char]34
 			Add-Member -InputObject $UserObject -MemberType NoteProperty -Name $Name -Value $Value
 		}
 	}
