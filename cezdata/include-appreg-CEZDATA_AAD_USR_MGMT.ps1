@@ -10,7 +10,6 @@ $Certificate = $ClientCertificate
 $Thumbprint = $ClientCertificate.Thumbprint
 $CertficateThumbprint = $Thumbprint
 $ApplicationId = $ClientId
-write-host $Certificate -ForegroundColor Green
 
 <#
 $appName = "CEZ_AAD_USR_MGMT"

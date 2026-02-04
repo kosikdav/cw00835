@@ -14,7 +14,7 @@ $ApplicationId = $ClientId
 
 <#
 $appName = "CEZ_LOG_READER"
-$certYears = 5
+$certYears = 10
 $certPassword = "xxxxxxxxxxxx"
 Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
 #>

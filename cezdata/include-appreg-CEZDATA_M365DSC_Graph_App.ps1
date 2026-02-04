@@ -10,7 +10,6 @@ $Certificate = $ClientCertificate
 $Thumbprint = $ClientCertificate.Thumbprint
 $CertficateThumbprint = $Thumbprint
 $ApplicationId = $ClientId
-write-host $Certificate -ForegroundColor Green
 
 <#
 $AppName    = "CEZ_M365DSC_Graph_App"

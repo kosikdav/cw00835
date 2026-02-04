@@ -10,7 +10,6 @@ $Certificate = $ClientCertificate
 $Thumbprint = $ClientCertificate.Thumbprint
 $CertficateThumbprint = $Thumbprint
 $ApplicationId = $ClientId
-write-host $ClientCertificate -ForegroundColor Green
 
 <#
 $appName = "CEZ_SPO_CPR_DOWNLOAD"
