@@ -53,6 +53,7 @@ $body = @{
 } | ConvertTo-Json
 $Result = Invoke-RestMethod -Uri $Uri -Method "POST" -Body $body -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -ContentType "application/json"
 foreach ($ext in $Result.value.name) {	
+	write-host $ext
 	$Extensions += $ext
 	$ExtensionsShort += "ext_" + ($ext -replace '^(?:[^_]*_){2}', '')
 }

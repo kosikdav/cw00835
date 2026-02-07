@@ -41,7 +41,7 @@ $DoNotConfigureFromIDM = @()
 . $IncFile_StdLogStartBlock
 
 $ADCredential = Import-Clixml -Path $ADCredentialPath
-Write-Log "AD credential file: $($ADCredentialPath)"
+#Write-Log "AD credential file: $($ADCredentialPath)"
 
 $ADFilter = "(sAMAccountName -notlike `"qh*`") -and (cEZIntuneMFAAuthMobile -like `"*`") -and (msExchExtensionAttribute29 -like `"*`") -and (msExchExtensionAttribute40 -like `"*`")"
 $ADProperties = @(
@@ -54,20 +54,24 @@ $ADProperties = @(
   "cEZIntuneMFAAuthMobile",
   "msExchExtensionAttribute40"
 )
-$ADUsers = Get-ADUser -Credential $ADCredential -Filter $ADFilter -Properties $ADProperties
-Write-Log "AD users with configured `"cEZIntuneMFAAuthMobile`" attribute: $(Get-Count -Object $ADUsers)"
+#$ADUsers = Get-ADUser -Credential $ADCredential -Filter $ADFilter -Properties $ADProperties
+#Write-Log "AD users with configured `"cEZIntuneMFAAuthMobile`" attribute: $(Get-Count -Object $ADUsers)"
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriFilter = "UserType+eq+'Member'&accountEnabled+eq+'True'&onPremisesSyncEnabled+eq+'True'"
 #$UriFilter = "startswith(userPrincipalName,'josef.mat')"
-$UriSelect = "id,userPrincipalName,onPremisesSyncEnabled"
+$UriSelect1 = "id,userPrincipalName,mail,displayName,onPremisesSyncEnabled,onpremisesSamAccountName,mobile"
+$UriSelect2 = "extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile"
+$UriSelect3 = "extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40"
+$UriSelect = $UriSelect1, $UriSelect2, $UriSelect3 -join ","
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Filter $UriFilter -Select $UriSelect
 $AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ProgressDots -Text "AAD member users"
 
+<#
 foreach ($user in $AADUsers) {
   $UserObject = [PSCustomObject]@{
-    id = $user.id;
+    id = $user.id
     userPrincipalName = $user.userPrincipalName
   }
   Try {
@@ -77,24 +81,19 @@ foreach ($user in $AADUsers) {
     Write-Host $UserObject
   }
 }
+#>
 
 #######################################################################################################################
 
-
-foreach ($User in $ADUsers) {
+foreach ($User in $AADUsers) {
   Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
   $UPN = $User.UserPrincipalName
-  If ($AADUsers.userPrincipalName -contains($UPN)) {
+
     $CurrentMFAPhone = $CurrentMFAPhoneFixed = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
-    $userId = $AADUser_DB[$UPN].id
-    $dspn = $User.DisplayName
-    $sam  = $User.sAMAccountName
-    $dn   = $User.distinguishedName
     $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.Mobile -EntraMFAFormat
-    $OU = $dn.substring($dn.IndexOf('OU=')+3,($dn.substring(($dn.IndexOf('OU='))+3,30)).IndexOf('OU=')-1)
-    $IDMAuthPhone = Get-IntlFormatPhoneNumber -PhoneNumber $User.cEZIntuneMFAAuthMobile -EntraMFAFormat
-    
-    $UriResource = "users/$($userId)/authentication/phoneMethods/$($mobilePhoneMethodId)"
+    $IDMAuthPhone = Get-IntlFormatPhoneNumber -PhoneNumber $User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile -EntraMFAFormat
+    $ExchExtensionAttribute40 = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
+    $UriResource = "users/$($User.Id)/authentication/phoneMethods/$($mobilePhoneMethodId)"
     $Uri = New-GraphUri -Version "beta" -Resource $UriResource
     Try {
       $ErrorMessageGET = "success"
@@ -110,7 +109,7 @@ foreach ($User in $ADUsers) {
         $CurrentMFAPhoneFixed = "empty"
       }
       Else {
-        Write-Log "$($UPN) ($($dspn)): Error reading MFA phoneMethods: $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
+        Write-Log "$($UPN) ($($User.displayName)): Error reading MFA phoneMethods: $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
         Continue
       }
     }
@@ -148,11 +147,11 @@ foreach ($User in $ADUsers) {
         #current number needs to be deleted first
         Try {
           $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -ContentType $ContentTypeJSON
-          Write-Log "$($UPN) ($($dspn)): MFA phone $($CurrentMFAPhone) deleted"
+          Write-Log "$($UPN) ($($User.displayName)): MFA phone $($CurrentMFAPhone) deleted"
         }
         Catch {
           $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-          Write-Log "$($UPN) ($($dspn)): Error deleting MFA phone $($CurrentMFAPhone): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+          Write-Log "$($UPN) ($($User.displayName)): Error deleting MFA phone $($CurrentMFAPhone): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
           Continue
         }
       }
@@ -166,17 +165,17 @@ foreach ($User in $ADUsers) {
       Try {
         #configure MFA number - auth phone
         $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
-        Write-Log "$($UPN) ($($dspn)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
+        Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
       }
       Catch {
         $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
         if ($errObj.error.code -eq "invalidPhoneNumber") {
           $InvalidPhoneNumberList += "$($UPN) - $($IDMAuthPhone)"
         }
-        Write-Log "$($UPN) ($($dspn)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+        Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
         # if the error is invalidPhoneNumber and we have a mobile number, try to use that instead
         if (($errObj.error.code -eq "invalidPhoneNumber") -and $mobile) {
-          Write-Log "$($UPN) ($($dspn)): auth phone number invalid, fallback to mobile"
+          Write-Log "$($UPN) ($($User.displayName)): auth phone number invalid, fallback to mobile"
           $GraphBody = [pscustomobject]@{
             phoneNumber = $mobile
             phoneType = "mobile"
@@ -184,11 +183,11 @@ foreach ($User in $ADUsers) {
           Try {
             #configure MFA number - mobile phone
             $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
-            Write-Log "$($UPN) ($($dspn)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
+            Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
           }
           Catch {
             $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-            Write-Log "$($UPN) ($($dspn)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+            Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
           }
         } 
       }
@@ -235,26 +234,24 @@ foreach ($User in $ADUsers) {
     }
 
     $MFAPhoneReport += [pscustomobject]@{
-      UserPrincipalName = $UPN;
-      Id                = $userId;
-      KPJM              = $sam;
-      DisplayName       = $dspn;
-      Mail              = $User.mail;
-      Mail_40           = $User.msExchExtensionAttribute40;
-      OU                = $OU;
-      mobile            = $mobile;
-      CurrentMFAPhone   = $CurrentMFAPhone;
-      IDMAuthPhone      = $IDMAuthPhone;
-      Operation         = $operation;
-      DN                = $dn;
-      sysPrefEnabled    = $sysPrefEnabled;
-      usrPrefMethod     = $usrPrefMethod;
-      sysPrefMethod     = $sysPrefMethod;
+      UserPrincipalName = $user.userPrincipalName
+      Id                = $User.Id
+      KPJM              = $User.onpremisesSamAccountName
+      DisplayName       = $User.displayName
+      Mail              = $User.mail
+      Mail_40           = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
+      mobile            = $User.mobile
+      CurrentMFAPhone   = $CurrentMFAPhone
+      IDMAuthPhone      = $IDMAuthPhone
+      Operation         = $operation
+      sysPrefEnabled    = $sysPrefEnabled
+      usrPrefMethod     = $usrPrefMethod
+      sysPrefMethod     = $sysPrefMethod
       targetMethod      = $targetMethod
     }
   
     Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
-  }#If ($AADUsers.userPrincipalName -contains($UPN))
+  
 }#foreach ($User in $ADUsers)
 
 if ($InvalidPhoneNumberList) {
