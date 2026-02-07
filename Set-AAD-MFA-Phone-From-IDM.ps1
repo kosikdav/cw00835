@@ -2,7 +2,8 @@
 # Set-AAD-MFA-Phone-From-IDM
 #######################################################################################################################
 param(
-    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile
+    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
+    [switch]$FullRun
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
@@ -40,7 +41,7 @@ $DoNotConfigureFromIDM = @()
 
 . $IncFile_StdLogStartBlock
 
-$ADCredential = Import-Clixml -Path $ADCredentialPath
+#$ADCredential = Import-Clixml -Path $ADCredentialPath
 #Write-Log "AD credential file: $($ADCredentialPath)"
 
 $ADFilter = "(sAMAccountName -notlike `"qh*`") -and (cEZIntuneMFAAuthMobile -like `"*`") -and (msExchExtensionAttribute29 -like `"*`") -and (msExchExtensionAttribute40 -like `"*`")"
@@ -89,24 +90,43 @@ foreach ($User in $AADUsers) {
   Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
   $UPN = $User.UserPrincipalName
 
-    $CurrentMFAPhone = $CurrentMFAPhoneFixed = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
-    $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.Mobile -EntraMFAFormat
-    $IDMAuthPhone = Get-IntlFormatPhoneNumber -PhoneNumber $User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile -EntraMFAFormat
-    $ExchExtensionAttribute40 = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
+    $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
+    if ($User.Mobile) {
+      $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.Mobile -EntraMFAFormat
+    }
+    else {
+      $mobile = "none"
+    }
+    if ($User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile) {
+      $IDMAuthPhone = Get-IntlFormatPhoneNumber -PhoneNumber $User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile -EntraMFAFormat
+    }
+    else {
+      $IDMAuthPhone = "none"
+    }
+
+    if (($mobile -eq "none") -and ($IDMAuthPhone -eq "none")) {
+      # no mobile number in AAD and no auth phone in IDM, skip user
+      $operation = "skip-no-numbers"
+      $match = "SKIP"
+      $clr = "Dark Gray"
+      write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(20," ")) AAD-MFA:$($CurrentMFAPhone) " -NoNewline
+      write-host $match -ForegroundColor $clr
+      continue
+    }
+
+    #$ExchExtensionAttribute40 = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
     $UriResource = "users/$($User.Id)/authentication/phoneMethods/$($mobilePhoneMethodId)"
     $Uri = New-GraphUri -Version "beta" -Resource $UriResource
     Try {
       $ErrorMessageGET = "success"
       $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
       $MobilePhoneMethod = $ResponseGET | ConvertFrom-Json
-      $CurrentMFAPhone = $MobilePhoneMethod.phoneNumber
-      $CurrentMFAPhoneFixed = Get-IntlFormatPhoneNumber -PhoneNumber $MobilePhoneMethod.phoneNumber -EntraMFAFormat
+      $CurrentMFAPhone = Get-IntlFormatPhoneNumber -PhoneNumber $MobilePhoneMethod.phoneNumber -EntraMFAFormat
     }
     Catch {
       $ErrorMessageGET = $_.Exception.Message
       If ($ErrorMessageGET.Contains("(404)")) {
-        $CurrentMFAPhone = "empty"
-        $CurrentMFAPhoneFixed = "empty"
+        $CurrentMFAPhone = "none"
       }
       Else {
         Write-Log "$($UPN) ($($User.displayName)): Error reading MFA phoneMethods: $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
@@ -126,17 +146,17 @@ foreach ($User in $AADUsers) {
       $clr = "Red"
     }
     
-    write-host "$($User.UserPrincipalName.PadRight(35," ")) IDM:$($IDMAuthPhone.PadRight(20," ")) AAD-MFA:$($CurrentMFAPhone) " -NoNewline
+    write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(20," ")) AAD-MFA:$($CurrentMFAPhone) " -NoNewline
     write-host $match -ForegroundColor $clr
     
     If (($ErrorMessageGET.Contains("(404)")) -or ($CurrentMFAPhone -ne $IDMAuthPhone)) {
-      If ($CurrentMFAPhone -eq "empty") {
+      If ($CurrentMFAPhone -eq "none") {
         #configure new MFA number
         $operation = "new"
-      } 
+      }
       else {
         #update existing MFA number
-        If ($IDMAuthPhone -ne $CurrentMFAPhoneFixed) {
+        If ($IDMAuthPhone -ne $CurrentMFAPhone) {
           #update - different MFA number
           $operation = "update-number"
         } 
