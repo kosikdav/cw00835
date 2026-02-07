@@ -67,14 +67,18 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Filter $Uri
 $AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ProgressDots -Text "AAD member users"
 
 #######################################################################################################################
-
+$counter = 0
 foreach ($User in $AADUsers) {
+
   Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
   $UPN = $User.UserPrincipalName
 
+  $CurrentMFADBRecord = $null
   $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
+  $phoneNumbersMatch = $false
   $phoneMethodSetSuccessfully = $false
-
+  $signInPreferencesSetSuccessfully = $false
+  
     if ($User.Mobile) {
       $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.Mobile -EntraMFAFormat
     }
@@ -88,15 +92,25 @@ foreach ($User in $AADUsers) {
       $IDMAuthPhone = "none"
     }
 
+    if ($MFAMgmt_DB.ContainsKey($User.Id)) {
+      $CurrentMFADBRecord = $MFAMgmt_DB[$User.Id]
+      if (($CurrentMFADBRecord.MFAphone -eq $IDMAuthPhone) -or (($IDMAuthPhone -eq "none") -and ($CurrentMFADBRecord.MFAphone -eq $mobile))) {
+        write-host "$($User.UserPrincipalName.PadRight(40," ")) skipping, DB phone and IDM phones match"
+        continue
+      }
+    }
+    
     if (($mobile -eq "none") -and ($IDMAuthPhone -eq "none")) {
       # no mobile number in AAD and no auth phone in IDM, skip user
       $operation = "skip-no-numbers"
       $match = "SKIP"
-      $clr = "Dark Gray"
+      $clr = "DarkGray"
       write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(20," ")) AAD-MFA:$($CurrentMFAPhone) " -NoNewline
       write-host $match -ForegroundColor $clr
       continue
     }
+
+
 
     #$ExchExtensionAttribute40 = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
     $UriResource = "users/$($User.Id)/authentication/phoneMethods/$($mobilePhoneMethodId)"
@@ -120,10 +134,11 @@ foreach ($User in $AADUsers) {
     
     If ($CurrentMFAPhone -eq $IDMAuthPhone) {
       # numbers in IDM and AAD MFA match, nothing to do
+      $phoneNumbersMatch = $true
       $operation = "ok-skip"
       $match = "OK"
       $clr = "Green"
-    } 
+    }
     Else {
       # numbers do not match
       $match = "DIFF"
@@ -170,7 +185,7 @@ foreach ($User in $AADUsers) {
         #configure MFA number - auth phone
         $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
         Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
-        $phoneConfigured = $IDMAuthPhone
+        $phoneNumberConfigured = $IDMAuthPhone
         $phoneMethodSetSuccessfully = $true
       }
       Catch {
@@ -190,7 +205,7 @@ foreach ($User in $AADUsers) {
             #configure MFA number - mobile phone
             $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
             Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
-            $phoneConfigured = $mobile
+            $phoneNumberConfigured = $mobile
             $phoneMethodSetSuccessfully = $true
           }
           Catch {
@@ -201,6 +216,8 @@ foreach ($User in $AADUsers) {
       }
     }  
     
+
+
     $UriResource = "users/$($userId)/authentication/signInPreferences"
     $Uri = New-GraphUri -Version "beta" -Resource $UriResource
     Try {
@@ -226,11 +243,15 @@ foreach ($User in $AADUsers) {
               #configure preferred auth method
               $ResponsePATCH = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "PATCH" -ContentType $ContentTypeJSON
               Write-Log "$($UPN): userPreferredMethod set to: $($targetMethod), previous value: $($usrPrefMethod)"
+              $signInPreferencesSetSuccessfully = $true
           }
           Catch {
               $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
               Write-Log "$($UPN): Error configuring preferred auth method $($targetMethod): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
           }
+      }
+      else {
+        $signInPreferencesSetSuccessfully = $true
       }
     }
     Catch {
@@ -258,18 +279,41 @@ foreach ($User in $AADUsers) {
       targetMethod      = $targetMethod
     }
   
-  if ($phoneMethodSetSuccessfully) {
-    $MFARecord = [PSCustomObject]@{
-      userId 	= $user.Id
-      MFAphone 	= $mobile
-      whenConfigured = Get-Date
+  if ($phoneNumbersMatch -or ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully)) {
+    if ($CurrentMFADBRecord) {
+      # update existing record
+      $NewMFADBRecord = $CurrentMFADBRecord
     }
-    $MFAMgmt_DB.Add($user.Id, $MFARecord)
+    else {
+      # create new record
+      $NewMFADBRecord = [PSCustomObject]@{
+        userId 	= $user.Id
+        MFAphone 	= $CurrentMFAPhone
+        whenConfigured = $null
+        lastUpdated = $null
+      }
+    }
+    if ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully) {
+      $NewMFADBRecord.MFAphone = $phoneNumberConfigured
+      $NewMFADBRecord.whenConfigured = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+    }
+    $NewMFADBRecord.lastUpdated = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+    if ($CurrentMFADBRecord) {
+      $MFAMgmt_DB[$user.Id] = $NewMFADBRecord
       $DB_changed = $true
+    }
+    else {
+      $MFAMgmt_DB.Add($user.Id, $NewMFADBRecord)
+      $DB_changed = $true
+    } 
   }
 
   Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
-  
+  $counter++
+  if ($counter -eq 20) {
+    break
+  }
 }#foreach ($User in $ADUsers)
 
 if ($InvalidPhoneNumberList) {
@@ -283,6 +327,18 @@ if ($InvalidPhoneNumberList) {
 else {
   Write-Log "No invalid phone numbers found."
 }
+
+#saving DB XML if needed
+if (($MFAMgmt_DB.count -gt 0) -and ($DB_changed)){
+    Try {
+        $MFAMgmt_DB | Export-Clixml -Path $DBFileMFAMgmt
+        Write-Log "DB file $($DBFileMFAMgmt) exported successfully, $($MFAMgmt_DB.count) records saved"
+    }
+    Catch {
+        Write-Log "Error exporting $($DBFileMFAMgmt)" -MessageType "Error"
+    }
+}
+
 Export-Report "MFA phone report" -Report $MFAPhoneReport -SortProperty "UserPrincipalName" -Path $OutputFile
 
 #######################################################################################################################
