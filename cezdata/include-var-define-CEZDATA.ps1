@@ -136,14 +136,14 @@ $DBFilePwrEnvironments      = [System.IO.Path]::Combine($ROF,$DBFolderName,"pwrp
 
 $DBFileLicensingPlans       = "d:\data\m365-licensing\plans.csv"
 $DBFileLicensingSKUs        = "d:\data\m365-licensing\skus.csv"
-$DBFileAADCreds             = "d:\data\aad-app-creds\aad-app-creds.xml"
-$DBFileAADPermCustom        = "d:\data\entra-id-app-permissions\app-permissions-custom.csv"
-$DBFileAADPermissions       = "d:\data\entra-id-app-permissions\app-permissions.csv"
+$DBFileAADCreds             = "d:\data\entra-app-creds\app-creds.xml"
+$DBFileAADPermCustom        = "d:\data\entra-app-permissions\app-permissions-custom.csv"
+$DBFileAADPermissions       = "d:\data\entra-app-permissions\app-permissions.csv"
 $DBFileTMS_CloudPoradna     = "d:\data\tms_icts_cloud_poradna\poradna-members-db.xml"
 $DBFileMGMTAPI_Audit_SPO    = "d:\data\o365-mgmt-api\audit-spo-blobs-db.xml"
 $DBFileEXOMboxMgmt          = "d:\data\exo-mailbox-mgmt\mailbox-mgmt-db.xml"
 $DBFileEXOMobileDeviceMgmt  = "d:\data\exo-mobile-device-mgmt\mobile-device-mgmt-db.xml"
-$DBFileMFAMgmt              = "d:\data\mfa-mgmt\mfa-mgmt-db.xml"
+$DBFileMFAMgmt              = "d:\data\entra-mfa-mgmt\mfa-mgmt-db.xml"
 
 $outputFileReportSuffix     = "report"
 $outputFileAuditSuffix 	    = "audit"
