@@ -27,36 +27,33 @@ $OutputFileSuffix	  = "set-phone-from-IDM"
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Suffix $LogFileSuffix -Ext "log"
 $OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffix -Ext "csv"
 
-$ADCredentialPath = $aadauthmobmgmt_cred
-
 $DoNotConfigureFromIDM = @()
 
 [array]$MFAPhoneReport = @()
 [array]$InvalidPhoneNumberList = @()
-[array]$ADUsers = $null
-[hashtable]$AADUser_DB = @{}
 [int]$ThrottlingDelayPerUserinMsec = 300
 
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
 
-#$ADCredential = Import-Clixml -Path $ADCredentialPath
-#Write-Log "AD credential file: $($ADCredentialPath)"
-
-$ADFilter = "(sAMAccountName -notlike `"qh*`") -and (cEZIntuneMFAAuthMobile -like `"*`") -and (msExchExtensionAttribute29 -like `"*`") -and (msExchExtensionAttribute40 -like `"*`")"
-$ADProperties = @(
-  "userPrincipalName",
-  "DisplayName",
-  "sAMAccountName",
-  "distinguishedName",
-  "mobile",
-  "mail",
-  "cEZIntuneMFAAuthMobile",
-  "msExchExtensionAttribute40"
-)
-#$ADUsers = Get-ADUser -Credential $ADCredential -Filter $ADFilter -Properties $ADProperties
-#Write-Log "AD users with configured `"cEZIntuneMFAAuthMobile`" attribute: $(Get-Count -Object $ADUsers)"
+# load DB mfa-mgmt from file or initialize empty
+if (test-path $DBFileMFAMgmt) {
+    Try {
+        $MFAMgmt_DB = Import-Clixml -Path $DBFileMFAMgmt
+        Write-Log "DB file $($DBFileMFAMgmt) imported successfully, $($MFAMgmt_DB.count) records found"
+    } 
+    Catch {
+        Write-Log "Error importing $($DBFileMFAMgmt), creating empty DB" -MessageType "Error"
+        [hashtable]$MFAMgmt_DB = @{}
+        $DB_changed = $true
+    }
+}
+else {
+    Write-Log "DB file $($DBFileMFAMgmt) not found, creating empty DB" -MessageType "Error"
+    [hashtable]$MFAMgmt_DB = @{}
+    $DB_changed = $true
+}
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
@@ -69,28 +66,15 @@ $UriSelect = $UriSelect1, $UriSelect2, $UriSelect3 -join ","
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Filter $UriFilter -Select $UriSelect
 $AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ProgressDots -Text "AAD member users"
 
-<#
-foreach ($user in $AADUsers) {
-  $UserObject = [PSCustomObject]@{
-    id = $user.id
-    userPrincipalName = $user.userPrincipalName
-  }
-  Try {
-    $AADUser_DB.Add($user.userPrincipalName,$UserObject)
-  }
-  Catch {
-    Write-Host $UserObject
-  }
-}
-#>
-
 #######################################################################################################################
 
 foreach ($User in $AADUsers) {
   Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
   $UPN = $User.UserPrincipalName
 
-    $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
+  $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
+  $phoneMethodSetSuccessfully = $false
+
     if ($User.Mobile) {
       $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.Mobile -EntraMFAFormat
     }
@@ -179,13 +163,15 @@ foreach ($User in $AADUsers) {
       $UriResource = "users/$($userId)/authentication/phoneMethods"
       $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
       $GraphBody = [pscustomobject]@{
-        phoneNumber = $IDMAuthPhone;
+        phoneNumber = $IDMAuthPhone
         phoneType = "mobile"
       } | ConvertTo-Json
       Try {
         #configure MFA number - auth phone
         $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
         Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
+        $phoneConfigured = $IDMAuthPhone
+        $phoneMethodSetSuccessfully = $true
       }
       Catch {
         $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
@@ -204,6 +190,8 @@ foreach ($User in $AADUsers) {
             #configure MFA number - mobile phone
             $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
             Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
+            $phoneConfigured = $mobile
+            $phoneMethodSetSuccessfully = $true
           }
           Catch {
             $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
@@ -270,7 +258,17 @@ foreach ($User in $AADUsers) {
       targetMethod      = $targetMethod
     }
   
-    Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
+  if ($phoneMethodSetSuccessfully) {
+    $MFARecord = [PSCustomObject]@{
+      userId 	= $user.Id
+      MFAphone 	= $mobile
+      whenConfigured = Get-Date
+    }
+    $MFAMgmt_DB.Add($user.Id, $MFARecord)
+      $DB_changed = $true
+  }
+
+  Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
   
 }#foreach ($User in $ADUsers)
 

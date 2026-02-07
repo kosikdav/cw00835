@@ -142,7 +142,8 @@ $DBFileAADPermissions       = "d:\data\entra-id-app-permissions\app-permissions.
 $DBFileTMS_CloudPoradna     = "d:\data\tms_icts_cloud_poradna\poradna-members-db.xml"
 $DBFileMGMTAPI_Audit_SPO    = "d:\data\o365-mgmt-api\audit-spo-blobs-db.xml"
 $DBFileEXOMboxMgmt          = "d:\data\exo-mailbox-mgmt\mailbox-mgmt-db.xml"
-$DBFileEXOMobileDeviceMgmt     = "d:\data\exo-mobile-device-mgmt\mobile-device-mgmt-db.xml"
+$DBFileEXOMobileDeviceMgmt  = "d:\data\exo-mobile-device-mgmt\mobile-device-mgmt-db.xml"
+$DBFileMFAMgmt              = "d:\data\mfa-mgmt\mfa-mgmt-db.xml"
 
 $outputFileReportSuffix     = "report"
 $outputFileAuditSuffix 	    = "audit"
