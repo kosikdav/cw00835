@@ -32,7 +32,8 @@ $DoNotConfigureFromIDM = @()
 [array]$MFAPhoneReport = @()
 [array]$InvalidPhoneNumberList = @()
 [int]$ThrottlingDelayPerUserinMsec = 300
-[int]$CounterMax = 200
+[int]$PhoneNumberPropagationDelayinSec = 30
+[int]$CounterMax = 1000
 
 #######################################################################################################################
 
@@ -105,212 +106,219 @@ foreach ($User in $AADUsers) {
   $phoneMethodSetSuccessfully = $false
   $signInPreferencesSetSuccessfully = $false
   
-    if ($User.MobilePhone) {
-      $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.MobilePhone -EntraMFAFormat
-    }
-    else {
-      $mobile = "none"
-    }
-    if ($User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile) {
-      $IDMAuthPhone = Get-IntlFormatPhoneNumber -PhoneNumber $User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile -EntraMFAFormat
-    }
-    else {
-      $IDMAuthPhone = "none"
-    }
+  if ($User.MobilePhone) {
+    $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.MobilePhone -EntraMFAFormat
+  }
+  else {
+    $mobile = "none"
+  }
+  if ($User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile) {
+    $IDMAuthPhone = Get-IntlFormatPhoneNumber -PhoneNumber $User.extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile -EntraMFAFormat
+  }
+  else {
+    $IDMAuthPhone = "none"
+  }
 
-    if ($MFAMgmt_DB.ContainsKey($User.Id)) {
-      $CurrentMFADBRecord = $MFAMgmt_DB[$User.Id]
-      if (($CurrentMFADBRecord.MFAphone -eq $IDMAuthPhone) -or ($CurrentMFADBRecord.MFAphone -eq $mobile)) {
-        #write-host "$($User.UserPrincipalName.PadRight(40," ")) skipping, DB phone and IDM phones match"
-        continue
-      }
-    }
-    
-    if (($mobile -eq "none") -and ($IDMAuthPhone -eq "none")) {
-      # no mobile number in AAD and no auth phone in IDM, skip user
-      $operation = "skip-no-numbers"
-      $match = "SKIP"
-      $clr = "DarkGray"
-      write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline
-      write-host $match -ForegroundColor $clr
+  if ($MFAMgmt_DB.ContainsKey($User.Id)) {
+    $CurrentMFADBRecord = $MFAMgmt_DB[$User.Id]
+    if (($CurrentMFADBRecord.MFAphone -eq $IDMAuthPhone) -or ($CurrentMFADBRecord.MFAphone -eq $mobile)) {
+      #write-host "$($User.UserPrincipalName.PadRight(40," ")) skipping, DB phone and IDM phones match"
       continue
     }
+  }
+  
+  if (($mobile -eq "none") -and ($IDMAuthPhone -eq "none")) {
+    # no mobile number in AAD and no auth phone in IDM, skip user
+    $operation = "skip-no-numbers"
+    $match = "SKIP"
+    $clr = "DarkGray"
+    write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline
+    write-host $match -ForegroundColor $clr
+    continue
+  }
 
-    $UriResource = "users/$($User.Id)/authentication/phoneMethods/$($mobilePhoneMethodId)"
-    $Uri = New-GraphUri -Version "beta" -Resource $UriResource
-    Try {
-      $ErrorMessageGET = "success"
-      $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
-      $MobilePhoneMethod = $ResponseGET | ConvertFrom-Json
-      $CurrentMFAPhone = Get-IntlFormatPhoneNumber -PhoneNumber $MobilePhoneMethod.phoneNumber -EntraMFAFormat
+  $UriResource = "users/$($User.Id)/authentication/phoneMethods/$($mobilePhoneMethodId)"
+  $Uri = New-GraphUri -Version "beta" -Resource $UriResource
+  Try {
+    $ErrorMessageGET = "success"
+    $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
+    $MobilePhoneMethod = $ResponseGET | ConvertFrom-Json
+    $CurrentMFAPhone = Get-IntlFormatPhoneNumber -PhoneNumber $MobilePhoneMethod.phoneNumber -EntraMFAFormat
+  }
+  Catch {
+    $ErrorMessageGET = $_.Exception.Message
+    If ($ErrorMessageGET.Contains("(404)")) {
+      $CurrentMFAPhone = "none"
     }
-    Catch {
-      $ErrorMessageGET = $_.Exception.Message
-      If ($ErrorMessageGET.Contains("(404)")) {
-        $CurrentMFAPhone = "none"
-      }
-      Else {
-        Write-Log "$($UPN) ($($User.displayName)): Error reading MFA phoneMethods: $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
-        Continue
-      }
+    Else {
+      Write-Log "$($UPN) ($($User.displayName)): Error reading MFA phoneMethods: $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
+      Continue
     }
-    
-    if ($CurrentMFAPhone -eq "none") {
-      # AAD MFA empty
+  }
+  
+  if ($CurrentMFAPhone -eq "none") {
+    # AAD MFA empty
+    $operation = "new"
+    $match = "NONE"
+    $clr = "Cyan"
+  }
+  else {
+    If (($CurrentMFAPhone -eq $IDMAuthPhone) -or ($CurrentMFAPhone -eq $mobile)) {
+        # numbers in IDM and AAD MFA match, or mobile and AAD MFA match = nothing to do
+        $phoneNumbersMatch = $true
+        $operation = "ok-skip"
+        $match = "OK"
+        $clr = "Green"
+    }
+    Else {
+      # numbers do not match
+      $match = "DIFF"
+      $clr = "Red"
+    }
+  }
+
+
+  write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
+  write-host $match -ForegroundColor $clr -NoNewline
+  
+  If (($match -eq "NONE") -or ($match -eq "DIFF")) {
+    #need to create or update MFA phone method
+    If ($CurrentMFAPhone -eq "none") {
+      #configure new MFA number
       $operation = "new"
-      $match = "NONE"
-      $clr = "Cyan"
     }
     else {
-      If (($CurrentMFAPhone -eq $IDMAuthPhone) -or ($CurrentMFAPhone -eq $mobile)) {
-          # numbers in IDM and AAD MFA match, or mobile and AAD MFA match = nothing to do
-          $phoneNumbersMatch = $true
-          $operation = "ok-skip"
-          $match = "OK"
-          $clr = "Green"
-      }
-      Else {
-        # numbers do not match
-        $match = "DIFF"
-        $clr = "Red"
-      }
-    }
-
-
-    write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
-    write-host $match -ForegroundColor $clr
-    
-    If (($match -eq "NONE") -or ($match -eq "DIFF")) {
-      #need to create or update MFA phone method
-      If ($CurrentMFAPhone -eq "none") {
-        #configure new MFA number
-        $operation = "new"
-      }
+      #update existing MFA number
+      If ($IDMAuthPhone -ne $CurrentMFAPhone) {
+        #update - different MFA number
+        $operation = "update-number"
+      } 
       else {
-        #update existing MFA number
-        If ($IDMAuthPhone -ne $CurrentMFAPhone) {
-          #update - different MFA number
-          $operation = "update-number"
-        } 
-        else {
-          #update - current number OK but incorrect format
-          $operation = "update-format"
-        }
-        #current number needs to be deleted first
-        Try {
-          $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -ContentType $ContentTypeJSON 
-          Write-Log "$($UPN) ($($User.displayName)): MFA phone $($CurrentMFAPhone) deleted"
-        }
-        Catch {
-          $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-          Write-Log "$($UPN) ($($User.displayName)): Error deleting MFA phone $($CurrentMFAPhone): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
-          Continue
-        }
+        #update - current number OK but incorrect format
+        $operation = "update-format"
       }
-      
-      $UriResource = "users/$($userId)/authentication/phoneMethods"
-      $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-      $GraphBody = [pscustomobject]@{
-        phoneNumber = $IDMAuthPhone
-        phoneType = "mobile"
-      } | ConvertTo-Json
+      #current number needs to be deleted first
       Try {
-        #configure MFA number - auth phone
-        $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
-        Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
-        $phoneNumberConfigured = $IDMAuthPhone
-        $phoneMethodSetSuccessfully = $true
+        $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE"
+        Write-Log "$($UPN) ($($User.displayName)): MFA phone $($CurrentMFAPhone) deleted"
       }
       Catch {
         $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-        if ($errObj.error.code -eq "invalidPhoneNumber") {
-          $InvalidPhoneNumberList += "$($UPN) - $($IDMAuthPhone)"
-        }
-        Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
-        # if the error is invalidPhoneNumber and we have a mobile number, try to use that instead
-        if (($errObj.error.code -eq "invalidPhoneNumber") -and $mobile) {
-          Write-Log "$($UPN) ($($User.displayName)): auth phone number invalid, fallback to mobile"
-          $GraphBody = [pscustomobject]@{
-            phoneNumber = $mobile
-            phoneType = "mobile"
-          } | ConvertTo-Json
-          Try {
-            #configure MFA number - mobile phone
-            $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
-            Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
-            $phoneNumberConfigured = $mobile
-            $phoneMethodSetSuccessfully = $true
-          }
-          Catch {
-            $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-            Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
-          }
-        } 
+        Write-Log "$($UPN) ($($User.displayName)): Error deleting MFA phone $($CurrentMFAPhone): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+        Continue
       }
-    }  
-    
+    }
 
-
-    $UriResource = "users/$($userId)/authentication/signInPreferences"
-    $Uri = New-GraphUri -Version "beta" -Resource $UriResource
+    $UriResource = "users/$($user.Id)/authentication/phoneMethods"
+    $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+    $GraphBody = [pscustomobject]@{
+      phoneNumber = $IDMAuthPhone
+      phoneType = "mobile"
+    } | ConvertTo-Json
     Try {
-      $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON
-      $SignInPreferences = $ResponseGET | ConvertFrom-Json
-      
-      $sysPrefEnabled = $SignInPreferences.isSystemPreferredAuthenticationMethodEnabled
-      $usrPrefMethod  = $SignInPreferences.userPreferredMethodForSecondaryAuthentication.ToLower()
-      $sysPrefMethod  = $SignInPreferences.systemPreferredAuthenticationMethod.ToLower()
-
-      If (-not ($sysPrefMethod -eq $UsrToSysMethodConv_DB[$usrPrefMethod])) {
-          $targetMethod = $SysToUsrMethodConv_DB[$sysPrefMethod]
-          #Write-Log "$($UPN): current userPreferredMethod: $($usrPrefMethod) - should be: $($sysPrefMethod) ($($targetMethod))" -MessageType "WARNING"
-          
-          $UriResource = "users/$($userId)/authentication/signInPreferences"
-          $Uri = New-GraphUri -Version "beta" -Resource $UriResource
-          $GraphBody = [pscustomobject]@{
-              userPreferredMethodForSecondaryAuthentication = $targetMethod
-          } | ConvertTo-Json
-          Write-Host $GraphBody
-          Write-Host $Uri
-          Try {
-              #configure preferred auth method
-              $ResponsePATCH = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "PATCH" -ContentType $ContentTypeJSON
-              Write-Log "$($UPN): userPreferredMethod set to: $($targetMethod), previous value: $($usrPrefMethod)"
-              $signInPreferencesSetSuccessfully = $true
-          }
-          Catch {
-              $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-              Write-Log "$($UPN): Error configuring preferred auth method $($targetMethod): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
-          }
-      }
-      else {
-        $signInPreferencesSetSuccessfully = $true
-      }
+      #configure MFA number - auth phone
+      $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
+      Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
+      $phoneNumberConfigured = $IDMAuthPhone
+      $phoneMethodSetSuccessfully = $true
     }
     Catch {
-      $ErrorMessageGET = $_.Exception.Message
       $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-      If (-not ($ErrorMessageGET.Contains("(404)"))) {
-        Write-Log "$($UPN): Error reading signin preferences: $($errObj.error.code) - $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
+      if ($errObj.error.code -eq "invalidPhoneNumber") {
+        $InvalidPhoneNumberList += "$($UPN) - $($IDMAuthPhone)"
       }
+      Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+      # if the error is invalidPhoneNumber and we have a mobile number, try to use that instead
+      if (($errObj.error.code -eq "invalidPhoneNumber") -and $mobile) {
+        Write-Log "$($UPN) ($($User.displayName)): auth phone number invalid, fallback to mobile"
+        $GraphBody = [pscustomobject]@{
+          phoneNumber = $mobile
+          phoneType = "mobile"
+        } | ConvertTo-Json
+        Try {
+          #configure MFA number - mobile phone
+          $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
+          Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
+          $phoneNumberConfigured = $mobile
+          $phoneMethodSetSuccessfully = $true
+        }
+        Catch {
+          $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
+          Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+        }
+      } 
     }
+  }  
+  if ($phoneMethodSetSuccessfully) {
+    Start-Sleep -Seconds $PhoneNumberPropagationDelayinSec
+  }
 
-    $MFAPhoneReport += [pscustomobject]@{
-      UserPrincipalName = $user.userPrincipalName
-      Id                = $User.Id
-      KPJM              = $User.onpremisesSamAccountName
-      DisplayName       = $User.displayName
-      Mail              = $User.mail
-      Mail_40           = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
-      mobile            = $User.mobile
-      CurrentMFAPhone   = $CurrentMFAPhone
-      IDMAuthPhone      = $IDMAuthPhone
-      Operation         = $operation
-      sysPrefEnabled    = $sysPrefEnabled
-      usrPrefMethod     = $usrPrefMethod
-      sysPrefMethod     = $sysPrefMethod
-      targetMethod      = $targetMethod
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+  $UriResource = "users/$($user.Id)/authentication/signInPreferences"
+  $Uri = New-GraphUri -Version "beta" -Resource $UriResource
+  Try {
+    $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
+    $SignInPreferences = $ResponseGET | ConvertFrom-Json
+    #write-host $SignInPreferences -ForegroundColor Yellow
+    $sysPrefEnabled = $SignInPreferences.isSystemPreferredAuthenticationMethodEnabled
+    $usrPrefMethod  = $SignInPreferences.userPreferredMethodForSecondaryAuthentication
+    $sysPrefMethod  = $SignInPreferences.systemPreferredAuthenticationMethod
+    #write-host "sysPrefEnabled: $sysPrefEnabled, usrPrefMethod: $usrPrefMethod, sysPrefMethod: $sysPrefMethod" -ForegroundColor Yellow
+    If (-not ($sysPrefMethod -eq $UsrToSysMethodConv_DB[$usrPrefMethod])) {
+        $targetMethod = $SysToUsrMethodConv_DB[$sysPrefMethod]
+        #Write-Log "$($UPN): current userPreferredMethod: $($usrPrefMethod) - should be: $($sysPrefMethod) ($($targetMethod))" -MessageType "WARNING"
+        
+        $UriResource = "users/$($user.Id)/authentication/signInPreferences"
+        $Uri = New-GraphUri -Version "beta" -Resource $UriResource
+        $GraphBody = [pscustomobject]@{
+            userPreferredMethodForSecondaryAuthentication = $targetMethod
+        } | ConvertTo-Json
+        #Write-Host $GraphBody -ForegroundColor Magenta
+        #Write-Host $Uri -ForegroundColor Magenta
+        Try {
+            #configure preferred auth method
+            $ResponsePATCH = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "PATCH" -ContentType $ContentTypeJSON -UseBasicParsing
+            Write-Log "$($UPN): userPreferredMethod set to: $($targetMethod), previous value: $($usrPrefMethod)"
+            $signInPreferencesSetSuccessfully = $true
+        }
+        Catch {
+            $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
+            Write-Log "$($UPN): Error configuring preferred auth method $($targetMethod): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+        }
     }
+    else {
+      write-host "  OK" -ForegroundColor Cyan
+      $signInPreferencesSetSuccessfully = $true
+    }
+  }
+  Catch {
+    $ErrorMessageGET = $_.Exception.Message
+    write-host $ErrorMessageGET
+    $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
+    If (-not ($ErrorMessageGET.Contains("(404)"))) {
+      Write-Log "$($UPN): Error reading signin preferences: $($errObj.error.code) - $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
+    }
+  }
+
+  $MFAPhoneReport += [pscustomobject]@{
+    UserPrincipalName = $user.userPrincipalName
+    Id                = $User.Id
+    KPJM              = $User.onpremisesSamAccountName
+    DisplayName       = $User.displayName
+    Mail              = $User.mail
+    Mail_40           = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
+    mobile            = $User.mobile
+    CurrentMFAPhone   = $CurrentMFAPhone
+    IDMAuthPhone      = $IDMAuthPhone
+    Operation         = $operation
+    sysPrefEnabled    = $sysPrefEnabled
+    usrPrefMethod     = $usrPrefMethod
+    sysPrefMethod     = $sysPrefMethod
+    targetMethod      = $targetMethod
+  }
   
   if ($phoneNumbersMatch -or ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully)) {
     if ($CurrentMFADBRecord) {
@@ -342,7 +350,10 @@ foreach ($User in $AADUsers) {
     } 
   }
 
-  Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
+  if ($FullRun){
+    Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
+  }
+
   $counter++
   if ($counter -ge $CounterMax) {
     break
@@ -363,13 +374,13 @@ else {
 
 #saving DB XML if needed
 if (($MFAMgmt_DB.count -gt 0) -and ($DB_changed)){
-    Try {
-        $MFAMgmt_DB | Export-Clixml -Path $DBFileMFAMgmt
-        Write-Log "DB file $($DBFileMFAMgmt) exported successfully, $($MFAMgmt_DB.count) records saved"
-    }
-    Catch {
-        Write-Log "Error exporting $($DBFileMFAMgmt)" -MessageType "Error"
-    }
+  Try {
+      $MFAMgmt_DB | Export-Clixml -Path $DBFileMFAMgmt
+      Write-Log "DB file $($DBFileMFAMgmt) exported successfully, $($MFAMgmt_DB.count) records saved"
+  }
+  Catch {
+      Write-Log "Error exporting $($DBFileMFAMgmt)" -MessageType "Error"
+  }
 }
 
 Export-Report "MFA phone report" -Report $MFAPhoneReport -SortProperty "UserPrincipalName" -Path $OutputFile
