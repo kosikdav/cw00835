@@ -191,7 +191,7 @@ $OU_Pwr     = "OU=Pwr,OU=M365" + "," + $OU_AAD_Root
 $OU_Lic     = "OU=License,OU=M365" + "," + $OU_AAD_Root
 $OU_Intune  = "OU=Intune,OU=M365" + "," + $OU_AAD_Root
 $OU_OCP     = "OU=OCP,OU=skupiny,DC=cezdata,DC=corp"
-
+$OU_ServiceAccounts = "OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
 
 $GuestAzureApps =  @(
     #Azure DevOps	

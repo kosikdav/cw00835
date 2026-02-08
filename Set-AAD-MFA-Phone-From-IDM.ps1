@@ -32,6 +32,7 @@ $DoNotConfigureFromIDM = @()
 [array]$MFAPhoneReport = @()
 [array]$InvalidPhoneNumberList = @()
 [int]$ThrottlingDelayPerUserinMsec = 300
+[int]$CounterMax = 200
 
 #######################################################################################################################
 
@@ -59,7 +60,7 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriFilter = "UserType+eq+'Member'&accountEnabled+eq+'True'&onPremisesSyncEnabled+eq+'True'"
 #$UriFilter = "startswith(userPrincipalName,'josef.mat')"
-$UriSelect1 = "id,userPrincipalName,mail,displayName,onPremisesSyncEnabled,onpremisesSamAccountName,mobile"
+$UriSelect1 = "id,userPrincipalName,mail,displayName,onPremisesSyncEnabled,onpremisesSamAccountName,onPremisesDistinguishedName,mobilePhone"
 $UriSelect2 = "extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile"
 $UriSelect3 = "extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40"
 $UriSelect = $UriSelect1, $UriSelect2, $UriSelect3 -join ","
@@ -72,13 +73,15 @@ foreach ($User in $AADUsers) {
   Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
   $CurrentMFADBRecord = $null
   $UPN = $samAccountName = $null
-  $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
+  $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
   $phoneNumbersMatch = $false
   $phoneMethodSetSuccessfully = $false
   $signInPreferencesSetSuccessfully = $false
+  $CurrentMFAPhone = $IDMAuthPhone = $mobile = "none"
 
   $UPN = $User.UserPrincipalName
   $samAccountName = $User.onpremisesSamAccountName
+  $DN = $User.onPremisesDistinguishedName
 
   if ($UPN -and ($UPN.Substring(0,2) -in $NoMFAPhoneMgmtAccountPrefixes)) {
     Continue
@@ -92,14 +95,18 @@ foreach ($User in $AADUsers) {
     Continue
   }
   
+  if ($DN -and ($DN.EndsWith($OU_ServiceAccounts))) {
+    Continue
+  }
+
   $CurrentMFADBRecord = $null
-  $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
+  $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
   $phoneNumbersMatch = $false
   $phoneMethodSetSuccessfully = $false
   $signInPreferencesSetSuccessfully = $false
   
-    if ($User.Mobile) {
-      $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.Mobile -EntraMFAFormat
+    if ($User.MobilePhone) {
+      $mobile = Get-IntlFormatPhoneNumber -PhoneNumber $User.MobilePhone -EntraMFAFormat
     }
     else {
       $mobile = "none"
@@ -113,8 +120,8 @@ foreach ($User in $AADUsers) {
 
     if ($MFAMgmt_DB.ContainsKey($User.Id)) {
       $CurrentMFADBRecord = $MFAMgmt_DB[$User.Id]
-      if (($CurrentMFADBRecord.MFAphone -eq $IDMAuthPhone) -or (($IDMAuthPhone -eq "none") -and ($CurrentMFADBRecord.MFAphone -eq $mobile))) {
-        write-host "$($User.UserPrincipalName.PadRight(40," ")) skipping, DB phone and IDM phones match"
+      if (($CurrentMFADBRecord.MFAphone -eq $IDMAuthPhone) -or ($CurrentMFADBRecord.MFAphone -eq $mobile)) {
+        #write-host "$($User.UserPrincipalName.PadRight(40," ")) skipping, DB phone and IDM phones match"
         continue
       }
     }
@@ -124,7 +131,7 @@ foreach ($User in $AADUsers) {
       $operation = "skip-no-numbers"
       $match = "SKIP"
       $clr = "DarkGray"
-      write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(20," ")) AAD-MFA:$($CurrentMFAPhone) " -NoNewline
+      write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
       write-host $match -ForegroundColor $clr
       continue
     }
@@ -148,8 +155,8 @@ foreach ($User in $AADUsers) {
       }
     }
     
-    If ($CurrentMFAPhone -eq $IDMAuthPhone) {
-      # numbers in IDM and AAD MFA match, nothing to do
+    If (($CurrentMFAPhone -eq $IDMAuthPhone) -or ($CurrentMFAPhone -eq $mobile)) {
+      # numbers in IDM and AAD MFA match, or mobile and AAD MFA match = nothing to do
       $phoneNumbersMatch = $true
       $operation = "ok-skip"
       $match = "OK"
@@ -160,11 +167,12 @@ foreach ($User in $AADUsers) {
       $match = "DIFF"
       $clr = "Red"
     }
-    
-    write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(20," ")) AAD-MFA:$($CurrentMFAPhone) " -NoNewline
+
+    write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
     write-host $match -ForegroundColor $clr
     
-    If (($ErrorMessageGET.Contains("(404)")) -or ($CurrentMFAPhone -ne $IDMAuthPhone)) {
+    If (($ErrorMessageGET.Contains("(404)")) -or ($match -eq "DIFF")) {
+      #need to create or update MFA phone method
       If ($CurrentMFAPhone -eq "none") {
         #configure new MFA number
         $operation = "new"
@@ -181,7 +189,7 @@ foreach ($User in $AADUsers) {
         } 
         #current number needs to be deleted first
         Try {
-          $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -ContentType $ContentTypeJSON
+          $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -ContentType $ContentTypeJSON 
           Write-Log "$($UPN) ($($User.displayName)): MFA phone $($CurrentMFAPhone) deleted"
         }
         Catch {
@@ -199,7 +207,7 @@ foreach ($User in $AADUsers) {
       } | ConvertTo-Json
       Try {
         #configure MFA number - auth phone
-        $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
+        $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
         Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
         $phoneNumberConfigured = $IDMAuthPhone
         $phoneMethodSetSuccessfully = $true
@@ -327,7 +335,7 @@ foreach ($User in $AADUsers) {
 
   Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
   $counter++
-  if ($counter -eq 200) {
+  if ($counter -ge $CounterMax) {
     break
   }
 }#foreach ($User in $ADUsers)
