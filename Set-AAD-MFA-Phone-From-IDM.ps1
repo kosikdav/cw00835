@@ -69,10 +69,29 @@ $AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READE
 #######################################################################################################################
 $counter = 0
 foreach ($User in $AADUsers) {
-
   Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
-  $UPN = $User.UserPrincipalName
+  $CurrentMFADBRecord = $null
+  $UPN = $samAccountName = $null
+  $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
+  $phoneNumbersMatch = $false
+  $phoneMethodSetSuccessfully = $false
+  $signInPreferencesSetSuccessfully = $false
 
+  $UPN = $User.UserPrincipalName
+  $samAccountName = $User.onpremisesSamAccountName
+
+  if ($UPN -and ($UPN.Substring(0,2) -in $NoMFAPhoneMgmtAccountPrefixes)) {
+    Continue
+  }
+
+  if ($UPN -and ($UPN.EndsWith($DefaultUPNSuffix))) {
+    Continue
+  }
+
+  if ($samAccountName -and ($samAccountName.Substring(0,2) -in $NoMFAPhoneMgmtAccountPrefixes)) {
+    Continue
+  }
+  
   $CurrentMFADBRecord = $null
   $CurrentMFAPhone = $operation = $sysPrefEnabled = $usrPrefMethod = $sysPrefMethod = $targetMethod = $null
   $phoneNumbersMatch = $false
@@ -110,9 +129,6 @@ foreach ($User in $AADUsers) {
       continue
     }
 
-
-
-    #$ExchExtensionAttribute40 = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
     $UriResource = "users/$($User.Id)/authentication/phoneMethods/$($mobilePhoneMethodId)"
     $Uri = New-GraphUri -Version "beta" -Resource $UriResource
     Try {
@@ -311,7 +327,7 @@ foreach ($User in $AADUsers) {
 
   Start-Sleep -Milliseconds $ThrottlingDelayPerUserinMsec
   $counter++
-  if ($counter -eq 20) {
+  if ($counter -eq 200) {
     break
   }
 }#foreach ($User in $ADUsers)

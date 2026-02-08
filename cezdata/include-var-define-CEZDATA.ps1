@@ -12,6 +12,7 @@ $TenantAdminURL     = "https://cezdata-admin.sharepoint.com"
 $GraphV1            = "https://graph.microsoft.com/v1.0"
 $GraphBeta          = "https://graph.microsoft.com/beta"
 $GuestUPNSuffix     = "#ext#@cezdata.onmicrosoft.com"
+$DefaultUPNSuffix     = "@cezdata.onmicrosoft.com"
 $DelGuestUPNSuffix  = "#ext#_cezdata_onmicrosoft_com"
 $DelUPNPrefixLength = 32
 $SearchUALIndexErrorMaxTotal = 100
@@ -204,9 +205,10 @@ $NoEnumerationGroups = @(
 
 $TMS_CloudPoradna_TagName_Azure = "Azure"
 
-$knownServiceAccountPrefixes = @("Q1","QB","QE","QL","QN","QP")
-$NoExtSharingAccountPrefixes = @("Q1","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QR","QS","QU","QW","QY","QZ")
-$NoPIMAccountPrefixes = @("QP","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QW","QY","QZ")
+$knownServiceAccountPrefixes    = @("Q1","QB","QE","QL","QN","QP")
+$NoExtSharingAccountPrefixes    = @("Q1","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QR","QS","QU","QW","QY","QZ")
+$NoMFAPhoneMgmtAccountPrefixes  = @("Q1","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QR","QS","QU","QW","QY","QZ")
+$NoPIMAccountPrefixes           = @("QP","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QW","QY","QZ")
 
 $NoPIMAdminRoles = (
     #Directory Readers    
