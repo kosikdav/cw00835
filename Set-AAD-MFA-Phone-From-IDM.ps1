@@ -77,7 +77,7 @@ foreach ($User in $AADUsers) {
   $phoneNumbersMatch = $false
   $phoneMethodSetSuccessfully = $false
   $signInPreferencesSetSuccessfully = $false
-  $CurrentMFAPhone = $IDMAuthPhone = $mobile = "none"
+  $CurrentMFAPhone = $IDMAuthPhone = $mobile =$null
 
   $UPN = $User.UserPrincipalName
   $samAccountName = $User.onpremisesSamAccountName
@@ -131,7 +131,7 @@ foreach ($User in $AADUsers) {
       $operation = "skip-no-numbers"
       $match = "SKIP"
       $clr = "DarkGray"
-      write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
+      write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline
       write-host $match -ForegroundColor $clr
       continue
     }
@@ -155,23 +155,32 @@ foreach ($User in $AADUsers) {
       }
     }
     
-    If (($CurrentMFAPhone -eq $IDMAuthPhone) -or ($CurrentMFAPhone -eq $mobile)) {
-      # numbers in IDM and AAD MFA match, or mobile and AAD MFA match = nothing to do
-      $phoneNumbersMatch = $true
-      $operation = "ok-skip"
-      $match = "OK"
-      $clr = "Green"
+    if ($CurrentMFAPhone -eq "none") {
+      # AAD MFA empty
+      $operation = "new"
+      $match = "NONE"
+      $clr = "Cyan"
     }
-    Else {
-      # numbers do not match
-      $match = "DIFF"
-      $clr = "Red"
+    else {
+      If (($CurrentMFAPhone -eq $IDMAuthPhone) -or ($CurrentMFAPhone -eq $mobile)) {
+          # numbers in IDM and AAD MFA match, or mobile and AAD MFA match = nothing to do
+          $phoneNumbersMatch = $true
+          $operation = "ok-skip"
+          $match = "OK"
+          $clr = "Green"
+      }
+      Else {
+        # numbers do not match
+        $match = "DIFF"
+        $clr = "Red"
+      }
     }
+
 
     write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
     write-host $match -ForegroundColor $clr
     
-    If (($ErrorMessageGET.Contains("(404)")) -or ($match -eq "DIFF")) {
+    If (($match -eq "NONE") -or ($match -eq "DIFF")) {
       #need to create or update MFA phone method
       If ($CurrentMFAPhone -eq "none") {
         #configure new MFA number
@@ -186,7 +195,7 @@ foreach ($User in $AADUsers) {
         else {
           #update - current number OK but incorrect format
           $operation = "update-format"
-        } 
+        }
         #current number needs to be deleted first
         Try {
           $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -ContentType $ContentTypeJSON 
