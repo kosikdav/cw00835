@@ -35,7 +35,7 @@ $DoNotConfigureFromIDM = @()
 [int]$PhoneNumberPropagationDelayinSec = 30
 [int]$CounterMax = 1000
 
-#######################################################################################################################
+######################################################################################################################
 
 . $IncFile_StdLogStartBlock
 Write-Log "CounterMax: $($CounterMax)"
@@ -134,7 +134,7 @@ foreach ($User in $AADUsers) {
     $operation = "skip-no-numbers"
     $match = "SKIP"
     $clr = "DarkGray"
-    write-host "$($Counter) $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline
+    write-host "      $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline -ForegroundColor DarkGray
     write-host $match -ForegroundColor $clr
     continue
   }
@@ -180,7 +180,7 @@ foreach ($User in $AADUsers) {
   }
 
 
-  write-host "$($Counter) $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
+  write-host "$($Counter.ToString().PadRight(5," ")) $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
   write-host $match -ForegroundColor $clr -NoNewline
   
   If (($match -eq "NONE") -or ($match -eq "DIFF")) {
@@ -208,7 +208,7 @@ foreach ($User in $AADUsers) {
       }
       #current number needs to be deleted first
       Try {
-        write-host "Invoke-WebRequest -Uri $Uri -Method DELETE -UseBasicParsing" -ForegroundColor Magenta
+        #write-host "Invoke-WebRequest -Uri $Uri -Method DELETE -UseBasicParsing" -ForegroundColor Magenta
         $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -UseBasicParsing
         Write-Log "$($UPN) ($($User.displayName)): MFA phone $($CurrentMFAPhone) deleted"
       }
@@ -227,7 +227,7 @@ foreach ($User in $AADUsers) {
     } | ConvertTo-Json
     Try {
       #configure MFA number - auth phone
-      write-host "Invoke-WebRequest -Uri $Uri -Method POST -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
+      #write-host "Invoke-WebRequest -Uri $Uri -Method POST -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
       $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
       Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($targetNumber) ($($operation))"
       $phoneNumberConfigured = $targetNumber
@@ -248,7 +248,7 @@ foreach ($User in $AADUsers) {
         } | ConvertTo-Json
         Try {
           #configure MFA number - mobile phone
-          write-host "Invoke-WebRequest -Uri $Uri -Method POST -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
+          #write-host "Invoke-WebRequest -Uri $Uri -Method POST -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
           $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
           Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
           $phoneNumberConfigured = $mobile
@@ -292,7 +292,7 @@ foreach ($User in $AADUsers) {
         #Write-Host $Uri -ForegroundColor Magenta
         Try {
             #configure preferred auth method
-            write-host "Invoke-WebRequest -Uri $Uri -Method PATCH -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
+            #write-host "Invoke-WebRequest -Uri $Uri -Method PATCH -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
             $ResponsePATCH = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "PATCH" -ContentType $ContentTypeJSON -UseBasicParsing
             Write-Log "$($UPN): userPreferredMethod set to: $($targetMethod), previous value: $($usrPrefMethod)"
             $signInPreferencesSetSuccessfully = $true
