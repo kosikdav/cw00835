@@ -38,46 +38,6 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL $TTL
 [array]$GuestDomainArray = @()
 [hashtable]$AADPartnerTenants_DB = @{}
 
-$UriResource = "domains"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-[array]$TenantDomains = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
-ForEach ($Domain in $TenantDomains) {
-    $Email = $Intune = $OrgIdAuthentication = $OfficeCommunicationsOnline = $false
-
-    if ($Domain.supportedServices -contains "Email") {
-        $Email = $true
-    }
-    if ($Domain.supportedServices -contains "Intune") {
-        $Intune = $true
-    }
-    if ($Domain.supportedServices -contains "OrgIdAuthentication") {
-        $OrgIdAuthentication = $true
-    }
-    if ($Domain.supportedServices -contains "OfficeCommunicationsOnline") {
-        $OfficeCommunicationsOnline = $true
-    }
-
-    $DomainObject = [pscustomobject]@{
-        domain              = $Domain.id
-        isVerified          = $Domain.isVerified
-        isRoot              = $Domain.isRoot
-        isInitial           = $Domain.isInitial
-        isAdminManaged      = $Domain.isAdminManaged
-        isDefault           = $Domain.isDefault
-        authenticationType  = $Domain.authenticationType
-        email              = $Email
-        intune             = $Intune
-        officeCommunicationsOnline = $OfficeCommunicationsOnline
-        orgIdAuthentication = $OrgIdAuthentication
-        supportedServices   = $Domain.supportedServices -join ";"
-        passwordNotificationWindowInDays = $Domain.passwordNotificationWindowInDays
-        passwordValidityPeriodInDays       = $Domain.passwordValidityPeriodInDays
-    }
-    $DBReportTenantDomains += $DomainObject
-}
-
-Export-Report "DBReportTenantDomains" -Report $DBReportTenantDomains -Path $DBFileTenantDomains -SortProperty "domain"
-
 $UriResource = "policies/crossTenantAccessPolicy/partners"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
 [array]$PartnerTenants = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON

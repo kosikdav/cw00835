@@ -106,6 +106,7 @@ $DBFileAADAdmRoles          = [System.IO.Path]::Combine($ROF,$DBFolderName,"aad-
 $DBFileAADPartnerTenants    = [System.IO.Path]::Combine($ROF,$DBFolderName,"aad-partner-tenants.csv")
 $DBFileExtAADTenants        = [System.IO.Path]::Combine($ROF,$DBFolderName,"aad-ext-tenants.csv")
 $DBFileTenantDomains        = [System.IO.Path]::Combine($ROF,$DBFolderName,"m365-tenant-domains.csv")
+$DBFileEntraExtAttributes   = [System.IO.Path]::Combine($ROF,$DBFolderName,"entra-extension-attributes.csv")
 $DBFileGuestsStd            = [System.IO.Path]::Combine($ROF,$DBFolderName,"guests-std.csv")
 $DBFileGuests               = $DBFileGuestsStd
 $DBFileGuestsName           = [System.IO.Path]::Combine($ROF,$DBFolderName,"guests-name.csv")

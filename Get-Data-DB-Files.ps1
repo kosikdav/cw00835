@@ -20,7 +20,7 @@ if ($workloads) {
     $workloadArray = $workloads.ToUpper() -split ','
 }
 else {
-    $workloadArray = @("APP","LIC","ROL","EXT","USR","TMS","GRP")
+    $workloadArray = @("TNT","APP","LIC","ROL","EXT","USR","TMS","GRP")
 }
 
 #######################################################################################################################

@@ -38,7 +38,7 @@ $DoNotConfigureFromIDM = @()
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
-
+Write-Log "CounterMax: $($CounterMax)"
 # load DB mfa-mgmt from file or initialize empty
 if (test-path $DBFileMFAMgmt) {
     Try {
@@ -122,8 +122,10 @@ foreach ($User in $AADUsers) {
   if ($MFAMgmt_DB.ContainsKey($User.Id)) {
     $CurrentMFADBRecord = $MFAMgmt_DB[$User.Id]
     if (($CurrentMFADBRecord.MFAphone -eq $IDMAuthPhone) -or ($CurrentMFADBRecord.MFAphone -eq $mobile)) {
-      #write-host "$($User.UserPrincipalName.PadRight(40," ")) skipping, DB phone and IDM phones match"
-      continue
+      #skipping, DB phone and IDM phones match"
+      if (-not $FullRun) {
+        continue
+      }
     }
   }
   
@@ -132,7 +134,7 @@ foreach ($User in $AADUsers) {
     $operation = "skip-no-numbers"
     $match = "SKIP"
     $clr = "DarkGray"
-    write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline
+    write-host "$($Counter) $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline
     write-host $match -ForegroundColor $clr
     continue
   }
@@ -178,10 +180,17 @@ foreach ($User in $AADUsers) {
   }
 
 
-  write-host "$($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
+  write-host "$($Counter) $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
   write-host $match -ForegroundColor $clr -NoNewline
   
   If (($match -eq "NONE") -or ($match -eq "DIFF")) {
+    # if there is a phone number in IDM use that, otherwise fallback to mobile (which might be the same number but at least we tried)
+    if ($IDMAuthPhone -ne "none") {
+      $targetNumber = $IDMAuthPhone
+    }
+    else {
+      $targetNumber = $mobile
+    }
     #need to create or update MFA phone method
     If ($CurrentMFAPhone -eq "none") {
       #configure new MFA number
@@ -199,7 +208,8 @@ foreach ($User in $AADUsers) {
       }
       #current number needs to be deleted first
       Try {
-        $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE"
+        write-host "Invoke-WebRequest -Uri $Uri -Method DELETE -UseBasicParsing" -ForegroundColor Magenta
+        $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -UseBasicParsing
         Write-Log "$($UPN) ($($User.displayName)): MFA phone $($CurrentMFAPhone) deleted"
       }
       Catch {
@@ -212,14 +222,15 @@ foreach ($User in $AADUsers) {
     $UriResource = "users/$($user.Id)/authentication/phoneMethods"
     $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
     $GraphBody = [pscustomobject]@{
-      phoneNumber = $IDMAuthPhone
+      phoneNumber = $targetNumber
       phoneType = "mobile"
     } | ConvertTo-Json
     Try {
       #configure MFA number - auth phone
+      write-host "Invoke-WebRequest -Uri $Uri -Method POST -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
       $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
-      Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
-      $phoneNumberConfigured = $IDMAuthPhone
+      Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($targetNumber) ($($operation))"
+      $phoneNumberConfigured = $targetNumber
       $phoneMethodSetSuccessfully = $true
     }
     Catch {
@@ -229,7 +240,7 @@ foreach ($User in $AADUsers) {
       }
       Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
       # if the error is invalidPhoneNumber and we have a mobile number, try to use that instead
-      if (($errObj.error.code -eq "invalidPhoneNumber") -and $mobile) {
+      if (($errObj.error.code -eq "invalidPhoneNumber") -and ($mobile -ne "none") -and ($mobile -ne $IDMAuthPhone)) {
         Write-Log "$($UPN) ($($User.displayName)): auth phone number invalid, fallback to mobile"
         $GraphBody = [pscustomobject]@{
           phoneNumber = $mobile
@@ -237,7 +248,8 @@ foreach ($User in $AADUsers) {
         } | ConvertTo-Json
         Try {
           #configure MFA number - mobile phone
-          $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
+          write-host "Invoke-WebRequest -Uri $Uri -Method POST -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
+          $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
           Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($IDMAuthPhone) ($($operation))"
           $phoneNumberConfigured = $mobile
           $phoneMethodSetSuccessfully = $true
@@ -280,6 +292,7 @@ foreach ($User in $AADUsers) {
         #Write-Host $Uri -ForegroundColor Magenta
         Try {
             #configure preferred auth method
+            write-host "Invoke-WebRequest -Uri $Uri -Method PATCH -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
             $ResponsePATCH = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "PATCH" -ContentType $ContentTypeJSON -UseBasicParsing
             Write-Log "$($UPN): userPreferredMethod set to: $($targetMethod), previous value: $($usrPrefMethod)"
             $signInPreferencesSetSuccessfully = $true
@@ -320,7 +333,8 @@ foreach ($User in $AADUsers) {
     targetMethod      = $targetMethod
   }
   
-  if ($phoneNumbersMatch -or ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully)) {
+  #if ($phoneNumbersMatch -or ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully)) {
+  if ($phoneNumbersMatch) {
     if ($CurrentMFADBRecord) {
       # update existing record
       $NewMFADBRecord = $CurrentMFADBRecord
