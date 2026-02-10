@@ -37,7 +37,7 @@ $DoNotConfigureFromIDM = @()
 ######################################################################################################################
 
 . $IncFile_StdLogStartBlock
-Write-Log "CounterMax: $($CounterMax)"
+
 # load DB mfa-mgmt from file or initialize empty
 if (test-path $DBFileMFAMgmt) {
     Try {
@@ -131,11 +131,13 @@ foreach ($User in $AADUsers) {
         # no mobile number in AAD and no auth phone in IDM, skip user
         $operation = "skip-no-numbers"
         $match = "SKIP"
-        $clr = "DarkGray"
+        $color = "DarkGray"
+        <#
         if ($interactiveRun) {
-            write-host "      $($User.UserPrincipalName.PadRight(40," ")) $($samAccountName.PadRight(14," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline -ForegroundColor DarkGray
-            write-host $match -ForegroundColor $clr
+            write-host "$($User.UserPrincipalName.PadRight(40," ")) $($samAccountName.PadRight(14," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline -ForegroundColor DarkGray
+            write-host $match -ForegroundColor $color
         }
+        #>
         continue
     }
     #at this point we know that at least one of the two numbers (mobile in AAD or auth phone in IDM) is populated
@@ -150,13 +152,13 @@ foreach ($User in $AADUsers) {
     }
     Catch {
     $ErrorMessageGET = $_.Exception.Message
-    If ($ErrorMessageGET.Contains("(404)")) {
-        $CurrentMFAPhone = "none"
-    }
-    Else {
-        Write-Log "$($UPN) ($($User.displayName)): Error reading MFA phoneMethods: $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
-        Continue
-    }
+        If ($ErrorMessageGET.Contains("(404)")) {
+            $CurrentMFAPhone = "none"
+        }
+        Else {
+            Write-Log "$($UPN) ($($User.displayName)): Error reading MFA phoneMethods: $($ErrorMessageGET)" -MessageType "ERROR" -ForceOnScreen
+            Continue
+        }
     }
 
     #at this point we have the current MFA phone number (if any) from AAD, 
@@ -167,7 +169,7 @@ foreach ($User in $AADUsers) {
         # AAD MFA empty
         $operation = "new"
         $match = "NONE"
-        $clr = "Yellow"
+        $color = "Yellow"
     }
     else {
         If (($CurrentMFAPhone -eq $IDMAuthPhone) -or ($CurrentMFAPhone -eq $mobile)) {
@@ -175,18 +177,18 @@ foreach ($User in $AADUsers) {
             $phoneNumbersMatch = $true
             $operation = "ok-skip"
             $match = "OK"
-            $clr = "Green"
+            $color = "Green"
         }
         Else {
             # numbers do not match
             $match = "DIFF"
-            $clr = "Red"
+            $color = "Red"
         }
     }
 
     if ($interactiveRun) {
-        Write-Host "$($Counter.ToString().PadRight(5," ")) $($User.UserPrincipalName.PadRight(40," ")) $($samAccountName.PadRight(14," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
-        Write-Host $match -ForegroundColor $clr -NoNewline
+        Write-Host "$($User.UserPrincipalName.PadRight(40," ")) $($samAccountName.PadRight(14," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
+        Write-Host $match -ForegroundColor $color -NoNewline
     }
 
     If (($match -eq "NONE") -or ($match -eq "DIFF")) {
@@ -249,6 +251,9 @@ foreach ($User in $AADUsers) {
             $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
             if ($errObj.error.code -eq "invalidPhoneNumber") {
                 $InvalidPhoneNumberList += "$($UPN) - $($IDMAuthPhone)"
+            }
+            if($interactiveRun) {
+                Write-Host
             }
             Write-Log "$($UPN) ($($User.displayName)): Error configuring MFA phone: $($IDMAuthPhone) ($($operation)) - $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
             # if the error is invalidPhoneNumber and we have a mobile number, try to use that instead
