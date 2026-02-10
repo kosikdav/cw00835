@@ -290,7 +290,7 @@ foreach ($User in $AADUsers) {
             $sysPrefEnabled = $SignInPreferences.isSystemPreferredAuthenticationMethodEnabled
             $usrPrefMethod  = $SignInPreferences.userPreferredMethodForSecondaryAuthentication
             $sysPrefMethod  = $SignInPreferences.systemPreferredAuthenticationMethod
-        } While ((($null -eq $usrPrefMethod) -or ($null -eq $sysPrefMethod)) -and ($PrefTimer.Elapsed.TotalSeconds -le $PhoneNumberMaxPropagationDelayinSec))
+        } While ((($null -eq $usrPrefMethod) -or ($null -eq $sysPrefMethod)) -and ($PrefTimer.Elapsed.TotalSeconds -le $PhoneNumberMaxPropagationDelayinSec) -and $phoneMethodSetSuccessfully)
         write-host
         If (-not ($sysPrefMethod -eq $UsrToSysMethodConv_DB[$usrPrefMethod])) {
             $targetMethod = $SysToUsrMethodConv_DB[$sysPrefMethod]
