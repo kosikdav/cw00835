@@ -284,37 +284,40 @@ foreach ($User in $AADUsers) {
             if ($phoneMethodSetSuccessfully) {
                 Start-Sleep -Seconds 10
             }
-            write-host "." -NoNewline
+            #write-host "." -NoNewline
             $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
             $SignInPreferences = $ResponseGET | ConvertFrom-Json
             $sysPrefEnabled = $SignInPreferences.isSystemPreferredAuthenticationMethodEnabled
             $usrPrefMethod  = $SignInPreferences.userPreferredMethodForSecondaryAuthentication
             $sysPrefMethod  = $SignInPreferences.systemPreferredAuthenticationMethod
         } While ((($null -eq $usrPrefMethod) -or ($null -eq $sysPrefMethod)) -and ($PrefTimer.Elapsed.TotalSeconds -le $PhoneNumberMaxPropagationDelayinSec) -and $phoneMethodSetSuccessfully)
-        write-host
-        If (-not ($sysPrefMethod -eq $UsrToSysMethodConv_DB[$usrPrefMethod])) {
-            $targetMethod = $SysToUsrMethodConv_DB[$sysPrefMethod]
-            $UriResource = "users/$($user.Id)/authentication/signInPreferences"
-            $Uri = New-GraphUri -Version "beta" -Resource $UriResource
-            $GraphBody = [pscustomobject]@{
-                userPreferredMethodForSecondaryAuthentication = $targetMethod
-            } | ConvertTo-Json
-            Try {
-                #configure preferred auth method
-                $ResponsePATCH = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "PATCH" -ContentType $ContentTypeJSON -UseBasicParsing
-                Write-Log "$($UPN): userPreferredMethod set to: $($targetMethod), previous value: $($usrPrefMethod)"
+        #write-host
+        
+        if ($usrPrefMethod -and $sysPrefMethod) {
+            If (-not ($sysPrefMethod -eq $UsrToSysMethodConv_DB[$usrPrefMethod])) {
+                $targetMethod = $SysToUsrMethodConv_DB[$sysPrefMethod]
+                $UriResource = "users/$($user.Id)/authentication/signInPreferences"
+                $Uri = New-GraphUri -Version "beta" -Resource $UriResource
+                $GraphBody = [pscustomobject]@{
+                    userPreferredMethodForSecondaryAuthentication = $targetMethod
+                } | ConvertTo-Json
+                Try {
+                    #configure preferred auth method
+                    $ResponsePATCH = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "PATCH" -ContentType $ContentTypeJSON -UseBasicParsing
+                    Write-Log "$($UPN): userPreferredMethod set to: $($targetMethod), previous value: $($usrPrefMethod)"
+                    $signInPreferencesSetSuccessfully = $true
+                }
+                Catch {
+                    $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
+                    Write-Log "$($UPN): Error configuring preferred auth method $($targetMethod): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
+                }
+            }
+            else {
+                if ($interactiveRun) {
+                    write-host "  OK" -ForegroundColor Cyan
+                }
                 $signInPreferencesSetSuccessfully = $true
             }
-            Catch {
-                $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-                Write-Log "$($UPN): Error configuring preferred auth method $($targetMethod): $($errObj.error.code)" -MessageType "ERROR" -ForceOnScreen
-            }
-        }
-        else {
-            if ($interactiveRun) {
-                write-host "  OK" -ForegroundColor Cyan
-            }
-            $signInPreferencesSetSuccessfully = $true
         }
     }
     Catch {
