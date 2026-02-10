@@ -31,9 +31,10 @@ $DoNotConfigureFromIDM = @()
 ######################################################################################################################
 
 . $IncFile_StdLogStartBlock
+Write-Log "FullRun: $($FullRun)"
 
 # load DB mfa-mgmt from file or initialize empty
-if (test-path $DBFileMFAMgmt) {
+if (Test-Path $DBFileMFAMgmt) {
     Try {
         $MFAMgmt_DB = Import-Clixml -Path $DBFileMFAMgmt
         Write-Log "DB file $($DBFileMFAMgmt) imported successfully, $($MFAMgmt_DB.count) records found"
