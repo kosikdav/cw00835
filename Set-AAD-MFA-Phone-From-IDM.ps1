@@ -26,7 +26,7 @@ $DoNotConfigureFromIDM = @()
 
 [array]$InvalidPhoneNumberList = @()
 [int]$ThrottlingDelayPerUserinMsec = 300
-[int]$PhoneNumberPropagationDelayinSec = 30
+[int]$PhoneNumberMaxPropagationDelayinSec = 120
 
 ######################################################################################################################
 
@@ -271,10 +271,6 @@ foreach ($User in $AADUsers) {
             } 
         }
     }  
-    
-    if ($phoneMethodSetSuccessfully) {
-        Start-Sleep -Seconds $PhoneNumberPropagationDelayinSec
-    }
 
     ########################################################################################################
     ########################################################################################################
@@ -283,11 +279,18 @@ foreach ($User in $AADUsers) {
     $UriResource = "users/$($user.Id)/authentication/signInPreferences"
     $Uri = New-GraphUri -Version "beta" -Resource $UriResource
     Try {
-        $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
-        $SignInPreferences = $ResponseGET | ConvertFrom-Json
-        $sysPrefEnabled = $SignInPreferences.isSystemPreferredAuthenticationMethodEnabled
-        $usrPrefMethod  = $SignInPreferences.userPreferredMethodForSecondaryAuthentication
-        $sysPrefMethod  = $SignInPreferences.systemPreferredAuthenticationMethod
+        $PrefTimer = [Diagnostics.Stopwatch]::StartNew()
+        Do {
+            if ($phoneMethodSetSuccessfully) {
+                Start-Sleep -Seconds 10
+            }
+            $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
+            $SignInPreferences = $ResponseGET | ConvertFrom-Json
+            $sysPrefEnabled = $SignInPreferences.isSystemPreferredAuthenticationMethodEnabled
+            $usrPrefMethod  = $SignInPreferences.userPreferredMethodForSecondaryAuthentication
+            $sysPrefMethod  = $SignInPreferences.systemPreferredAuthenticationMethod
+        } While ((($null -eq $usrPrefMethod) -or ($null -eq $sysPrefMethod)) -and ($PrefTimer.Elapsed.TotalSeconds -le $PhoneNumberMaxPropagationDelayinSec))
+   
         If (-not ($sysPrefMethod -eq $UsrToSysMethodConv_DB[$usrPrefMethod])) {
             $targetMethod = $SysToUsrMethodConv_DB[$sysPrefMethod]
             $UriResource = "users/$($user.Id)/authentication/signInPreferences"
