@@ -16,20 +16,14 @@ $LogFilePrefix		= "aad-mfa"
 $LogFileSuffix		= "set-phone-from-IDM"
 $LogFileFreq		= "YMD"
 
-$OutputFolder		= "aad-mfa\reports"
-$OutputFilePrefix	= "aad-mfa"
-$OutputFileSuffix	= "set-phone-from-IDM"
-
 #######################################################################################################################
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Suffix $LogFileSuffix -Ext "log"
-$OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffix -Ext "csv"
 
 $DoNotConfigureFromIDM = @()
 
-[array]$MFAPhoneReport = @()
 [array]$InvalidPhoneNumberList = @()
 [int]$ThrottlingDelayPerUserinMsec = 300
 [int]$PhoneNumberPropagationDelayinSec = 30
@@ -327,23 +321,6 @@ foreach ($User in $AADUsers) {
         }
     }
 
-    $MFAPhoneReport += [pscustomobject]@{
-        UserPrincipalName = $user.userPrincipalName
-        Id                = $User.Id
-        KPJM              = $User.onpremisesSamAccountName
-        DisplayName       = $User.displayName
-        Mail              = $User.mail
-        Mail_40           = $User.extension_008a5d3f841f4052ac1283ff4782c560_msExchExtensionAttribute40
-        mobile            = $User.mobile
-        CurrentMFAPhone   = $CurrentMFAPhone
-        IDMAuthPhone      = $IDMAuthPhone
-        Operation         = $operation
-        sysPrefEnabled    = $sysPrefEnabled
-        usrPrefMethod     = $usrPrefMethod
-        sysPrefMethod     = $sysPrefMethod
-        targetMethod      = $targetMethod
-    }
-
     if ($phoneNumbersMatch -or ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully)) {
         if ($CurrentMFADBRecord) {
             # update existing record
@@ -401,8 +378,6 @@ if (($MFAMgmt_DB.count -gt 0) -and ($DB_changed)){
       Write-Log "Error exporting $($DBFileMFAMgmt)" -MessageType "Error"
   }
 }
-
-Export-Report "MFA phone report" -Report $MFAPhoneReport -SortProperty "UserPrincipalName" -Path $OutputFile
 
 #######################################################################################################################
 
