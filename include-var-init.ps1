@@ -26,7 +26,6 @@ $strYesterday 			= $(Get-Date).AddDays(-1-$daysBackOffset).ToString("yyyy-MM-dd"
 $strToday 				= $(Get-Date).AddDays(0-$daysBackOffset).ToString("yyyy-MM-dd")
 $currentDate            = $strToday
 
-
 $strYesterdayUTCStart 	= $strYesterday + "T00:00:00Z"
 $strYesterdayUTCEnd 	= $strToday + "T00:00:00Z"
 $strNow               = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
