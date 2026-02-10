@@ -390,6 +390,9 @@ function New-GraphUri {
 		$Uri = $Uri + "`$Top=$($Top)&"
 	}
 	if ($Filter) {
+		if ($Filter -match " ") {
+			$Filter = [System.Web.HttpUtility]::UrlEncode($Filter)
+		}
 		$Uri = $Uri + "`$Filter=$($Filter)&"
 	}
 	if ($Select) {

@@ -59,7 +59,7 @@ else {
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
-$UriFilter = "UserType+eq+'Member'&accountEnabled+eq+'True'&onPremisesSyncEnabled+eq+'True'"
+$UriFilter = "userType eq 'Member' and accountEnabled eq true and onPremisesSyncEnabled eq true"
 #$UriFilter = "startswith(userPrincipalName,'josef.mat')"
 $UriSelect1 = "id,userPrincipalName,mail,displayName,onPremisesSyncEnabled,onpremisesSamAccountName,onPremisesDistinguishedName,mobilePhone"
 $UriSelect2 = "extension_008a5d3f841f4052ac1283ff4782c560_cEZIntuneMFAAuthMobile"
@@ -134,7 +134,7 @@ foreach ($User in $AADUsers) {
     $operation = "skip-no-numbers"
     $match = "SKIP"
     $clr = "DarkGray"
-    write-host "      $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline -ForegroundColor DarkGray
+    write-host "      $($User.UserPrincipalName.PadRight(40," ")) $($samAccountName.PadRight(14," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) " -NoNewline -ForegroundColor DarkGray
     write-host $match -ForegroundColor $clr
     continue
   }
@@ -162,7 +162,7 @@ foreach ($User in $AADUsers) {
     # AAD MFA empty
     $operation = "new"
     $match = "NONE"
-    $clr = "Cyan"
+    $clr = "Yellow"
   }
   else {
     If (($CurrentMFAPhone -eq $IDMAuthPhone) -or ($CurrentMFAPhone -eq $mobile)) {
@@ -180,7 +180,7 @@ foreach ($User in $AADUsers) {
   }
 
 
-  write-host "$($Counter.ToString().PadRight(5," ")) $($User.UserPrincipalName.PadRight(40," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
+  write-host "$($Counter.ToString().PadRight(5," ")) $($User.UserPrincipalName.PadRight(40," ")) $($samAccountName.PadRight(14," ")) IDM:$($IDMAuthPhone.PadRight(15," ")) mobile:$($mobile.PadRight(15," ")) AAD-MFA:$($CurrentMFAPhone.PadRight(15," ")) " -NoNewline
   write-host $match -ForegroundColor $clr -NoNewline
   
   If (($match -eq "NONE") -or ($match -eq "DIFF")) {
@@ -210,6 +210,7 @@ foreach ($User in $AADUsers) {
       Try {
         #write-host "Invoke-WebRequest -Uri $Uri -Method DELETE -UseBasicParsing" -ForegroundColor Magenta
         $ResponseDELETE = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "DELETE" -UseBasicParsing
+        Write-Host
         Write-Log "$($UPN) ($($User.displayName)): MFA phone $($CurrentMFAPhone) deleted"
       }
       Catch {
@@ -229,6 +230,7 @@ foreach ($User in $AADUsers) {
       #configure MFA number - auth phone
       #write-host "Invoke-WebRequest -Uri $Uri -Method POST -ContentType $ContentTypeJSON -UseBasicParsing -Body $GraphBody" -ForegroundColor Magenta
       $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
+      Write-Host
       Write-Log "$($UPN) ($($User.displayName)): MFA phone configured: $($targetNumber) ($($operation))"
       $phoneNumberConfigured = $targetNumber
       $phoneMethodSetSuccessfully = $true
@@ -333,8 +335,7 @@ foreach ($User in $AADUsers) {
     targetMethod      = $targetMethod
   }
   
-  #if ($phoneNumbersMatch -or ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully)) {
-  if ($phoneNumbersMatch) {
+  if ($phoneNumbersMatch -or ($phoneMethodSetSuccessfully -and $signInPreferencesSetSuccessfully)) {
     if ($CurrentMFADBRecord) {
       # update existing record
       $NewMFADBRecord = $CurrentMFADBRecord
