@@ -284,13 +284,14 @@ foreach ($User in $AADUsers) {
             if ($phoneMethodSetSuccessfully) {
                 Start-Sleep -Seconds 10
             }
+            write-host "." -NoNewline
             $ResponseGET = Invoke-WebRequest -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Method "GET" -ContentType $ContentTypeJSON -UseBasicParsing
             $SignInPreferences = $ResponseGET | ConvertFrom-Json
             $sysPrefEnabled = $SignInPreferences.isSystemPreferredAuthenticationMethodEnabled
             $usrPrefMethod  = $SignInPreferences.userPreferredMethodForSecondaryAuthentication
             $sysPrefMethod  = $SignInPreferences.systemPreferredAuthenticationMethod
         } While ((($null -eq $usrPrefMethod) -or ($null -eq $sysPrefMethod)) -and ($PrefTimer.Elapsed.TotalSeconds -le $PhoneNumberMaxPropagationDelayinSec))
-   
+        write-host
         If (-not ($sysPrefMethod -eq $UsrToSysMethodConv_DB[$usrPrefMethod])) {
             $targetMethod = $SysToUsrMethodConv_DB[$sysPrefMethod]
             $UriResource = "users/$($user.Id)/authentication/signInPreferences"
