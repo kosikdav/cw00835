@@ -161,8 +161,50 @@ $ADCredential = Import-Clixml -Path $ADCredentialPath
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
 
+$TOBEAzureSubOwnersQS = @()
+$TOBEAzureSubOwnersStd = @()
+$DifferenceQS = $false
+$DifferenceStd = $false
+
 Write-Log $string_Divider
 Write-Log "Processing CEZ_Azure_Subscription_Owners_Std group"
+$UriResource = "groups"
+$UriFilter = "startsWith(displayName,'CEZ_Azure') and endsWith(displayName,'SA') and onPremisesSyncEnabled eq true"
+$UriSelect = "id,displayName"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Select $UriSelect
+[array]$AzureSAGroups = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual" 
+write-host "$($AzureSAGroups.count) groups found in Azure matching criteria" -ForegroundColor Green
+foreach ($group in $AzureSAGroups) {
+	write-host "$($group.displayName)  " -NoNewline
+	[array]$members = Get-GroupMembersFromGraphById -id $group.id -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken
+	write-host $members.count -ForegroundColor Green
+	foreach ($member in $members) {
+		if ($member."@odata.type" -ne $TypeUser) {
+			continue
+		}
+		if (-not($member.userPrincipalName.StartsWith("qs") -or $member.userPrincipalName.StartsWith("qr"))) {
+			continue
+		}
+		$UriResource = "users/$($member.id)"
+		$UriSelect = "id,displayName,userPrincipalName,onPremisesSamAccountName,onPremisesExtensionAttributes"
+		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+		$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+		
+		$UriResource = "users"
+		$UriFilter = "onPremisesSamAccountName eq '$($QSUser.onPremisesExtensionAttributes.extensionAttribute3)'"
+		$UriSelect = "id,displayName,userPrincipalName,onPremisesSamAccountName,onPremisesExtensionAttributes"
+		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Filter $UriFilter -Count
+		$StdUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual"
+
+		$TOBEAzureSubOwnersQS += $QSUser.onPremisesSamAccountName
+		$TOBEAzureSubOwnersStd += $StdUser.onPremisesSamAccountName
+	}
+}
+
+$ASISAzureSubOwnersQS = (Get-GroupMembersFromGraphById -id $GroupId_AzureSubOwnersQS -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -Properties "id,onPremisesSamAccountName").onPremisesSamAccountName
+$ASISAzureSubOwnersStd = (Get-GroupMembersFromGraphById -id $GroupId_AzureSubOwnersStd -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -Properties "id,onPremisesSamAccountName").onPremisesSamAccountName
+
+<#
 $NamePattern = "CEZ_Azure_*_SA"
 $GroupFilter = "Name -like '$($NamePattern)'"
 
@@ -199,6 +241,8 @@ foreach ($group in $ADGroups) {
     $TOBEAzureSubOwnersStd += $members.extensionAttribute3
 }
 
+#>
+
 $TOBEAzureSubOwnersQS = $TOBEAzureSubOwnersQS | Sort-Object -Unique
 $TOBEAzureSubOwnersStd = $TOBEAzureSubOwnersStd | Sort-Object -Unique
 
@@ -210,6 +254,8 @@ write-host "ASIS members QS: $($ASISAzureSubOwnersQS.count)" -ForegroundColor Cy
 
 write-host "TOBE members Std: $($TOBEAzureSubOwnersStd.count)" -ForegroundColor Yellow
 write-host "ASIS members Std: $($ASISAzureSubOwnersStd.count)" -ForegroundColor Yellow
+
+exit
 
 Try {
 	$DifferenceQS = Compare-Object -ReferenceObject $ASISAzureSubOwnersQS -DifferenceObject $TOBEAzureSubOwnersQS
@@ -224,6 +270,7 @@ Try {
 Catch {
 	$DifferenceStd = $true
 }
+
 
 if ($DifferenceQS) {
     $missingMembersQS = $TOBEAzureSubOwnersQS | Where-Object { $ASISAzureSubOwnersQS -notcontains $_ }
@@ -285,6 +332,8 @@ if ($DifferenceStd) {
 	}
 }	
 
+#>
+
 #######################################################################################################################
 # CEZ_Lic_AAD_Prem_P2 #################################################################################################
 #######################################################################################################################
@@ -300,12 +349,16 @@ Write-Log $String_Divider
 Write-Log "Processing AD license group: $($AADP2LicenseGroup)"
 
 # ASIS AADP2 onprem users ########################################################################
-$ASISAADP2Users = Get-ADGroupMembersUPN -GroupName $AADP2LicenseGroup -Credential $ADCredential
+$UriResource = "groups/$($AADP2LicenseGroupId)/members"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+$ASISAADP2Users = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON | Select-Object -ExpandProperty userPrincipalName
 Write-Log "Current $($AADP2LicenseGroup) members: $($ASISAADP2Users.count)"
 
 # ASIS E5Sec onprem users ########################################################################
-$ASISE5SecUsers = Get-ADGroupMembersUPN -GroupName $E5SecLicenseGroup -Credential $ADCredential
-Write-Log "Current $($E5SecLicenseGroup) members: $($ASISAADP2Users.count)"
+$UriResource = "groups/$($E5SecLicenseGroupId)/members"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+$ASISE5SecUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON | Select-Object -ExpandProperty userPrincipalName
+Write-Log "Current $($E5SecLicenseGroup) members: $($ASISE5SecUsers.count)"
 
 # RAS ############################################################################################
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
