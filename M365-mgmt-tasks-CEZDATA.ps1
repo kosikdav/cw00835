@@ -18,7 +18,8 @@ $ScriptList = @(
     "Update-Teams-Channels-Membership.ps1",
     "Set-AAD-Guests-Attributes.ps1",
     "Update-AAD-Devices.ps1",
-    "Remove-Stale-AAD-Guests.ps1"
+    "Remove-Stale-AAD-Guests.ps1",
+    "Set-AAD-MFA-Phone-From-IDM.ps1"
 )
 
 $LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-mgmt-tasks" -Ext "log"
