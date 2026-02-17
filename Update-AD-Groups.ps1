@@ -255,8 +255,6 @@ write-host "ASIS members QS: $($ASISAzureSubOwnersQS.count)" -ForegroundColor Cy
 write-host "TOBE members Std: $($TOBEAzureSubOwnersStd.count)" -ForegroundColor Yellow
 write-host "ASIS members Std: $($ASISAzureSubOwnersStd.count)" -ForegroundColor Yellow
 
-exit
-
 Try {
 	$DifferenceQS = Compare-Object -ReferenceObject $ASISAzureSubOwnersQS -DifferenceObject $TOBEAzureSubOwnersQS
 }
@@ -350,14 +348,16 @@ Write-Log "Processing AD license group: $($AADP2LicenseGroup)"
 
 # ASIS AADP2 onprem users ########################################################################
 $UriResource = "groups/$($AADP2LicenseGroupId)/members"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-$ASISAADP2Users = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON | Select-Object -ExpandProperty userPrincipalName
+$UriSelect = "userPrincipalName"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Top 999
+[array]$ASISAADP2Users = (Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON).userPrincipalName
 Write-Log "Current $($AADP2LicenseGroup) members: $($ASISAADP2Users.count)"
 
 # ASIS E5Sec onprem users ########################################################################
 $UriResource = "groups/$($E5SecLicenseGroupId)/members"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-$ASISE5SecUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON | Select-Object -ExpandProperty userPrincipalName
+$UriSelect = "userPrincipalName"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Top 999
+[array]$ASISE5SecUsers = (Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON).userPrincipalName
 Write-Log "Current $($E5SecLicenseGroup) members: $($ASISE5SecUsers.count)"
 
 # RAS ############################################################################################
@@ -384,20 +384,38 @@ $extraUsersOnprem = $ASISAADP2Users | Where-Object -FilterScript { $_ -notin $TO
 Write-Log "Missing users: $($missingUsersOnprem.count)"
 foreach ($missingUpn in $missingUsersOnprem) {
 	Write-Log "Adding $($missingUpn)"
-	$ADUser = Get-ADUser -Credential $ADCredential -Filter "UserPrincipalName -eq '$missingUpn'"
-	Add-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $ADUser -Confirm:$false
+	$UriResource = "users/$($missingUpn)"
+	$UriSelect = "onPremisesSamAccountName"
+	$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+	$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+	$missingSAM = $QSUser.onPremisesSamAccountName
+	if ($ADCredential) {
+		Add-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $missingSAM -Confirm:$false
+	}
+	else {
+		Add-ADGroupMember -Identity $AADP2LicenseGroup -Members $missingSAM -Confirm:$false
+	}
 }
 
 Write-Log "Extra users: $($extraUsersOnprem.count)"
 foreach ($extraUpn in $extraUsersOnprem) {
 	Write-Log "Removing $($extraUpn)"
-	$ADUser = Get-ADUser -Credential $ADCredential -Filter "UserPrincipalName -eq '$extraUpn'"
-	Remove-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $ADUser -Confirm:$false
+	$UriResource = "users/$($extraUpn)"
+	$UriSelect = "onPremisesSamAccountName"
+	$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+	$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+	$extraSAM = $QSUser.onPremisesSamAccountName
+	if ($ADCredential) {
+		Remove-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $extraSAM -Confirm:$false
+	}
+	else {
+		Remove-ADGroupMember -Identity $AADP2LicenseGroup -Members $extraSAM -Confirm:$false	
+	}
 }
+
 
 Write-Log $String_Divider
 Write-Log "Processing OU based groups"
-
 #######################################################################################################################
 # OU Resources ########################################################################################################
 #######################################################################################################################
