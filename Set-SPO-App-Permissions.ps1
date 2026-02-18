@@ -141,14 +141,14 @@ if (Get-YesNoKeyboardInput -Prompt "Really set permission?" -ForegroundColor Whi
 
     #set permissions
     Try {
-    $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_SPO_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON
-    write-host "-------------------------------------------------------------" -ForegroundColor Yellow
-    write-host "Permission set: $($displayName)" -ForegroundColor Green
+        $ResponsePOST = Invoke-WebRequest -Headers $AuthDB[$AppReg_SPO_MGMT].AuthHeaders -Uri $Uri -Body $GraphBody -Method "POST" -ContentType $ContentTypeJSON -UseBasicParsing
+        write-host "-------------------------------------------------------------" -ForegroundColor Yellow
+        write-host "Permission set: $($displayName)" -ForegroundColor Green
     }
     Catch {
-    $ErrorMessagePOST = $_.Exception.Message
-    $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
-    Write-Host "$($errObj.error.code) - $ErrorMessagePOST" -ForegroundColor Red
+        $ErrorMessagePOST = $_.Exception.Message
+        $errObj = (New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() | ConvertFrom-Json
+        Write-Host "$($errObj.error.code) - $ErrorMessagePOST" -ForegroundColor Red
     }
 }
 
