@@ -21,53 +21,66 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 #######################################################################################################################
 
 $SiteId = [string]::Empty
+$RelSiteUrl = $RootUrl = $null
 
 Request-MSALToken -AppRegName $AppReg_SPO_MGMT -TTL 30
-Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+#Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 
-#read all sites from SPO and check if site exists
-$UriResource = "sites"
-$UriSelect = "id,webUrl,name"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Top 999
-[array]$Sites = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeJSON -Text "Getting SPO sites" -ProgressDots
-foreach ($Site in $Sites) {
-	if ($Site.webUrl -eq $Url) {
-        $SiteId = $Site.id
-        write-host "Site:        $Url ($($Site.name))" -ForegroundColor Yellow
-        write-host "Site id:     $SiteId" -ForegroundColor Gray
+if ($Url.StartsWith("https://cezdata.sharepoint.com")) {
+    $RelSiteUrl = $Url.Replace("https://cezdata.sharepoint.com","")
+    $RootUrl = "cezdata.sharepoint.com"
+}
+else {
+    if ($Url.StartsWith("https://cezdata-my.sharepoint.com")) {
+        $RelSiteUrl = $Url.Replace("https://cezdata-my.sharepoint.com","")
+        $RootUrl = "cezdata-my.sharepoint.com"
     }
 }
-if ($SiteId -eq [string]::Empty) {
-	write-host "Site $Url not found" -ForegroundColor Red
-	Exit
+
+if (-not $RelSiteUrl) {
+    write-host "Url must start with https://cezdata.sharepoint.com or https://cezdata-my.sharepoint.com" -ForegroundColor Red
+    Exit
 }
+
+$UriResource = "sites/$($RootUrl):$RelSiteUrl"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+$Site = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeJSON
+
+if (-not $Site) {
+    write-host "Site not found: $Url" -ForegroundColor Red
+    Exit
+}
+
+$SiteId = $Site.id
+write-host "Site:        $Url ($($Site.name))" -ForegroundColor Yellow
+write-host "Site id:     $SiteId" -ForegroundColor Gray
 
 #look up application registered in AAD
 $UriResource = "applications(appId='$ApplicationId')"
 $UriSelect = "id,appId,displayName"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
-$Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Silent
+$Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeJSON -Silent
 if ($null -eq $Application) {
 	$UriResource = "applications/$ApplicationId"
     $UriSelect = "id,appId,displayName"
 	$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
-	$Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Silent
+	$Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeJSON -Silent
 	if ($null -eq $Application) {
         $UriResource = "servicePrincipals/(appId='$ApplicationId')"
         $UriSelect = "id,appId,displayName"
 	    $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
-	    $Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Silent
+	    $Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeJSON -Silent
         if ($null -eq $Application) {
             $UriResource = "servicePrincipals/$ApplicationId"
             $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
-            $Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Silent
+            $Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeJSON -Silent
         }
         if ($null -eq $Application) {
             $UriResource = "servicePrincipals"
             $UriSelect = "id,appId,displayName"
             $UriFilter = "servicePrincipalType eq 'ManagedIdentity' and appId eq '$ApplicationId'"
             $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Filter $UriFilter
-            $Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Silent
+            $Application = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeJSON -Silent
             if ($null -eq $Application) {
                 write-host "No application with id=$($ApplicationId) (applicationId or objectId) found" -ForegroundColor Red
                 Exit
@@ -118,7 +131,7 @@ if ($ExistingPermissions.Count -gt 0) {
     }
 }
 
-if (Get-YesNoKeyboardInput -Prompt "Really set permission?" -ForegroundColor White) {
+if ($Force -or (Get-YesNoKeyboardInput -Prompt "Really set permission?" -ForegroundColor White)) {
     #set timestamp and permission display name
     $TimeStamp = Get-Date -Format "yyyyMMdd-HHmmss"
     Write-Host "Timestamp:   $($TimeStamp)" -ForegroundColor Yellow
