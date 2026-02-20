@@ -12,7 +12,8 @@ $TenantAdminURL     = "https://cezdata-admin.sharepoint.com"
 $GraphV1            = "https://graph.microsoft.com/v1.0"
 $GraphBeta          = "https://graph.microsoft.com/beta"
 $GuestUPNSuffix     = "#ext#@cezdata.onmicrosoft.com"
-$DefaultUPNSuffix     = "@cezdata.onmicrosoft.com"
+$OnPremUPNSuffix    = "@cez.cz"
+$DefaultUPNSuffix   = "@cezdata.onmicrosoft.com"
 $DelGuestUPNSuffix  = "#ext#_cezdata_onmicrosoft_com"
 $DelUPNPrefixLength = 32
 $SearchUALIndexErrorMaxTotal = 100
@@ -259,9 +260,9 @@ $GroupId_AzureSubOwnersStd = "562285f7-9a0a-43c6-acc2-f84df6e01db5"
 $GroupId_AzureSubSA = $GroupId_AzureSubOwnersStd
 $GroupName_AzureSubOwnersStd = "CEZ_Azure_Subscription_Owners_Std"
 $GroupName_AzureSubSA = $GroupName_AzureSubOwnersStd
-#CEZ_Azure_Subscription_Owners_Std
-$GroupId_AzureSubOwnersQS = "c9ecf2ee-92ad-448c-a8ac-49f9274fb88b"
+#CEZ_Azure_Subscription_Owners_QS
 $GroupName_AzureSubOwnersQS = "CEZ_Azure_Subscription_Owners_QS"
+$GroupId_AzureSubOwnersQS = "c9ecf2ee-92ad-448c-a8ac-49f9274fb88b"
 #CEZ_AZURE_BSI_ADMINS
 $GroupId_AzureBSIAdmins = "e2f7c68b-ff54-4147-92ce-f3310082eecb"
 
@@ -299,7 +300,11 @@ $GroupId_OCP_DevOpsTeam = "67a021d9-6fd9-4c0b-91f6-56d81ba6a40f"
 
 
 $AADP2LicenseGroup = "CEZ_Lic_AAD_Prem_P2"
+$AADP2LicenseGroupId = "76ca69e2-fb34-4660-b07a-bd626504f470"
+
 $E5SecLicenseGroup = "CEZ_Lic_MCAS_BasUsr"
+$E5SecLicenseGroupId = "650c05fd-a74a-49fa-81ac-c0c2cba2b18e"
+
 $M365F3SharedLicenseGroup = "CEZ_Lic_M365_BasSrd_F3"
 
 $OUResourcesADGroup = "CEZ_AADSync_OU_Resources"

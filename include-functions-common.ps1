@@ -1282,8 +1282,8 @@ function Get-GroupMembersFromGraphById {
 	else {
 		$UriSelect = "id,mail,userPrincipalName"
 	}
-	#$Uri = New-GraphUri -Version $Version -Resource $UriResource -Select $UriSelect -Count -Top 999
-	$Uri = New-GraphUri -Version $Version -Resource $UriResource -Top 999
+	$Uri = New-GraphUri -Version $Version -Resource $UriResource -Select $UriSelect -Count -Top 999
+	#$Uri = New-GraphUri -Version $Version -Resource $UriResource -Top 999
 	Try {
 		[array]$Members = Get-GraphOutputREST -Uri $Uri -AccessToken $AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual"
 		If ($Members -and $Transitive) {

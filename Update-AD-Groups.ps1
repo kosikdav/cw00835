@@ -161,8 +161,54 @@ $ADCredential = Import-Clixml -Path $ADCredentialPath
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
 
+$TOBEAzureSubOwnersQS = @()
+$TOBEAzureSubOwnersStd = @()
+$DifferenceQS = $false
+$DifferenceStd = $false
+$missingMembersQS = $null
+$extraMembersQS = $null
+$missingMembersStd = $null
+$extraMembersStd = $null
+
 Write-Log $string_Divider
 Write-Log "Processing CEZ_Azure_Subscription_Owners_Std group"
+$UriResource = "groups"
+$UriFilter = "startsWith(displayName,'CEZ_Azure') and endsWith(displayName,'SA') and onPremisesSyncEnabled eq true"
+$UriSelect = "id,displayName"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Select $UriSelect
+[array]$AzureSAGroups = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual" 
+write-host "$($AzureSAGroups.count) groups found in Azure matching criteria" -ForegroundColor Green
+foreach ($group in $AzureSAGroups) {
+	write-host "$($group.displayName)  " -NoNewline
+	[array]$members = Get-GroupMembersFromGraphById -id $group.id -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken
+	write-host $members.count -ForegroundColor Green
+	foreach ($member in $members) {
+		if ($member."@odata.type" -ne $TypeUser) {
+			continue
+		}
+		if (-not($member.userPrincipalName.StartsWith("qs") -or $member.userPrincipalName.StartsWith("qr"))) {
+			continue
+		}
+		$UriResource = "users/$($member.id)"
+		$UriSelect = "id,displayName,userPrincipalName,onPremisesSamAccountName,onPremisesExtensionAttributes"
+		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+		$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+		
+		$UriResource = "users"
+		$UriFilter = "onPremisesSamAccountName eq '$($QSUser.onPremisesExtensionAttributes.extensionAttribute3)'"
+		$UriSelect = "id,displayName,userPrincipalName,onPremisesSamAccountName,onPremisesExtensionAttributes"
+		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Filter $UriFilter -Count
+		$StdUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual"
+
+		$TOBEAzureSubOwnersQS += $QSUser.onPremisesSamAccountName
+		$TOBEAzureSubOwnersStd += $StdUser.onPremisesSamAccountName
+	}
+}
+
+$ASISAzureSubOwnersQS = (Get-GroupMembersFromGraphById -id $GroupId_AzureSubOwnersQS -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -Properties "id,onPremisesSamAccountName").onPremisesSamAccountName
+$ASISAzureSubOwnersStd = (Get-GroupMembersFromGraphById -id $GroupId_AzureSubOwnersStd -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -Properties "id,onPremisesSamAccountName").onPremisesSamAccountName
+
+<#
 $NamePattern = "CEZ_Azure_*_SA"
 $GroupFilter = "Name -like '$($NamePattern)'"
 
@@ -199,6 +245,8 @@ foreach ($group in $ADGroups) {
     $TOBEAzureSubOwnersStd += $members.extensionAttribute3
 }
 
+#>
+
 $TOBEAzureSubOwnersQS = $TOBEAzureSubOwnersQS | Sort-Object -Unique
 $TOBEAzureSubOwnersStd = $TOBEAzureSubOwnersStd | Sort-Object -Unique
 
@@ -227,11 +275,9 @@ Catch {
 
 if ($DifferenceQS) {
     $missingMembersQS = $TOBEAzureSubOwnersQS | Where-Object { $ASISAzureSubOwnersQS -notcontains $_ }
-	write-log "Missing members QS: $($missingMembersQS.count)"
     $extraMembersQS = $ASISAzureSubOwnersQS | Where-Object { $TOBEAzureSubOwnersQS -notcontains $_ }
-	write-log "Extra members QS: $($extraMembersQS.count)"
-	
 	if ($missingMembersQS) {
+		write-log "Missing members QS: $($missingMembersQS.count)"
         foreach ($samAccountName in $missingMembersQS) {
             Write-Log "Adding $($samAccountName) to $($GroupName_AzureSubOwnersQS)"
             if ($ADCredential) {
@@ -243,6 +289,7 @@ if ($DifferenceQS) {
         }
     }
     if ($extraMembersQS) {
+		write-log "Extra members QS: $($extraMembersQS.count)"
         foreach ($samAccountName in $extraMembersQS) {
             Write-Log "Removing $($samAccountName) from $($GroupName_AzureSubOwnersQS)"
             if ($ADCredential) {
@@ -257,11 +304,9 @@ if ($DifferenceQS) {
 
 if ($DifferenceStd) {
 	$missingMembersStd = $TOBEAzureSubOwnersStd | Where-Object { $ASISAzureSubOwnersStd -notcontains $_ }
-	write-log "Missing members Std: $($missingMembersStd.count)"
 	$extraMembersStd = $ASISAzureSubOwnersStd | Where-Object { $TOBEAzureSubOwnersStd -notcontains $_ }
-	write-log "Extra members Std: $($extraMembersStd.count)"
-	
 	if ($missingMembersStd) {
+		write-log "Missing members Std: $($missingMembersStd.count)"
 		foreach ($samAccountName in $missingMembersStd) {
 			Write-Log "Adding $($samAccountName) to $($GroupName_AzureSubOwnersStd)"
 			if ($ADCredential) {
@@ -273,6 +318,7 @@ if ($DifferenceStd) {
 		}
 	}
 	if ($extraMembersStd) {
+		write-log "Extra members Std: $($extraMembersStd.count)"
 		foreach ($samAccountName in $extraMembersStd) {
 			Write-Log "Removing $($samAccountName) from $($GroupName_AzureSubOwnersStd)"
 			if ($ADCredential) {
@@ -285,6 +331,8 @@ if ($DifferenceStd) {
 	}
 }	
 
+#>
+
 #######################################################################################################################
 # CEZ_Lic_AAD_Prem_P2 #################################################################################################
 #######################################################################################################################
@@ -296,16 +344,18 @@ if ($DifferenceStd) {
 [array]$RASUsers = @()
 [array]$RESUsers = @()
 
+$missingUsersOnprem = $null
+$extraUsersOnprem = $null
+
 Write-Log $String_Divider
 Write-Log "Processing AD license group: $($AADP2LicenseGroup)"
 
-# ASIS AADP2 onprem users ########################################################################
-$ASISAADP2Users = Get-ADGroupMembersUPN -GroupName $AADP2LicenseGroup -Credential $ADCredential
-Write-Log "Current $($AADP2LicenseGroup) members: $($ASISAADP2Users.count)"
-
 # ASIS E5Sec onprem users ########################################################################
-$ASISE5SecUsers = Get-ADGroupMembersUPN -GroupName $E5SecLicenseGroup -Credential $ADCredential
-Write-Log "Current $($E5SecLicenseGroup) members: $($ASISAADP2Users.count)"
+$UriResource = "groups/$($E5SecLicenseGroupId)/members"
+$UriSelect = "userPrincipalName"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Top 999
+[array]$ASISE5SecUsers = (Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON).userPrincipalName
+Write-Log "Current $($E5SecLicenseGroup) members: $($ASISE5SecUsers.count)"
 
 # RAS ############################################################################################
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
@@ -316,6 +366,13 @@ Write-Log "RASUsers: $($RASUsers.count)"
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $RESUsers = Get-RoleScheduleMembersUPN -Schedule "roleEligibilitySchedules" -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -IgnoredRoles $NoPIMAdminRoles
 Write-Log "RESUsers: $($RESUsers.count)"
+
+# ASIS AADP2 onprem users ########################################################################
+$UriResource = "groups/$($AADP2LicenseGroupId)/members"
+$UriSelect = "userPrincipalName"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Top 999
+[array]$ASISAADP2Users = (Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON).userPrincipalName
+Write-Log "ASIS admin group members: $($ASISAADP2Users.count)  ($($AADP2LicenseGroup))"
 
 # TOBE ###########################################################################################
 $TOBEAADP2Users = $RASUsers + $RESUsers | Sort-Object -Unique
@@ -328,23 +385,44 @@ Write-Log "TOBE admin group members: $($TOBEAADP2Users.count)"
 $missingUsersOnprem = $TOBEAADP2Users | Where-Object -FilterScript { $_ -notin $ASISAADP2Users }
 $extraUsersOnprem = $ASISAADP2Users | Where-Object -FilterScript { $_ -notin $TOBEAADP2Users }
 
-Write-Log "Missing users: $($missingUsersOnprem.count)"
-foreach ($missingUpn in $missingUsersOnprem) {
-	Write-Log "Adding $($missingUpn)"
-	$ADUser = Get-ADUser -Credential $ADCredential -Filter "UserPrincipalName -eq '$missingUpn'"
-	Add-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $ADUser -Confirm:$false
+if ($missingUsersOnprem) {
+	Write-Log "Missing users: $($missingUsersOnprem.count)"
+	foreach ($missingUpn in $missingUsersOnprem) {
+		Write-Log "Adding $($missingUpn)"
+		$UriResource = "users/$($missingUpn)"
+		$UriSelect = "onPremisesSamAccountName"
+		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+		$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+		$missingSAM = $QSUser.onPremisesSamAccountName
+		if ($ADCredential) {
+			Add-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $missingSAM -Confirm:$false
+		}
+		else {
+			Add-ADGroupMember -Identity $AADP2LicenseGroup -Members $missingSAM -Confirm:$false
+		}
+	}
 }
 
-Write-Log "Extra users: $($extraUsersOnprem.count)"
-foreach ($extraUpn in $extraUsersOnprem) {
-	Write-Log "Removing $($extraUpn)"
-	$ADUser = Get-ADUser -Credential $ADCredential -Filter "UserPrincipalName -eq '$extraUpn'"
-	Remove-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $ADUser -Confirm:$false
+if ($extraUsersOnprem) {
+	Write-Log "Extra users: $($extraUsersOnprem.count)"
+	foreach ($extraUpn in $extraUsersOnprem) {
+		Write-Log "Removing $($extraUpn)"
+		$UriResource = "users/$($extraUpn)"
+		$UriSelect = "onPremisesSamAccountName"
+		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+		$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+		$extraSAM = $QSUser.onPremisesSamAccountName
+		if ($ADCredential) {
+			Remove-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $extraSAM -Confirm:$false
+		}
+		else {
+			Remove-ADGroupMember -Identity $AADP2LicenseGroup -Members $extraSAM -Confirm:$false	
+		}
+	}
 }
 
 Write-Log $String_Divider
 Write-Log "Processing OU based groups"
-
 #######################################################################################################################
 # OU Resources ########################################################################################################
 #######################################################################################################################
