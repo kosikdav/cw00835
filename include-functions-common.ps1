@@ -383,7 +383,7 @@ function New-GraphUri {
 	$BaseUri = "https://graph.microsoft.com"
 	$Uri = $BaseUri + "/" + $Version + "/" + $Resource
 
-	if ($Top -or $Filter -or $Select -or $Search -or $Expand -or $OrderBy) {
+	if ($Top -or $Filter -or $Select -or $Search -or $Expand -or $OrderBy -or $Count) {
 		$Uri = $Uri + "?"
 	}
 	if ($Top) {
@@ -396,9 +396,10 @@ function New-GraphUri {
 		$Uri = $Uri + "`$Filter=$($Filter)&"
 	}
 	if ($Select) {
+		$Select = $Select -replace " ", ""
 		$Uri = $Uri + "`$Select=$($Select)&"
 	}
-	if ($count) {
+	if ($Count) {
 		$Uri = $Uri + "`$Count=true&"
 	}
 	if ($Search) {

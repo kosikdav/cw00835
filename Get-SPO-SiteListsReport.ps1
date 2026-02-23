@@ -7,7 +7,8 @@ param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
     [Parameter(Mandatory=$true)][string]$SiteUrl,
     [switch]$IncludeSubsites,
-    [switch]$IncludeHiddenLists
+    [switch]$IncludeHiddenLists,
+    [Parameter(Mandatory=$true)][string]$OutputFile
 )
 
 $ScriptName = $MyInvocation.MyCommand.Name
@@ -19,15 +20,11 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 $LogFolder          = "exports"
 $LogFilePrefix      = "spo-lists-report"
 
-$OutputFolder       = "spo\lists-report"
-$OutputFilePrefix   = "spo-lists"
-
 #######################################################################################################################
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $LogFile    = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
-$OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Ext "csv"
 
 [array]$Report = @()
 [System.Collections.Generic.Queue[pscustomobject]]$SiteQueue = [System.Collections.Generic.Queue[pscustomobject]]::new()
@@ -118,13 +115,12 @@ while ($SiteQueue.Count -gt 0) {
         # Uses $top=1 so only 1 item is transferred; total comes from @odata.count
         ####################################################
         Try {
-            $CountHeaders = @{
-                Authorization    = "Bearer $($AuthDB[$AppReg_LOG_READER].AccessToken)"
-                ConsistencyLevel = "eventual"
-            }
-            $CountUri      = New-GraphUri -Version "v1.0" -Resource "sites/$($CurrentSite.id)/lists/$($List.id)/items" -Select "id" -Top 1 -Count
-            $CountResponse = Invoke-RestMethod -Method GET -Uri $CountUri -Headers $CountHeaders -ContentType $ContentTypeJSON
-            $ItemCount     = $CountResponse.'@odata.count'
+            $UriResource = "sites/$($CurrentSite.id)/lists/$($List.id)/items"
+            $UriSelect = "id"
+            $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+            # -Count -Top 1
+            #write-host $Uri -ForegroundColor Cyan
+            $Items = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual"
         }
         Catch {
             Write-Log "  Warning: Could not get item count for '$($List.displayName)': $($_.Exception.Message)" -MessageType Warning
@@ -155,17 +151,17 @@ while ($SiteQueue.Count -gt 0) {
             ListTemplate         = $List.list.template
             IsDocumentLibrary    = $IsDocLib
             Hidden               = $List.list.hidden
-            ItemCount            = $ItemCount
+            ItemCount            = $Items.Count
             SizeBytes            = $ListSize
             SizeMB               = if ($ListSize -gt 0) { [math]::Round($ListSize / 1MB, 2) } else { 0 }
             CreatedDateTime      = $List.createdDateTime
             LastModifiedDateTime = $List.lastModifiedDateTime
         }
 
-        Write-Log ("  {0,-50} | {1,-20} | Items: {2,6} | Size: {3,10} MB{4}" -f `
+        Write-Host ("  {0,-50} | {1,-20} | Items: {2,6} | Size: {3,10} MB{4}" -f `
             $List.displayName, `
             $List.list.template, `
-            $ItemCount, `
+            $Items.Count, `
             ([math]::Round($ListSize / 1MB, 2)), `
             $(if ($List.list.hidden) { " [hidden]" } else { "" }))
     }
