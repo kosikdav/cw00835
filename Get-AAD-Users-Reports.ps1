@@ -134,7 +134,8 @@ ForEach ($User in $Users) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 	$UserLicensingRecord = $SIA = $EXT = $null
 	$Mail = $MailDomain = $mobilePhone = $ODfBUrl = [string]::Empty
-	$AADPremLicense = $CopilotLicense = $EXOLicense = $SPOLicense = $TMSLicense = $IntuneLicense = $PwrAutLicense = $PwrAppLicense = [string]::Empty
+	$AADPremLicense = $CopilotLicense = $EXOLicense = $SPOLicense = $TMSLicense = [string]::Empty
+	$IntuneLicense = $PwrAutLicense = $PwrAppLicense = [string]::Empty
 	$AADPremLicenseNeeded = $false
 	$LastSignInDateTime = $LastSignInDateTime_NI = "never"
 	$DaysSinceLastSignIn = $DaysSinceLastSignIn_NI = "n/a"
@@ -174,11 +175,9 @@ ForEach ($User in $Users) {
 			$GroupMemberCount = "n/a"
 		}
 	}
-	
-	if ($User.UserType -eq "Member") {
-		if ($UserLicensing_DB.ContainsKey($User.id)) {
-			$UserLicensingRecord = $UserLicensing_DB[$User.id]
-		}
+
+	if ($UserLicensing_DB.ContainsKey($User.id)) {
+		$UserLicensingRecord = $UserLicensing_DB[$User.id]
 	}
 
 	if ($User.CreatedDateTime) {
@@ -199,26 +198,24 @@ ForEach ($User in $Users) {
 	}
 
 	#OneDrive URL
-	if ($User.userType -eq "Member") {
-		$UriResource = "users/$($User.id)/drive"
-		$UriSelect = "driveType,owner,webUrl"
-		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
-		Try {
-			$UserDrive = Invoke-RestMethod -Uri $Uri -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -ContentType $ContentTypeJSON
+	$UriResource = "users/$($User.id)/drive"
+	$UriSelect = "driveType,owner,webUrl"
+	$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+	Try {
+		$UserDrive = Invoke-RestMethod -Uri $Uri -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -ContentType $ContentTypeJSON
+	}
+	Catch {
+		if ($_.Exception.Message -like "*(404) Not Found*") {
+			$ODfBUrl = [string]::Empty
 		}
-		Catch {
-			if ($_.Exception.Message -like "*(404) Not Found*") {
-				$ODfBUrl = [string]::Empty
-			}
-			else {
-				Write-Host "Get-GraphOutputREST failed for drive of $($User.UserPrincipalName): $($_.Exception.Message)" -ForegroundColor Red
-			}
-		}
-		if ($UserDrive) {
-			$ODfBUrl = $UserDrive.webUrl.Trim("/Documents")
+		else {
+			Write-Host "Get-GraphOutputREST failed for drive of $($User.UserPrincipalName): $($_.Exception.Message)" -ForegroundColor Red
 		}
 	}
-
+	if ($UserDrive) {
+		$ODfBUrl = $UserDrive.webUrl.Trim("/Documents")
+	}
+	
 	$UserObject = [pscustomobject]@{
 		UserId						= $User.id
 		UserPrincipalName 			= $User.UserPrincipalName
