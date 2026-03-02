@@ -95,10 +95,11 @@ $UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
+$UriFilter = "userType eq 'Member'"
 $UriSelect1 = "id,UserPrincipalName,DisplayName,UserType,AccountEnabled,mail,mailNickname,companyName,department,JobTitle,mobilePhone,officeLocation,preferredLanguage"
 $UriSelect2 = "CreatedDateTime,onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesSamAccountName,onPremisesDistinguishedName,onPremisesImmutableId"
 $UriSelect = $UriSelect1 , $UriSelect2 -join ","
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
 [array]$Users = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users" -ProgressDots
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
@@ -268,12 +269,13 @@ ForEach ($User in $Users) {
 	if ($EXT) {
 		foreach ($extension in $ExtensionsShort) {
 			$Name = $extension
-			[string]$Value = [char]61 + [char]34 + $Value + [char]34
+			[string]$Value = [char]61 + [char]34 + $EXT."$extension" + [char]34
 			Add-Member -InputObject $UserObject -MemberType NoteProperty -Name $Name -Value $Value
 		}
 	}
 	
 	if ($TenantShortName -eq "CEZDATA") {
+		$Name = $Value = $null
 		if ($AADUserReportTNR) {
 			$Name = $AADUserReportTNR_attr_label
 			$Value = $EXT."$AADUserReportTNR_ext_name"
