@@ -105,7 +105,8 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -T
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,signInActivity"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 99 -Select $UriSelect
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 99 -Select $UriSelect
 [array]$UsersSIA = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (signInActivity)" -ProgressDots
 $UsersSIA | ForEach-Object {$SIA_DB.Add($_.id, $_.signInActivity)}
 
@@ -113,7 +114,8 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 
 $UriResource = "users"
 $UriSelect = "id,userPrincipalName," + $UriSelectExtensions
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
 [array]$UsersExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (extensions)" -ProgressDots
 foreach ($user in $UsersExt) {
 	$EXT_DB_Record = [pscustomobject]@{}
@@ -132,6 +134,9 @@ Remove-Variable UsersExt
 
 ForEach ($User in $Users) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+	if ($InteractiveRun) {
+		Write-Host "$($User.UserPrincipalName.PadRight(50)) - PercentComplete: $([math]::Round((($Users.IndexOf($User) + 1) / $Users.Count * 100), 2))%"
+	}
 	$UserLicensingRecord = $SIA = $EXT = $null
 	$Mail = $MailDomain = $mobilePhone = $ODfBUrl = [string]::Empty
 	$AADPremLicense = $CopilotLicense = $EXOLicense = $SPOLicense = $TMSLicense = [string]::Empty
@@ -220,7 +225,7 @@ ForEach ($User in $Users) {
 		UserId						= $User.id
 		UserPrincipalName 			= $User.UserPrincipalName
 		UPNDomain					= $User.UserPrincipalName.Split("@")[1]
-		DisplayName 				= $User.DisplayName;
+		DisplayName 				= $User.DisplayName
 		UserType 					= $User.UserType
 		Enabled						= $User.AccountEnabled
 		Mail 						= $Mail
@@ -237,7 +242,7 @@ ForEach ($User in $Users) {
 		DaysSinceLastSignIn			= $DaysSinceLastSignIn
 		LastSignIn_NI				= $LastSignInDateTime_NI
 		DaysSinceLastSignIn_NI		= $DaysSinceLastSignIn_NI
-		CreatedDateTime 			= $User.CreatedDateTime;
+		CreatedDateTime 			= $User.CreatedDateTime
 		DaysSinceCreated			= $DaysSinceCreated
 		GroupMemberCount 			= $GroupMemberCount
 		SyncEnabled 				= $User.onPremisesSyncEnabled

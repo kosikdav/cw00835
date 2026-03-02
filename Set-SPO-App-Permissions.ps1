@@ -16,8 +16,6 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-StdIncBlock.ps1
 . $ScriptPath\include-Functions-Common.ps1
 
-[hashtable]$Site_DB = @{}
-
 #######################################################################################################################
 
 $SiteId = [string]::Empty
