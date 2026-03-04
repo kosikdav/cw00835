@@ -10,6 +10,7 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $ScriptList = @(
+    "Set-AAD-Synced-Users-Type.ps1",
     "Update-Usage-Location.ps1",
     "Get-M365-LicMgmt-Audit.ps1",
     "Update-AAD-Groups.ps1",    
