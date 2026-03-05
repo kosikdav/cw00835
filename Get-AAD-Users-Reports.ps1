@@ -96,7 +96,7 @@ $UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriFilter = "userType eq 'Member'"
-$UriSelect1 = "id,UserPrincipalName,DisplayName,UserType,AccountEnabled,mail,mailNickname,companyName,department,JobTitle,mobilePhone,officeLocation,preferredLanguage"
+$UriSelect1 = "id,UserPrincipalName,DisplayName,UserType,employeeId,AccountEnabled,mail,mailNickname,companyName,department,JobTitle,mobilePhone,officeLocation,preferredLanguage"
 $UriSelect2 = "CreatedDateTime,onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesSamAccountName,onPremisesDistinguishedName,onPremisesImmutableId"
 $UriSelect = $UriSelect1 , $UriSelect2 -join ","
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
@@ -228,6 +228,7 @@ ForEach ($User in $Users) {
 		DisplayName 				= $User.DisplayName
 		UserType 					= $User.UserType
 		Enabled						= $User.AccountEnabled
+		employeeId					= $User.employeeId
 		Mail 						= $Mail
 		MailDomain	 				= $MailDomain
 		MailNickname				= $User.mailNickname
