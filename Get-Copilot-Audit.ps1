@@ -30,7 +30,7 @@ $OutputFileSuffixMonthly    = "interactions-monthly"
 $record = "CopilotInteraction"
 $operations = "CopilotInteraction"
 $resultSize = 1000
-$intervalMinutes = 60
+$intervalMinutes = 15
 $errorSleep = 30
 $stdSleep = 3
 
@@ -98,7 +98,7 @@ Write-Log "Query end:   $($end)"
 Write-Log "Output file: $($OutputFile)"
 
 $AADUSER_DB = @{}
-$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
+#$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
 while ($true) {
     [int]$currentCount = 0
@@ -124,7 +124,7 @@ while ($true) {
     $sessionID = [Guid]::NewGuid().ToString()
 
     do {
-        Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 60
+        Connect-EXOService -CredentialFile $cred_qp_exo_mgmt_audit_reader -TTL 60
         $resCount = 0
         $indexError = $false
         $queryError = $false
