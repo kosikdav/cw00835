@@ -54,6 +54,7 @@ $M365LicFolder      = "c:\inetpub\sites\m365lic"
 
 $aad_grp_mgmt_cred      = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt.cred"
 $aadauthmobmgmt_cred    = "c:\cred\qp_aadauthmobmgmt\qp_aadauthmobmgmt.cred"
+$cred_qp_exo_mgmt_audit_reader = "c:\cred\qp_exo_mgmt_audit_reader\qp_exo_mgmt_audit_reader.cred"
 
 $IncFile_Var_Init           = [System.IO.Path]::Combine($scriptsFolder,"include-var-init.ps1")
 $IncFile_Functions_Common   = [System.IO.Path]::Combine($scriptsFolder,"include-functions-common.ps1")
@@ -75,6 +76,8 @@ $AppReg_SPO_MGMT            = "CEZDATA_SPO_MGMT"
 $AppReg_ROLE_MGMT           = "CEZDATA_ROLE_MGMT"
 $AppReg_ICTS_Fabric_Mgmt    = "CEZDATA_ICTS_Fabric_Mgmt"
 $AppReg_PowerBI_REST_API_Reader = "CEZDATA_PowerBI_REST_API_Reader"
+
+
 
 $IncFile_AppReg_LOG_READER          = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_LOG_READER + ".ps1")
 $IncFile_AppReg_TMS_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_TMS_MGMT + ".ps1")

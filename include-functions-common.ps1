@@ -635,39 +635,91 @@ function Connect-SPOServicePnP {
 ########################################################################################
 function Connect-EXOService {
 	param (
-		[parameter(Mandatory = $true)][string]$AppRegName,
+		[string]$AppRegName,
 		[int]$TTL,
-		[switch]$ForceReconnect
+		[switch]$ForceReconnect,
+		[string]$CredentialFile
 	)
 	# main function body ##################################
+	if ($AppRegName -and $CredentialFile) {
+		Write-Log "AppRegName and CredentialFile parameters are mutually exclusive for Connect-EXOService function" -MessageType "ERR"
+		return
+	}
+	if (-not($AppRegName) -and -not($CredentialFile)) {
+		Write-Log "Either AppRegName or CredentialFile parameter must be provided for Connect-EXOService function" -MessageType "ERR"
+		return
+	}
+	
 	$AuthRecord = $null
 	$MinutesElapsed = 0
 	$Operation = "requested"
-	$incFileName = "include-appreg-" + $AppRegName + ".ps1"
-	$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
-	if ($script:AuthDB.ContainsKey($AppRegName)) {
-		$AuthRecord = $script:AuthDB[$AppRegName]
+
+	if ($AppRegName) {
+		$incFileName = "include-appreg-" + $AppRegName + ".ps1"
+		$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
+		if ($script:AuthDB.ContainsKey($AppRegName)) {
+			$AuthRecord = $script:AuthDB[$AppRegName]
+			$MinutesElapsed = [math]::abs((New-TimeSpan -End $AuthRecord.CreatedDateTime).Minutes)
+			$Operation = "refreshed"
+		}
+		if ((-Not($AuthRecord)) -or ($MinutesElapsed -ge $TTL) -or ($ForceReconnect)) {
+			. $incFile
+			[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+			Try {
+				Write-Host "EXO PowerShell connection to $($TenantShortName) (app): " -NoNewline -ForegroundColor DarkGray
+				Connect-ExchangeOnline -CertificateThumbPrint $ThumbPrint -AppID $ClientId -Organization $TenantName -ShowBanner:$false
+				Write-Host $Operation -ForegroundColor DarkGray
+				$AuthRecordNew = [pscustomobject]@{
+					CreatedDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+					AccessToken = "n/a"
+					AuthHeaders = "n/a"
+					ExpiresOn = "n/a"
+				}
+				$script:AuthDB[$AppRegName] = $AuthRecordNew
+			}
+			Catch {
+				Write-Log $_.Exception.Message -MessageType "ERR"
+			}
+		}
+	}
+if ($CredentialFile) {
+	if (-not(Test-Path -Path $CredentialFile)) {
+		Write-Log "Credential file $($CredentialFile) not found" -MessageType "ERR"
+		return
+	}
+	$CredFilename = [System.IO.Path]::GetFileNameWithoutExtension($CredentialFile)
+	write-host $CredFilename -foregroundcolor cyan
+	Try {
+		$Credential = Import-Clixml -Path $CredentialFile
+	}
+	Catch {
+		Write-Log $_.Exception.Message -MessageType "ERR"
+	}
+	if ($script:AuthDB.ContainsKey($CredFilename)) {
+		$AuthRecord = $script:AuthDB[$CredFilename]
 		$MinutesElapsed = [math]::abs((New-TimeSpan -End $AuthRecord.CreatedDateTime).Minutes)
 		$Operation = "refreshed"
 	}
 	if ((-Not($AuthRecord)) -or ($MinutesElapsed -ge $TTL) -or ($ForceReconnect)) {
-		. $incFile
 		[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 		Try {
-			Write-Host "EXO PowerShell connection to $($TenantShortName) $($Operation)" -ForegroundColor DarkGray
-			Connect-ExchangeOnline -CertificateThumbPrint $ThumbPrint -AppID $ClientId -Organization $TenantName -ShowBanner:$false
+			Write-Host "EXO PowerShell connection to $($TenantShortName) (user): " -NoNewline -ForegroundColor DarkGray
+			Connect-ExchangeOnline -Credential $Credential -ShowBanner:$false
+			Write-Host $Operation -ForegroundColor DarkGray
 			$AuthRecordNew = [pscustomobject]@{
 				CreatedDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 				AccessToken = "n/a"
 				AuthHeaders = "n/a"
 				ExpiresOn = "n/a"
 			}
-			$script:AuthDB[$AppRegName] = $AuthRecordNew
+			$script:AuthDB[$CredFilename] = $AuthRecordNew
 		}
 		Catch {
-			Write-Log -String $_.Exception.Message -MessageType Error -ForceOnScreen -ForegroundColor Red
+			Write-Log $_.Exception.Message -MessageType "ERR"
 		}
 	}
+}
+
 }
 
 
