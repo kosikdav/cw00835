@@ -21,18 +21,18 @@ $AllowToAddGuestsSettingsId = $null
 
 #######################################################################################################################
 
-Request-MSALToken -AppRegName "CEZ_AAD_USR_REPORT" -TTL 30 -Silent
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30 -Silent
 
 $UriResource = "groups/$($groupId)"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-$AADGroup = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB["CEZ_AAD_USR_REPORT"].AccessToken -ContentType $ContentTypeJSON
+$AADGroup = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 
 if ($AADGroup) {
     write-host "$($AADGroup.displayName) ($($AADGroup.Id)): " -ForegroundColor Yellow -NoNewline
     if ($AADGroup.groupTypes.Contains("Unified")) {
         $UriResource = "groupSettingTemplates"
         $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-        $groupSettingTemplates = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB["CEZ_AAD_USR_REPORT"].AccessToken -ContentType $ContentTypeJSON
+        $groupSettingTemplates = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
         ForEach ($Template in $groupSettingTemplates) {
             if ($Template.displayName -eq "Group.Unified.Guest") {
                 $TemplateId = $Template.Id
@@ -41,7 +41,7 @@ if ($AADGroup) {
         if ($TemplateId) {
             $UriResource = "groups/$($GroupId)/settings"
             $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-            $GroupSettings = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB["CEZ_AAD_USR_REPORT"].AccessToken -ContentType $ContentTypeJSON
+            $GroupSettings = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
             foreach ($Setting in $GroupSettings) {
                 if ($Setting.values.name -eq "AllowToAddGuests") {
                     $AllowToAddGuestsSettingsId = $Setting.id
