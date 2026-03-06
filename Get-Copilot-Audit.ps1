@@ -95,7 +95,6 @@ Write-Log "PageSize: $($resultSize) records"
 Write-Log "Query interval: $($intervalMinutes) minutes"
 Write-Log "Query start: $($start)"
 Write-Log "Query end:   $($end)"
-Write-Log "Output file: $($OutputFile)"
 
 $AADUSER_DB = @{}
 #$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"

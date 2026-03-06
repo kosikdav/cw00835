@@ -666,7 +666,7 @@ function Connect-EXOService {
 			. $incFile
 			[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 			Try {
-				Write-Host "EXO PowerShell connection to $($TenantShortName) (app): " -NoNewline -ForegroundColor DarkGray
+				Write-Host "EXO PowerShell connection to $($TenantShortName) (app $($AppRegName)): " -NoNewline -ForegroundColor DarkGray
 				Connect-ExchangeOnline -CertificateThumbPrint $ThumbPrint -AppID $ClientId -Organization $TenantName -ShowBanner:$false
 				Write-Host $Operation -ForegroundColor DarkGray
 				$AuthRecordNew = [pscustomobject]@{
@@ -688,7 +688,6 @@ if ($CredentialFile) {
 		return
 	}
 	$CredFilename = [System.IO.Path]::GetFileNameWithoutExtension($CredentialFile)
-	write-host $CredFilename -foregroundcolor cyan
 	Try {
 		$Credential = Import-Clixml -Path $CredentialFile
 	}
@@ -703,7 +702,7 @@ if ($CredentialFile) {
 	if ((-Not($AuthRecord)) -or ($MinutesElapsed -ge $TTL) -or ($ForceReconnect)) {
 		[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 		Try {
-			Write-Host "EXO PowerShell connection to $($TenantShortName) (user): " -NoNewline -ForegroundColor DarkGray
+			Write-Host "EXO PowerShell connection to $($TenantShortName) (user $($CredFilename)): " -NoNewline -ForegroundColor DarkGray
 			Connect-ExchangeOnline -Credential $Credential -ShowBanner:$false
 			Write-Host $Operation -ForegroundColor DarkGray
 			$AuthRecordNew = [pscustomobject]@{
