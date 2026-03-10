@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /d/scripts log --oneline -10)",
+      "Bash(ls:*)"
+    ]
+  }
+}

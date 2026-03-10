@@ -47,7 +47,7 @@ $XTSyncCounter = 0
 # read RecentAuditLogEventsInvite from Graph
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "auditLogs/directoryAudits"
-$UriFilter = "activityDisplayName+eq+'Invite external user'+and+result+eq+'success'+and+activityDateTime+ge+$($strYesterdayUTCStart)"
+$UriFilter = "activityDisplayName eq 'Invite external user' and result eq 'success' and activityDateTime ge $($strYesterdayUTCStart)"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter
 $RecentAuditLogEventsInvite = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ProgressDots -Text "Audit log events"
 
@@ -55,7 +55,7 @@ $RecentAuditLogEventsInvite = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB
 # read Guests from Graph 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
-$UriFilter = "UserType+eq+'Guest'"
+$UriFilter = "UserType eq 'Guest'"
 $UriSelect = "id,userPrincipalName,userType,displayName,createdDateTime,mail,companyName,employeeType,employeeHireDate,otherMails,proxyAddresses,showInAddressList,onPremisesExtensionAttributes"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Filter $UriFilter -Select $UriSelect
 [array]$AllAADGuests = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ProgressDots -Text "AAD guest users"

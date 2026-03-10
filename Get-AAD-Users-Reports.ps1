@@ -95,16 +95,18 @@ $UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
-$UriSelect1 = "id,UserPrincipalName,DisplayName,UserType,AccountEnabled,mail,mailNickname,companyName,department,JobTitle,mobilePhone,officeLocation,preferredLanguage"
+$UriFilter = "userType eq 'Member'"
+$UriSelect1 = "id,UserPrincipalName,DisplayName,UserType,employeeId,AccountEnabled,mail,mailNickname,companyName,department,JobTitle,mobilePhone,officeLocation,preferredLanguage"
 $UriSelect2 = "CreatedDateTime,onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesSamAccountName,onPremisesDistinguishedName,onPremisesImmutableId"
 $UriSelect = $UriSelect1 , $UriSelect2 -join ","
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
 [array]$Users = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users" -ProgressDots
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,signInActivity"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 99 -Select $UriSelect
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 99 -Select $UriSelect
 [array]$UsersSIA = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (signInActivity)" -ProgressDots
 $UsersSIA | ForEach-Object {$SIA_DB.Add($_.id, $_.signInActivity)}
 
@@ -112,7 +114,8 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 
 $UriResource = "users"
 $UriSelect = "id,userPrincipalName," + $UriSelectExtensions
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
 [array]$UsersExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (extensions)" -ProgressDots
 foreach ($user in $UsersExt) {
 	$EXT_DB_Record = [pscustomobject]@{}
@@ -131,9 +134,13 @@ Remove-Variable UsersExt
 
 ForEach ($User in $Users) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+	if ($InteractiveRun) {
+		Write-Host "$($User.UserPrincipalName.PadRight(50)) - PercentComplete: $([math]::Round((($Users.IndexOf($User) + 1) / $Users.Count * 100), 2))%"
+	}
 	$UserLicensingRecord = $SIA = $EXT = $null
 	$Mail = $MailDomain = $mobilePhone = $ODfBUrl = [string]::Empty
-	$AADPremLicense = $CopilotLicense = $EXOLicense = $SPOLicense = $TMSLicense = $IntuneLicense = $PwrAutLicense = $PwrAppLicense = [string]::Empty
+	$AADPremLicense = $CopilotLicense = $EXOLicense = $SPOLicense = $TMSLicense = [string]::Empty
+	$IntuneLicense = $PwrAutLicense = $PwrAppLicense = [string]::Empty
 	$AADPremLicenseNeeded = $false
 	$LastSignInDateTime = $LastSignInDateTime_NI = "never"
 	$DaysSinceLastSignIn = $DaysSinceLastSignIn_NI = "n/a"
@@ -173,11 +180,9 @@ ForEach ($User in $Users) {
 			$GroupMemberCount = "n/a"
 		}
 	}
-	
-	if ($User.UserType -eq "Member") {
-		if ($UserLicensing_DB.ContainsKey($User.id)) {
-			$UserLicensingRecord = $UserLicensing_DB[$User.id]
-		}
+
+	if ($UserLicensing_DB.ContainsKey($User.id)) {
+		$UserLicensingRecord = $UserLicensing_DB[$User.id]
 	}
 
 	if ($User.CreatedDateTime) {
@@ -198,33 +203,32 @@ ForEach ($User in $Users) {
 	}
 
 	#OneDrive URL
-	if ($User.userType -eq "Member") {
-		$UriResource = "users/$($User.id)/drive"
-		$UriSelect = "driveType,owner,webUrl"
-		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
-		Try {
-			$UserDrive = Invoke-RestMethod -Uri $Uri -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -ContentType $ContentTypeJSON
+	$UriResource = "users/$($User.id)/drive"
+	$UriSelect = "driveType,owner,webUrl"
+	$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+	Try {
+		$UserDrive = Invoke-RestMethod -Uri $Uri -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -ContentType $ContentTypeJSON
+	}
+	Catch {
+		if ($_.Exception.Message -like "*(404) Not Found*") {
+			$ODfBUrl = [string]::Empty
 		}
-		Catch {
-			if ($_.Exception.Message -like "*(404) Not Found*") {
-				$ODfBUrl = [string]::Empty
-			}
-			else {
-				Write-Host "Get-GraphOutputREST failed for drive of $($User.UserPrincipalName): $($_.Exception.Message)" -ForegroundColor Red
-			}
-		}
-		if ($UserDrive) {
-			$ODfBUrl = $UserDrive.webUrl.Trim("/Documents")
+		else {
+			Write-Host "Get-GraphOutputREST failed for drive of $($User.UserPrincipalName): $($_.Exception.Message)" -ForegroundColor Red
 		}
 	}
-
+	if ($UserDrive) {
+		$ODfBUrl = $UserDrive.webUrl.Trim("/Documents")
+	}
+	
 	$UserObject = [pscustomobject]@{
 		UserId						= $User.id
 		UserPrincipalName 			= $User.UserPrincipalName
 		UPNDomain					= $User.UserPrincipalName.Split("@")[1]
-		DisplayName 				= $User.DisplayName;
+		DisplayName 				= $User.DisplayName
 		UserType 					= $User.UserType
 		Enabled						= $User.AccountEnabled
+		employeeId					= $User.employeeId
 		Mail 						= $Mail
 		MailDomain	 				= $MailDomain
 		MailNickname				= $User.mailNickname
@@ -239,7 +243,7 @@ ForEach ($User in $Users) {
 		DaysSinceLastSignIn			= $DaysSinceLastSignIn
 		LastSignIn_NI				= $LastSignInDateTime_NI
 		DaysSinceLastSignIn_NI		= $DaysSinceLastSignIn_NI
-		CreatedDateTime 			= $User.CreatedDateTime;
+		CreatedDateTime 			= $User.CreatedDateTime
 		DaysSinceCreated			= $DaysSinceCreated
 		GroupMemberCount 			= $GroupMemberCount
 		SyncEnabled 				= $User.onPremisesSyncEnabled
@@ -268,12 +272,13 @@ ForEach ($User in $Users) {
 	if ($EXT) {
 		foreach ($extension in $ExtensionsShort) {
 			$Name = $extension
-			[string]$Value = [char]61 + [char]34 + $Value + [char]34
+			[string]$Value = [char]61 + [char]34 + $EXT."$extension" + [char]34
 			Add-Member -InputObject $UserObject -MemberType NoteProperty -Name $Name -Value $Value
 		}
 	}
 	
 	if ($TenantShortName -eq "CEZDATA") {
+		$Name = $Value = $null
 		if ($AADUserReportTNR) {
 			$Name = $AADUserReportTNR_attr_label
 			$Value = $EXT."$AADUserReportTNR_ext_name"
