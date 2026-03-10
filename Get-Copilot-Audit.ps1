@@ -30,7 +30,7 @@ $OutputFileSuffixMonthly    = "interactions-monthly"
 $record = "CopilotInteraction"
 $operations = "CopilotInteraction"
 $resultSize = 1000
-$intervalMinutes = 15
+$intervalMinutes = 60
 $errorSleep = 30
 $stdSleep = 3
 
