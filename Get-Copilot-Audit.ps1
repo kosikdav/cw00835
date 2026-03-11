@@ -1,4 +1,4 @@
-#######################################################################################################################
+# #######################################################################################################################
 # Get-Copilot-Audit
 #######################################################################################################################
 param(
@@ -39,7 +39,6 @@ $stdSleep = 3
 . $ScriptPath\include-Script-StdIncBlock.ps1
 . $IncFile_AIP_labels
 . $IncFile_Functions_Audit
-
 
 if ($MinusDays) {
     Try {
@@ -95,10 +94,9 @@ Write-Log "PageSize: $($resultSize) records"
 Write-Log "Query interval: $($intervalMinutes) minutes"
 Write-Log "Query start: $($start)"
 Write-Log "Query end:   $($end)"
-Write-Log "Output file: $($OutputFile)"
 
 $AADUSER_DB = @{}
-$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
+#$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
 while ($true) {
     [int]$currentCount = 0
@@ -124,7 +122,7 @@ while ($true) {
     $sessionID = [Guid]::NewGuid().ToString()
 
     do {
-        Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 60
+        Connect-EXOService -CredentialFile $cred_qp_exo_mgmt_audit_reader -TTL 60
         $resCount = 0
         $indexError = $false
         $queryError = $false
@@ -133,6 +131,7 @@ while ($true) {
         Write-Host ") Run time:$($Stopwatch.Elapsed.ToString('hh\:mm\:ss'))" -ForegroundColor Gray
         Try {
             $results = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record -SessionId $sessionID -SessionCommand ReturnLargeSet -ResultSize $resultSize -ErrorAction Stop -WarningAction Stop
+            write-Host "Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record -SessionId $sessionID -SessionCommand ReturnLargeSet -ResultSize $resultSize -ErrorAction Stop -WarningAction Stop" -ForegroundColor Green
             $resCount = $results.Count
             $pageCount++
         }
