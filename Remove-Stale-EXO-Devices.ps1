@@ -21,7 +21,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 $DB_changed = $false
 $ToBeDeletedRecords = @()
-$CutoffDays = 350
+$CutoffDays = 180
 $StaleDeviceCutoffDate = (Get-Date).AddDays(-$CutoffDays)
 
 #######################################################################################################################

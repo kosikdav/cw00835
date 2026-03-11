@@ -129,6 +129,7 @@ while ($true) {
         Write-Host "Search-UnifiedAuditLog (SessionID: " -ForegroundColor Gray -NoNewline
         Write-Host "$($sessionID)" -ForegroundColor White -NoNewline
         Write-Host ") Run time:$($Stopwatch.Elapsed.ToString('hh\:mm\:ss'))" -ForegroundColor Gray
+        Write-Log "StartDate $currentStart EndDate $currentEnd" -ForceOffScreen
         Try {
             $results = Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record -SessionId $sessionID -SessionCommand ReturnLargeSet -ResultSize $resultSize -ErrorAction Stop -WarningAction Stop
             #write-Host "Search-UnifiedAuditLog -StartDate $currentStart -EndDate $currentEnd -RecordType $record -SessionId $sessionID -SessionCommand ReturnLargeSet -ResultSize $resultSize -ErrorAction Stop -WarningAction Stop" -ForegroundColor Green
