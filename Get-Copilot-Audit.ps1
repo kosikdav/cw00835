@@ -45,11 +45,11 @@ if ($MinusDays) {
         $daysBackOffset = [int]$MinusDays
     }
     Catch {
-        $daysBackOffset = 1
+        $daysBackOffset = 0
     }
 } 
 else {
-    $daysBackOffset = 1
+    $daysBackOffset = 0
 }
 
 if ($SpecificDate) {
