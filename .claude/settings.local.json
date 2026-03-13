@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git -C /d/scripts log --oneline -10)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:www.studiomarteena.cz)"
     ]
   }
 }
