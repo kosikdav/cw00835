@@ -122,7 +122,7 @@ while ($true) {
     $sessionID = [Guid]::NewGuid().ToString()
 
     do {
-        Connect-EXOService -CredentialFile $cred_qp_exo_mgmt_audit_reader -TTL 60
+        Connect-EXOService  -AppRegName $AppReg_EXO_MGMT -TTL 120
         $resCount = 0
         $indexError = $false
         $queryError = $false
