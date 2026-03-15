@@ -1,10 +1,10 @@
 ###############################
-#App name CEZDATA_EXO_MBX_MGMT
+# App name UJVREZ_LOG_READER
 ###############################
-$AppName    = "CEZ_EXO_MBX_MGMT"
-$ClientId   = "1f4e0528-c8a5-40da-babc-47e994e14454"
-$TenantId   = "b233f9e1-5599-4693-9cef-38858fe25406"
-$TenantName = "cezdata.onmicrosoft.com"
+$AppName    = "UJV_LOG_READER"
+$ClientId   = '71fa9a7c-9048-4561-92ed-5c852dbdf48d'
+$TenantId   = "56b31968-ca9e-4cc3-9257-477c3699b885"
+$TenantName = "ujvrez.onmicrosoft.com"
 
 $ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
 $Certificate = $ClientCertificate
@@ -13,8 +13,8 @@ $CertficateThumbprint = $Thumbprint
 $ApplicationId = $ClientId
 
 <#
-$appName = "CEZDATA_EXO_MBX_MGMT"
-$certYears = 1
-$certPassword = "xxxxxxxxxxxxxxxxxxxx"
+$appName = "UJVREZ_LOG_READER"
+$certYears = 5
+$certPassword = ""
 Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
 #>

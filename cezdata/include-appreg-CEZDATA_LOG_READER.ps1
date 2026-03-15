@@ -1,5 +1,5 @@
 ###############################
-# App name CEZ_LOG_READER
+# App name CEZDATA_LOG_READER
 ###############################
 $AppName    = "CEZ_LOG_READER"
 $ClientId   = 'd57d8058-3905-4894-be94-fc25429c1579'
@@ -13,7 +13,7 @@ $CertficateThumbprint = $Thumbprint
 $ApplicationId = $ClientId
 
 <#
-$appName = "CEZ_LOG_READER"
+$appName = "CEZDATA_LOG_READER"
 $certYears = 10
 $certPassword = "xxxxxxxxxxxx"
 Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force

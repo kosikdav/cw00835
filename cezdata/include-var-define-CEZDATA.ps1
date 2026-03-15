@@ -65,27 +65,35 @@ $IncFile_StdLogStartBlock   = $IncFile_StdLogBeginBlock
 $IncFile_StdLogEndBlock     = [System.IO.Path]::Combine($scriptsFolder,"include-Script-StdLogEndBlock.ps1")
 
 $AppReg_LOG_READER          = "CEZDATA_LOG_READER"
-$AppReg_LOG_READER_MIN      = "CEZDATA_LOG_READER_MIN"
 $AppReg_TMS_MGMT            = "CEZDATA_TEAMS_MGMT"
-#$AppReg_MFA_MGMT           = "CEZDATA_AAD_MFA_config"
 $AppReg_USR_MGMT            = "CEZDATA_AAD_USR_MGMT"
 $AppReg_APP_MGMT            = "CEZDATA_AAD_APP_MGMT"
 $AppReg_EXO_MGMT            = "CEZDATA_EXO_MGMT"
 $AppReg_SPO_REPORT_PnP      = "CEZDATA_SPO_REPORTS_PnP"
 $AppReg_SPO_MGMT            = "CEZDATA_SPO_MGMT"
-$AppReg_ROLE_MGMT           = "CEZDATA_ROLE_MGMT"
 $AppReg_ICTS_Fabric_Mgmt    = "CEZDATA_ICTS_Fabric_Mgmt"
-$AppReg_PowerBI_REST_API_Reader = "CEZDATA_PowerBI_REST_API_Reader"
 
+$AppReg_CEZDATA_LOG_READER          = $AppReg_LOG_READER
+$AppReg_CEZDATA_TMS_MGMT            = $AppReg_TMS_MGMT
+$AppReg_CEZDATA_USR_MGMT            = $AppReg_USR_MGMT
+$AppReg_CEZDATA_APP_MGMT            = $AppReg_APP_MGMT
+$AppReg_CEZDATA_EXO_MGMT            = $AppReg_EXO_MGMT
+$AppReg_CEZDATA_SPO_REPORT_PnP      = $AppReg_SPO_REPORT_PnP
+$AppReg_CEZDATA_SPO_MGMT            = $AppReg_SPO_MGMT
+$AppReg_CEZDATA_ICTS_Fabric_Mgmt    = $AppReg_ICTS_Fabric_Mgmt
 
+$AppReg_UJVREZ_LOG_READER           = "UJVREZ_LOG_READER"
+$AppReg_UJVREZ_EXO_MGMT             = "UJVREZ_EXO_MGMT"
+#group name: CEZDATA_T2T_EXO_MIGRATION
+$UJVREZ_T2T_EXO_MIGRATION_GROUP     = "ba9ad7ae-728a-4d24-a735-2071f12a1916"
 
 $IncFile_AppReg_LOG_READER          = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_LOG_READER + ".ps1")
 $IncFile_AppReg_TMS_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_TMS_MGMT + ".ps1")
-$IncFile_AppReg_MFA_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_MFA_MGMT + ".ps1")
 $IncFile_AppReg_USR_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_USR_MGMT + ".ps1")
 $IncFile_AppReg_EXO_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_EXO_MGMT + ".ps1")
 $IncFile_AppReg_SPO_REPORT_PnP      = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_SPO_REPORT_PnP + ".ps1")
 $IncFile_AppReg_ICTS_Fabric_Mgmt    = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_ICTS_Fabric_Mgmt + ".ps1")
+
 $IncFile_AIP_labels                 = [System.IO.Path]::Combine($incFolder,"include-var-define-CEZDATA-AIP-labels.ps1")
 
 $ConfigFile_AADGroupMirror             = [System.IO.Path]::Combine($incFolder,"aad-group-mirror-config.csv")
