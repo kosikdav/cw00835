@@ -8,6 +8,7 @@ param(
 
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
+write-host "Script path: $ScriptPath"
 . $ScriptPath\include-Script-StdStartBlock.ps1
 
 #######################################################################################################################
@@ -16,7 +17,7 @@ $LogFolder			= "db"
 $LogFilePrefix		= "update-lic-report-html"
 
 #######################################################################################################################
-
+write-host "incblock"
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
