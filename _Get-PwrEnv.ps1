@@ -12,7 +12,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 write-log "Start script $ScriptName"
 
 
-. d:\scripts\cezdata\include-appreg-CEZDATA_POWERPLAT_MGMT.ps1
+. d:\scripts-m365\cezdata\include-appreg-CEZDATA_POWERPLAT_MGMT.ps1
 
 try {
     Add-PowerAppsAccount -Endpoint $PwrEndpoint -TenantID $TenantId -ApplicationId $ClientId -CertificateThumbprint $CertficateThumbprint

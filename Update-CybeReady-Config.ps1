@@ -26,7 +26,7 @@ $LogFileFreq        = "YMD"
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Suffix $LogFileSuffix -Ext "log"
 
-$folder = "d:\scripts\cezdata\"
+$folder = "d:\scripts-m365\cezdata\"
 
 $PhishSim_Landing_Domains_File  = $folder + "phishsim-landing-domains.txt"
 $PhishSim_SenderDomains_File    = $folder + "phishsim-sender-domains.txt"

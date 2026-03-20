@@ -16,10 +16,10 @@ LogWrite -LogString "-----------------------------------------------------------
 LogWrite -LogString "Script start: $($ScriptName)"
 
 LogWrite -LogString "Starting Set-AADMFAPhoneFromIDM"
-Start-Process powershell {d:\scripts\Set-AADMFAPhoneFromIDM.ps1} -Wait
+Start-Process powershell {d:\scripts-m365\Set-AADMFAPhoneFromIDM.ps1} -Wait
 
 LogWrite -LogString "Starting Set-AADMFAMethods"
-Start-Process powershell {d:\scripts\Set-AADMFAMethods.ps1} -Wait
+Start-Process powershell {d:\scripts-m365\Set-AADMFAMethods.ps1} -Wait
 
 LogWrite -LogString "Run time: $($MainStopwatch.Elapsed)"
 LogWrite -LogString "Script end"

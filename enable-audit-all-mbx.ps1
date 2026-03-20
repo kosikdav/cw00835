@@ -4,9 +4,9 @@ $Stopwatch  =  [system.diagnostics.stopwatch]::StartNew()
 # test
 # test2
 # Import code for function "GetLogFileName"
-. d:\scripts\include-function-GetLogFileName.ps1
+. d:\scripts-m365\include-function-GetLogFileName.ps1
 # Import code for root folders vars
-. d:\scripts\include-root-vars.ps1
+. d:\scripts-m365\include-root-vars.ps1
 
 $LogPath 		= $root_log_folder + "mbxmgmt\"
 $LogFilePrefix	= "enable-audit-all-"
@@ -17,10 +17,10 @@ $LogFileName    = GetLogFileName("YMD")
 [array]$userMbxSet = @()
 
 # Import code for AAD app reg CEZ_EXO_MBX_MGMT
-. d:\scripts\include-appreg-CEZ_EXO_MBX_MGMT.ps1
+. d:\scripts-m365\include-appreg-CEZ_EXO_MBX_MGMT.ps1
 
 # Import code for function "LogWrite"
-. d:\scripts\include-function-logwrite.ps1
+. d:\scripts-m365\include-function-logwrite.ps1
 
 Import-Module ExchangeOnlineManagement
 Import-Module MSAL.PS

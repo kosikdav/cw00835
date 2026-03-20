@@ -4,9 +4,9 @@ $ScriptName = $MyInvocation.MyCommand.Name
 $Stopwatch =  [system.diagnostics.stopwatch]::StartNew()
 
 # Import code for function "GetLogFileName"
-. d:\scripts\include-function-GetLogFileName.ps1
+. d:\scripts-m365\include-function-GetLogFileName.ps1
 # Import code for root vars
-. d:\scripts\include-root-vars.ps1
+. d:\scripts-m365\include-root-vars.ps1
 
 $LogPath 		= $root_log_folder + "team-tags-poradna\"
 $LogFilePrefix	= "team-tags-poradna-"
@@ -17,11 +17,11 @@ $OutputFilePrefix	= "poradna-members-"
 $OutputFileNameTms 	= $OutputPath + $OutputFilePrefix + $strToday + ".csv"
 
 # Import code for AAD app reg CEZ_EXO_MBX_MGMT
-. d:\scripts\include-appreg-CEZ_TEAMS_MGMT.ps1
+. d:\scripts-m365\include-appreg-CEZ_TEAMS_MGMT.ps1
 # Import code for function "LogWrite"
-. d:\scripts\include-function-LogWrite.ps1
+. d:\scripts-m365\include-function-LogWrite.ps1
 # Import code for Get-MSALToken -> $accessToken
-. d:\scripts\include-GetMSALToken.ps1
+. d:\scripts-m365\include-GetMSALToken.ps1
 # Connection to Exchange Online
 
 Import-Module Microsoft.Graph.Teams

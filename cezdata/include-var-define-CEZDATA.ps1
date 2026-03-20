@@ -46,15 +46,16 @@ $psexe  = $ps5exe
 
 $root_log_folder    = "d:\logs\cezdata"
 $root_output_folder = "d:\exports\cezdata"
-$scriptsFolder      = "d:\scripts"
-$incFolderCommon    = "d:\scripts\include"
-$incFolderTenant    = "d:\scripts\cezdata"
+$scriptsFolder      = "d:\scripts-m365"
+$incFolderCommon    = "d:\scripts-m365\include"
+$incFolderTenant    = "d:\scripts-m365\cezdata"
 $DBFolderName       = "db"
 $AADCredsFolder     = "c:\inetpub\sites\aadcreds"
 $M365LicFolder      = "c:\inetpub\sites\m365lic"
 
 $aad_grp_mgmt_cred      = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt.cred"
 $aadauthmobmgmt_cred    = "c:\cred\qp_aadauthmobmgmt\qp_aadauthmobmgmt.cred"
+
 $cred_qp_exo_mgmt_audit_reader = "c:\cred\qp_exo_mgmt_audit_reader\qp_exo_mgmt_audit_reader.cred"
 
 $IncFile_Var_Init           = [System.IO.Path]::Combine($incFolderCommon,"include-var-init.ps1")

@@ -32,15 +32,11 @@ $psexe  = $ps5exe
 
 $root_log_folder    = "d:\logs\ujvrez"
 $root_output_folder = "d:\exports\ujvrez"
-$scriptsFolder      = "d:\scripts"
-$incFolderCommon    = "d:\scripts\include"
-$incFolderTenant    = "d:\scripts\ujvrez"
-$incFolder          = "d:\scripts\ujvrez"
-$DBFolderName       = "db"
-$AADCredsFolder     = "c:\inetpub\aadcreds"
+$scriptsFolder      = "d:\scripts-m365"
+$incFolderCommon    = "d:\scripts-m365\include"
+$incFolderTenant    = "d:\scripts-m365\ujvrez"
 
-$aad_grp_mgmt_cred      = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt.cred"
-$aadauthmobmgmt_cred    = "c:\cred\qp_aadauthmobmgmt\qp_aadauthmobmgmt.cred"
+$DBFolderName       = "db"
 
 $IncFile_Var_Init           = [System.IO.Path]::Combine($incFolderCommon,"include-var-init.ps1")
 $IncFile_Functions_Common   = [System.IO.Path]::Combine($incFolderCommon,"include-functions-common.ps1")
