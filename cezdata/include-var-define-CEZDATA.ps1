@@ -47,6 +47,8 @@ $psexe  = $ps5exe
 $root_log_folder    = "d:\logs\cezdata"
 $root_output_folder = "d:\exports\cezdata"
 $scriptsFolder      = "d:\scripts"
+$incFolderCommon    = "d:\scripts\include"
+$incFolderTenant    = "d:\scripts\cezdata"
 $incFolder          = "d:\scripts\cezdata"
 $DBFolderName       = "db"
 $AADCredsFolder     = "c:\inetpub\sites\aadcreds"
@@ -56,13 +58,13 @@ $aad_grp_mgmt_cred      = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt.cred"
 $aadauthmobmgmt_cred    = "c:\cred\qp_aadauthmobmgmt\qp_aadauthmobmgmt.cred"
 $cred_qp_exo_mgmt_audit_reader = "c:\cred\qp_exo_mgmt_audit_reader\qp_exo_mgmt_audit_reader.cred"
 
-$IncFile_Var_Init           = [System.IO.Path]::Combine($scriptsFolder,"include-var-init.ps1")
-$IncFile_Functions_Common   = [System.IO.Path]::Combine($scriptsFolder,"include-functions-common.ps1")
-$IncFile_Functions_Audit    = [System.IO.Path]::Combine($scriptsFolder,"include-functions-audit.ps1")
+$IncFile_Var_Init           = [System.IO.Path]::Combine($incFolderCommon,"include-var-init.ps1")
+$IncFile_Functions_Common   = [System.IO.Path]::Combine($incFolderCommon,"include-functions-common.ps1")
+$IncFile_Functions_Audit    = [System.IO.Path]::Combine($incFolderCommon,"include-functions-audit.ps1")
 
-$IncFile_StdLogBeginBlock   = [System.IO.Path]::Combine($scriptsFolder,"include-Script-StdLogStartBlock.ps1")
+$IncFile_StdLogBeginBlock   = [System.IO.Path]::Combine($incFolderCommon,"include-Script-StdLogStartBlock.ps1")
 $IncFile_StdLogStartBlock   = $IncFile_StdLogBeginBlock
-$IncFile_StdLogEndBlock     = [System.IO.Path]::Combine($scriptsFolder,"include-Script-StdLogEndBlock.ps1")
+$IncFile_StdLogEndBlock     = [System.IO.Path]::Combine($incFolderCommon,"include-Script-StdLogEndBlock.ps1")
 
 $AppReg_LOG_READER          = "CEZDATA_LOG_READER"
 $AppReg_TMS_MGMT            = "CEZDATA_TEAMS_MGMT"
@@ -87,16 +89,16 @@ $AppReg_UJVREZ_EXO_MGMT             = "UJVREZ_EXO_MGMT"
 #group name: CEZDATA_T2T_EXO_MIGRATION
 $UJVREZ_T2T_EXO_MIGRATION_GROUP     = "ba9ad7ae-728a-4d24-a735-2071f12a1916"
 
-$IncFile_AppReg_LOG_READER          = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_LOG_READER + ".ps1")
-$IncFile_AppReg_TMS_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_TMS_MGMT + ".ps1")
-$IncFile_AppReg_USR_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_USR_MGMT + ".ps1")
-$IncFile_AppReg_EXO_MGMT            = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_EXO_MGMT + ".ps1")
-$IncFile_AppReg_SPO_REPORT_PnP      = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_SPO_REPORT_PnP + ".ps1")
-$IncFile_AppReg_ICTS_Fabric_Mgmt    = [System.IO.Path]::Combine($incFolder,"include-appreg-" + $AppReg_ICTS_Fabric_Mgmt + ".ps1")
+$IncFile_AppReg_LOG_READER          = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_LOG_READER + ".ps1")
+$IncFile_AppReg_TMS_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_TMS_MGMT + ".ps1")
+$IncFile_AppReg_USR_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_USR_MGMT + ".ps1")
+$IncFile_AppReg_EXO_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_EXO_MGMT + ".ps1")
+$IncFile_AppReg_SPO_REPORT_PnP      = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_SPO_REPORT_PnP + ".ps1")
+$IncFile_AppReg_ICTS_Fabric_Mgmt    = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_ICTS_Fabric_Mgmt + ".ps1")
 
-$IncFile_AIP_labels                 = [System.IO.Path]::Combine($incFolder,"include-var-define-CEZDATA-AIP-labels.ps1")
+$IncFile_AIP_labels                 = [System.IO.Path]::Combine($incFolderTenant,"include-var-define-CEZDATA-AIP-labels.ps1")
 
-$ConfigFile_AADGroupMirror             = [System.IO.Path]::Combine($incFolder,"aad-group-mirror-config.csv")
+$ConfigFile_AADGroupMirror             = [System.IO.Path]::Combine($incFolderTenant,"aad-group-mirror-config.csv")
 
 $RLF = $root_log_folder
 $ROF = $root_output_folder
