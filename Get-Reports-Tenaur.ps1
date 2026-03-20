@@ -46,7 +46,7 @@ $OutputFileUSR 		= New-OutputFile -RootFolder $ROF -Folder $OutputFolderUSR -Pre
 
 #######################################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 
 # M365 Groups #########################################################################################################

@@ -107,7 +107,7 @@ function Get-CredentialReportObject {
 
 ##################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 Write-Log "Getting AAD apps report as of: $(Get-Date -Format "yyyy-MM-dd HH:MM:ss")"
 Write-Log "AAD Apps list ouput file:  $($OutputFileAppList)"

@@ -28,7 +28,7 @@ $OutputFile = New-OutputFile -RootFolder $REF -Folder $OutputFolder -Prefix $Out
 
 ##################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 $MSLicDataArray = Import-CSVtoArray -Path $MSLicDataPath
 $MSLicDataArray = $MSLicDataArray | Sort-Object -Property "GUID" -Unique

@@ -68,7 +68,7 @@ $IncFile_AppReg_SPO_REPORT_PnP      = [System.IO.Path]::Combine($incFolderTenant
 $IncFile_AppReg_ICTS_Fabric_Mgmt    = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_ICTS_Fabric_Mgmt + ".ps1")
 $IncFile_AIP_labels                 = [System.IO.Path]::Combine($incFolderTenant,"include-var-define-UJVREZ-AIP-labels.ps1")
 
-$ConfigFile_AADGroupMirror             = [System.IO.Path]::Combine($incFolderTenant,"aad-group-mirror-config.csv")
+$ConfigFile_AADGroupMirror          = [System.IO.Path]::Combine($incFolderTenant,"aad-group-mirror-config.csv")
 
 $RLF = $root_log_folder
 $ROF = $root_output_folder

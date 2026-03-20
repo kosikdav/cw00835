@@ -30,7 +30,7 @@ $DateLimit = (Get-Date).AddDays(-365)
 
 #######################################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 $AllAADUsers = Import-CSVtoArray -Path $DBFileUsersMemLic 
 $TeamsLicensedUsers = $AllAADUsers | Where-Object {($_.TMSLicense -eq "True")}

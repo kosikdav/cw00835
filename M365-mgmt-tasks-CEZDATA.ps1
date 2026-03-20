@@ -27,7 +27,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-mgmt-tasks" -Ext "log"
 
 #######################################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 ForEach ($Script in $ScriptList) {
     Write-Log "Starting $($script)"

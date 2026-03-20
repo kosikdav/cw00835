@@ -507,7 +507,7 @@ function Request-MSALToken {
 	if ((-Not($AuthRecord)) -or ($MinutesElapsed -ge $TTL) -or ($Force)) {
 		[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 		$incFileName = "include-appreg-" + $AppRegName + ".ps1"
-		$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
+		$incFile = [System.IO.Path]::Combine($incFolderTenant,$incFileName)
 		. $incFile
 		
 		$AuthorityURI = "https://$($Authority)/$($tenantId)"
@@ -602,7 +602,7 @@ function Connect-SPOServicePnP {
 	$MinutesElapsed = 0
 	$Operation = "requested"
 	$incFileName = "include-appreg-" + $AppRegName + ".ps1"
-	$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
+	$incFile = [System.IO.Path]::Combine($incFolderTenant,$incFileName)
 	if ($script:AuthDB.ContainsKey($AppRegName)) {
 		$AuthRecord = $script:AuthDB[$AppRegName]
 		$MinutesElapsed = [math]::abs((New-TimeSpan -End $AuthRecord.CreatedDateTime).Minutes)
@@ -656,7 +656,7 @@ function Connect-EXOService {
 
 	if ($AppRegName) {
 		$incFileName = "include-appreg-" + $AppRegName + ".ps1"
-		$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
+		$incFile = [System.IO.Path]::Combine($incFolderTenant,$incFileName)
 		if ($script:AuthDB.ContainsKey($AppRegName)) {
 			$AuthRecord = $script:AuthDB[$AppRegName]
 			$MinutesElapsed = [math]::abs((New-TimeSpan -End $AuthRecord.CreatedDateTime).Minutes)
@@ -737,7 +737,7 @@ function Connect-Teams {
 	$MinutesElapsed = 0
 	$Operation = "requested"
 	$incFileName = "include-appreg-" + $AppRegName + ".ps1"
-	$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
+	$incFile = [System.IO.Path]::Combine($incFolderTenant,$incFileName)
 	if ($script:AuthDB.ContainsKey($AppRegName)) {
 		$AuthRecord = $script:AuthDB[$AppRegName]
 		$MinutesElapsed = [math]::abs((New-TimeSpan -End $AuthRecord.CreatedDateTime).Minutes)
@@ -778,7 +778,7 @@ function Connect-MGModule {
 	$MinutesElapsed = 0
 	$Operation = "requested"
 	$incFileName = "include-appreg-" + $AppRegName + ".ps1"
-	$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
+	$incFile = [System.IO.Path]::Combine($incFolderTenant,$incFileName)
 	. $incFile
 	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 	Try {
@@ -804,7 +804,7 @@ function Connect-EntraModule {
 	$MinutesElapsed = 0
 	$Operation = "requested"
 	$incFileName = "include-appreg-" + $AppRegName + ".ps1"
-	$incFile = [System.IO.Path]::Combine($incFolder,$incFileName)
+	$incFile = [System.IO.Path]::Combine($incFolderTenant,$incFileName)
 	. $incFile
 	[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 	Try {

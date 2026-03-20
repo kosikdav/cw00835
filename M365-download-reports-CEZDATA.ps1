@@ -32,7 +32,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-download-reports" -Ext
 
 #######################################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 Write-Log "PS EXE $($ps5exe)"
 

@@ -12,9 +12,9 @@ param(
 
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-Start-Generic.ps1
+. $ScriptPath\include-Script-StdStartBlock.ps1
 . $ScriptPath\include-Script-StdIncBlock.ps1
-. $ScriptPath\include-Functions-Common.ps1
+. $ScriptPath\include\include-Functions-Common.ps1
 
 #######################################################################################################################
 

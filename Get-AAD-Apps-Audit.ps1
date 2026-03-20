@@ -30,7 +30,7 @@ $end = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
 
 ##################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 $AADApp_DB = Import-CSVtoHashDB -Path $DBFileAADAppList -KeyName "id"
 $AADSP_DB = Import-CSVtoHashDB -Path $DBFileAADSPList -KeyName "id"

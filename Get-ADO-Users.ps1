@@ -25,8 +25,9 @@ $OutputFile = New-OutputFile -RootFolder $REF -Folder $OutputFolder -Prefix $Out
 
 ##################################################################################################
 
-. $IncFile_StdLogBeginBlock
-$incFile = [System.IO.Path]::Combine($incFolder,"include-appreg-$($AppReg_LOG_READER).ps1")
+. $IncFile_StdLogStartBlock
+
+$incFile = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-$($AppReg_LOG_READER).ps1")
 . $incFile
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30

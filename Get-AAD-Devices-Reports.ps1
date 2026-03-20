@@ -26,7 +26,7 @@ $OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $Out
 #[array]$PhysicalIdList = @("[GID]","[HWID]","[USER-GID]","[USER-HWID]","[ZTDID]","[OrderId]")
 #######################################################################################################################
 
-. $IncFile_StdLogBeginBlock
+. $IncFile_StdLogStartBlock
 
 Write-Log "Getting AAD devices list as of: $(Get-Date -Format "yyyy-MM-dd HH:MM:ss")"
 
