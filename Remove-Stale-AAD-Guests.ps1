@@ -36,6 +36,7 @@ $currentDate = (Get-Date).ToString("yyyy-MM-dd")
 Write-Log "Inactivity limit for guests: $InactivityLimitGuests days (cutoff date: $CutoffDateGuests)"
 Write-Log "Inactivity limit for pending invites: $InactivityLimitPendingInvites days (cutoff date: $CutoffDatePendingInvites)"
 write-log $string_divider
+
 Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
 
 $UriResource = "users"
@@ -51,8 +52,6 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -S
 $PendingInvites = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_USR_MGMT].AccessToken -ContentType $ContentTypeJSON -text "AAD Guests pending acceptance" -ProgressDots
 
 Write-Log "Guests: $($Guests.count)"
-Write-Log "Pending invites: $($PendingInvites.count)"
-
 $counterGuests = 0
 ForEach ($Guest in $Guests) {
     $ext15 = $LastAuditTrace = $null
@@ -79,9 +78,10 @@ ForEach ($Guest in $Guests) {
         Write-Log "$($Guest.userPrincipalName) ($($Guest.id)) guest removed - lastAuditTrace: $($LastAuditTrace) ($($DaysSinceLAT))" -ForegroundColor Yellow
     }
 }
-write-log $string_divider
 write-log "Total guests removed: $counterGuests" -ForegroundColor Yellow
+write-log $string_divider
 
+Write-Log "Pending invites: $($PendingInvites.count)"
 $counterInvites = 0
 foreach ($Guest in $PendingInvites) {
     Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
