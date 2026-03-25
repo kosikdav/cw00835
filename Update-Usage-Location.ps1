@@ -6,7 +6,7 @@ param(
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include\include-Script-StdStartBlock.ps1
 
 #######################################################################################################################
 
@@ -15,7 +15,7 @@ $LogFilePrefix		= "update-usage-location"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include\include-Script-StdIncBlock.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 $LogFileMin = New-OutputFile -RootFolder $ROF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"

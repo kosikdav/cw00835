@@ -17,7 +17,7 @@ $LogFolder			= "db"
 $LogFilePrefix		= "update-lic-report-html"
 
 #######################################################################################################################
-write-host "incblock"
+write-host 3
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"

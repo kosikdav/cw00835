@@ -5,20 +5,23 @@ if ($VariableDefinitionFile) {
         $IncFile_Var_Define = $VariableDefinitionFile
     }
 }
+else {
+    if ($env:DEFAULT_VARDEFINITIONFILE -and (Test-Path -Path $env:DEFAULT_VARDEFINITIONFILE)) {
+        $IncFile_Var_Define = $env:DEFAULT_VARDEFINITIONFILE
+    }
     else {
-        if ($env:DEFAULT_VARDEFINITIONFILE -and (Test-Path -Path $env:DEFAULT_VARDEFINITIONFILE)) {
-            $IncFile_Var_Define = $env:DEFAULT_VARDEFINITIONFILE
+        if (Test-Path -Path $DefaultVarDefFile) {
+            $IncFile_Var_Define = $DefaultVarDefFile
         }
         else {
-            if (Test-Path -Path $DefaultVarDefFile) {
-                $IncFile_Var_Define = $DefaultVarDefFile
-            }
-            else {
-                exit
-            }
+            exit
         }
-    }    
+    }
+}
 
+write-host $IncFile_Var_Define -ForegroundColor Green
 . $IncFile_Var_Define
+write-host $IncFile_Var_Init -ForegroundColor Green
 . $IncFile_Var_Init
+write-host $IncFile_Functions_Common -ForegroundColor Green
 . $IncFile_Functions_Common
