@@ -1,16 +1,24 @@
+param(
+    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
+    [string]$workloads
+)
+
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-Start-Generic.ps1
+. $ScriptPath\include-Script-StdStartBlock.ps1
 
+#######################################################################################################################
 $LogFolder			    = "exports"
 $LogFilePrefix		    = "pwrplatmgmt"
+#######################################################################################################################
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
-write-log "Start script $ScriptName"
 
+#######################################################################################################################
+. $IncFile_StdLogStartBlock
 
 . d:\scripts-m365\cezdata\include-appreg-CEZDATA_POWERPLAT_MGMT.ps1
 
@@ -22,8 +30,9 @@ Catch {
     write-log "Error: $_.Exception.Message"
 }
 
-$envReport = @()
-$environments = Get-AdminPowerAppEnvironment
+[array]$envReport = @()
+
+[array]$environments = Get-AdminPowerAppEnvironment
 foreach ($env in $environments) {
     $envReport += [PSCustomObject]@{
         EnvironmentName = $env.EnvironmentName
@@ -49,4 +58,9 @@ foreach ($env in $environments) {
         RetentionPeriod = $env.RetentionPeriod
     }
 }
-$envReport | Export-Csv -Path "$ROF\$LogFilePrefix-$(Get-Date -Format 'yyyyMMdd-HHmmss').csv" -NoTypeInformation -Encoding UTF8
+
+#######################################################################################################################
+
+Export-Report -Text "DBReportAADAdminRoles" -Report $envReport -Path $DBFilePwrEnvironments -SortProperty "displayName"
+
+. $IncFile_StdLogEndBlock
