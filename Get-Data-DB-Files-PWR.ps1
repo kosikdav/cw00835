@@ -61,6 +61,6 @@ foreach ($env in $environments) {
 
 #######################################################################################################################
 
-Export-Report -Text "DBReportAADAdminRoles" -Report $envReport -Path $DBFilePwrEnvironments -SortProperty "displayName"
+Export-Report -Text "DBFilePwrEnvironments" -Report $envReport -Path $DBFilePwrEnvironments -SortProperty "displayName"
 
 . $IncFile_StdLogEndBlock
