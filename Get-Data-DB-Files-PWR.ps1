@@ -8,8 +8,10 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-StdStartBlock.ps1
 
 #######################################################################################################################
-$LogFolder			    = "exports"
-$LogFilePrefix		    = "pwrplatmgmt"
+
+$LogFolder			= "db"
+$LogFilePrefix		= "get-data-db-files-pwr"
+
 #######################################################################################################################
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
@@ -20,7 +22,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 #######################################################################################################################
 . $IncFile_StdLogStartBlock
 
-. d:\scripts-m365\cezdata\include-appreg-CEZDATA_POWERPLAT_MGMT.ps1
+. $IncFile_AppReg_POWERPLAT_MGMT
 
 try {
     Add-PowerAppsAccount -Endpoint $PwrEndpoint -TenantID $TenantId -ApplicationId $ClientId -CertificateThumbprint $CertficateThumbprint
@@ -30,21 +32,24 @@ Catch {
     write-log "Error: $_.Exception.Message"
 }
 
-[array]$envReport = @()
+[array]$ReportPwrEnvironments = @()
 
-[array]$environments = Get-AdminPowerAppEnvironment
-foreach ($env in $environments) {
-    $envReport += [PSCustomObject]@{
+[array]$PwrEnvironments = Get-AdminPowerAppEnvironment
+
+foreach ($env in $PwrEnvironments) {
+
+    [array]$Apps = Get-AdminPowerApp -EnvironmentName $env.EnvironmentName
+    [array]$Flows = Get-AdminFlow -EnvironmentName $env.EnvironmentName -IncludeDeleted $true -IncludeEUDBNonCompliantFlows $true
+
+    $ReportPwrEnvironments += [PSCustomObject]@{
         EnvironmentName = $env.EnvironmentName
         DisplayName = $env.DisplayName
         Description = $env.Description
         IsDefault = $env.IsDefault
         Location = $env.Location
         CreatedTime = $env.CreatedTime
+        CreatedBy = $env.CreatedBy.UserPrincipalName
         CreatedById = $env.CreatedBy.Id
-        CreatedByDisplayName = $env.CreatedBy.DisplayName
-        CreatedByUserPrincipalName = $env.CreatedBy.UserPrincipalName
-        CreatedByEmail = $env.CreatedBy.Email
         CreatedByType = $env.CreatedBy.Type
         LastModifiedTime = $env.LastModifiedTime
         LastModifiedBy = $env.LastModifiedBy
@@ -56,11 +61,13 @@ foreach ($env in $environments) {
         OrganizationId = $env.OrganizationId
         SecurityGroupId = $env.SecurityGroupId
         RetentionPeriod = $env.RetentionPeriod
+        AppsCount = $Apps.Count
+        FlowsCount = $Flows.Count
     }
 }
 
 #######################################################################################################################
 
-Export-Report -Text "DBFilePwrEnvironments" -Report $envReport -Path $DBFilePwrEnvironments -SortProperty "displayName"
+Export-Report -Text "DBFilePwrEnvironments" -Report $ReportPwrEnvironments -Path $DBFilePwrEnvironments -SortProperty "displayName"
 
 . $IncFile_StdLogEndBlock

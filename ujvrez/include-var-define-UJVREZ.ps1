@@ -47,6 +47,7 @@ $IncFile_StdLogStartBlock   = $IncFile_StdLogBeginBlock
 $IncFile_StdLogEndBlock     = [System.IO.Path]::Combine($incFolderCommon,"include-Script-StdLogEndBlock.ps1")
 
 $AppReg_LOG_READER          = "UJVREZ_LOG_READER"
+$AppReg_POWERPLAT_MGMT      = "UJVREZ_POWERPLAT_MGMT"
 $AppReg_TMS_MGMT            = "UJVREZ_TEAMS_MGMT"
 $AppReg_USR_MGMT            = "UJVREZ_AAD_USR_MGMT"
 $AppReg_EXO_MGMT            = "UJVREZ_EXO_MGMT"
@@ -56,6 +57,7 @@ $AppReg_ROLE_MGMT           = "UJVREZ_ROLE_MGMT"
 $AppReg_ICTS_Fabric_Mgmt    = "UJVREZ_ICTS_Fabric_Mgmt"
 
 $IncFile_AppReg_LOG_READER          = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_LOG_READER + ".ps1")
+$IncFile_AppReg_POWERPLAT_MGMT      = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_POWERPLAT_MGMT + ".ps1")
 $IncFile_AppReg_TMS_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_TMS_MGMT + ".ps1")
 $IncFile_AppReg_MFA_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_MFA_MGMT + ".ps1")
 $IncFile_AppReg_USR_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_USR_MGMT + ".ps1")
