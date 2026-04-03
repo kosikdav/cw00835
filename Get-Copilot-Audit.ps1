@@ -9,7 +9,7 @@ param(
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-Start-Generic.ps1
+. $ScriptPath\include-Script-Start-Init.ps1
 
 if ($SpecificDate -and $MinusDays) {
     Write-Host "You can specify either -SpecificDate or -MinusDays parameter, not both."
@@ -33,10 +33,32 @@ $resultSize = 1000
 $intervalMinutes = 60
 $errorSleep = 30
 $stdSleep = 3
+[hashtable]$DynUser_DB = @{}
+
+function Update-DynUserDB {
+    param(
+        $id,
+        [hashtable]$DB,
+        $AccessToken
+    )
+
+    $UriResource = "users/$($id)"
+    $UriSelect = "id,userPrincipalName,displayName,companyName,department,assignedLicenses"
+    $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+    $User = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (extensions)" -ProgressDots
+
+    $UserObject = [pscustomobject]@{
+        DisplayName = $User.displayName
+        CompanyName = $User.companyName
+        Department  = $User.department
+        CopilotLicense = if ($User.assignedLicenses.skuId -contains "1E633AB9-7B9F-4A1B-B0C8-9E3B8D9F9334") {"Yes"} else {"No"}
+    }
+    $DB.Add($id, $UserObject)
+}
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 . $IncFile_AIP_labels
 . $IncFile_Functions_Audit
 
@@ -96,7 +118,7 @@ Write-Log "Query start: $($start)"
 Write-Log "Query end:   $($end)"
 
 $AADUSER_DB = @{}
-#$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
+$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
 while ($true) {
     [int]$currentCount = 0
@@ -211,7 +233,19 @@ while ($true) {
                     if ($auditData.UserKey) {
                         $user = $AADUSER_DB[$auditData.UserKey]
                     }
-                    
+                    <#
+                    if ($DynUser_DB.ContainsKey($auditData.UserKey)) {
+                        $dynUser = $DynUser_DB[$auditData.UserKey]
+                    }
+                    else {
+                        Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+                        Update-DynUserDB -id $auditData.UserKey -DB $DynUser_DB -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken
+                        if ($DynUser_DB.ContainsKey($auditData.UserKey)) {
+                            $dynUser = $DynUser_DB[$auditData.UserKey]
+                        }
+                    }
+                    #>
+                
                     $AISystemPlugin = $($auditData.CopilotEventData.AISystemPlugin.name + " (" + $auditData.CopilotEventData.AISystemPlugin.id + ")")
 
                     $auditObject = [pscustomobject]@{

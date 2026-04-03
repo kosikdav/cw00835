@@ -35,7 +35,6 @@ $AADUserReportTNR_ext_name = "ext_msDScloudExtensionAttribute1"
 $AADUserReportAuthMobile_attr_label = "ext_cEZIntuneMFAAuthMobile"
 $AADUserReportAuthMobile_ext_name = "ext_cEZIntuneMFAAuthMobile"
 
-
 $AADUserReportGroupMemberCount = $true
 
 $string_divider = "-------------------------------------------------------------------------------"
@@ -67,6 +66,7 @@ $IncFile_StdLogStartBlock   = $IncFile_StdLogBeginBlock
 $IncFile_StdLogEndBlock     = [System.IO.Path]::Combine($incFolderCommon,"include-Script-StdLogEndBlock.ps1")
 
 $AppReg_LOG_READER          = "CEZDATA_LOG_READER"
+$AppReg_POWERPLAT_MGMT      = "CEZDATA_POWERPLAT_MGMT"
 $AppReg_TMS_MGMT            = "CEZDATA_TEAMS_MGMT"
 $AppReg_USR_MGMT            = "CEZDATA_AAD_USR_MGMT"
 $AppReg_APP_MGMT            = "CEZDATA_AAD_APP_MGMT"
@@ -76,6 +76,7 @@ $AppReg_SPO_MGMT            = "CEZDATA_SPO_MGMT"
 $AppReg_ICTS_Fabric_Mgmt    = "CEZDATA_ICTS_Fabric_Mgmt"
 
 $AppReg_CEZDATA_LOG_READER          = $AppReg_LOG_READER
+$AppReg_CEZDATA_POWERPLAT_MGMT      = $AppReg_POWERPLAT_MGMT
 $AppReg_CEZDATA_TMS_MGMT            = $AppReg_TMS_MGMT
 $AppReg_CEZDATA_USR_MGMT            = $AppReg_USR_MGMT
 $AppReg_CEZDATA_APP_MGMT            = $AppReg_APP_MGMT
@@ -90,6 +91,7 @@ $AppReg_UJVREZ_EXO_MGMT             = "UJVREZ_EXO_MGMT"
 $UJVREZ_T2T_EXO_MIGRATION_GROUP     = "ba9ad7ae-728a-4d24-a735-2071f12a1916"
 
 $IncFile_AppReg_LOG_READER          = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_LOG_READER + ".ps1")
+$IncFile_AppReg_POWERPLAT_MGMT      = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_POWERPLAT_MGMT + ".ps1")
 $IncFile_AppReg_TMS_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_TMS_MGMT + ".ps1")
 $IncFile_AppReg_USR_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_USR_MGMT + ".ps1")
 $IncFile_AppReg_EXO_MGMT            = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_EXO_MGMT + ".ps1")
@@ -195,6 +197,18 @@ $T2TTenant_DB = @{
     "c6807474-993d-4891-994b-79c685818b9c" = "ELENG"
     "12437861-f55d-4e74-8b78-47996c60686a" = "SDAS"
 }
+
+$T2TCompanyName_DB = @{
+    "ujv.cz"        = "UJV"
+    "egp.cz"        = "EGP"
+    "cvrez.cz"      = "CVREZ"
+    "engineeringpraha.cz" = "Engineering Praha"
+    "vzuplzen.cz"   = "VZU Plzen"
+    "radiomedic.cz" = "RadioMedic"
+    "skodapraha.cz" = "Skoda Praha"
+    "icvr.cz" = "iCVR"
+}
+
 
 $OU_AAD_Root = "OU=AAD,OU=Cloud,OU=skupiny,DC=cezdata,DC=corp"
 $OU_ADO     = "OU=DevOps,OU=Azure" + "," + $OU_AAD_Root

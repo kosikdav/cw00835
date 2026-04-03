@@ -146,7 +146,7 @@ ForEach ($User in $Users) {
 	$DaysSinceLastSignIn = $DaysSinceLastSignIn_NI = "n/a"
 	$GroupMemberCount = 0
 	$UserDrive = $null
-	$onPremisesImmutableId = $onPremisesGUID = [string]::Empty
+	$onPremisesImmutableId = $onPremisesGUID = $OU = [string]::Empty
 
 	if ($User.Mail) {
 		$Mail = $User.Mail.ToLower()
@@ -221,6 +221,9 @@ ForEach ($User in $Users) {
 		$ODfBUrl = $UserDrive.webUrl.Trim("/Documents")
 	}
 	
+	if ($user.onpremisesdistinguishedname) {
+		$OU = ($user.onpremisesdistinguishedname -split "," | Select-Object -First 2)[1].TrimStart("OU=")
+	}
 	$UserObject = [pscustomobject]@{
 		UserId						= $User.id
 		UserPrincipalName 			= $User.UserPrincipalName
@@ -250,6 +253,7 @@ ForEach ($User in $Users) {
 		LastSyncTime 				= $User.onPremisesLastSyncDateTime
 		onPremisesSamAccountName	= $User.onPremisesSamAccountName
 		onPremisesDN				= $User.onPremisesDistinguishedName
+		OU							= $OU
 		onPremisesImmutableId		= $onPremisesImmutableId
 		onPremisesGUID				= $onPremisesGUID
 		E3							= $UserLicensingRecord.M365E3SKU

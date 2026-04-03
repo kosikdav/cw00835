@@ -92,12 +92,12 @@ Remove-Variable RecentAuditLogEventsInvite
 ##############################################################################################
 # Process all guest accounts
 
-
 foreach ($Guest in $AllAADGuests) {
     Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 60
     Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
     $MailDomain = $ExtTenant = $PartnerTenant = $AADExtCompanyName = $CurrentCompanyName = $CurrentEmployeeType = $MailUser = $null
     $InboundSync = $XTSync = $false
+    $T2TTenantOrgName = $T2TCompanyName = $null
     $upn = $Guest.UserPrincipalName
     $ext15 = $Guest.onPremisesExtensionAttributes.extensionAttribute15
     $UriResource = "users/$($Guest.id)"
@@ -134,23 +134,26 @@ foreach ($Guest in $AllAADGuests) {
         }
 
         if ($ExtTenant -and $T2TTenant_DB.ContainsKey($ExtTenant.tenantId)) {
-            $T2TTenantOrgName = $T2TTenant_DB[$ExtTenant.tenantId]
+            $TargetCompanyName = $T2TTenant_DB[$ExtTenant.tenantId]
+            if ($T2TCompanyName_DB.ContainsKey($MailDomain)) {
+                $TargetCompanyName = $T2TCompanyName_DB[$MailDomain]
+            }
             #if companyName is set and does not match the T2T tenant name, update it
-            if ($Guest.companyName -and ($Guest.companyName.Trim() -ne $T2TTenantOrgName)) {
-                write-host "$($Guest.mail) - $($T2TTenantOrgName)"
+            if (($Guest.companyName -and ($Guest.companyName.Trim() -ne $TargetCompanyName)) -or (-not $Guest.companyName)) {
+                write-host "$($Guest.mail) - $($TargetCompanyName)"
                 $UriResource = "users/$($Guest.id)"
                 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
                 $GraphBodyCompany = @{
-                    companyName = $T2TTenantOrgName
+                    companyName = $TargetCompanyName
                 } | ConvertTo-Json
                 $GraphBodyCompany = [System.Text.Encoding]::UTF8.GetBytes($GraphBodyCompany)
                 Try {
                     $ResultPATCH = Invoke-RestMethod -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBodyCompany -Method "PATCH" -ContentType $ContentTypeJSON
-                    Write-Log "$($Guest.mail) SUCCESS companyName: `"$($T2TTenantOrgName)`"" -ForegroundColor "Cyan"
+                    Write-Log "$($Guest.mail) SUCCESS companyName: `"$($TargetCompanyName)`"" -ForegroundColor "Cyan"
                 }
                 Catch {
                     $ErrorMessagePATCH = $_.ErrorDetails.Message | Out-String
-                    Write-Log "$($Guest.mail) ERR PATCH companyName: `"$($T2TTenantOrgName)`"" -MessageType Error
+                    Write-Log "$($Guest.mail) ERR PATCH companyName: `"$($TargetCompanyName)`"" -MessageType Error
                     Write-Log $ErrorMessagePATCH -MessageType Error
                 }
             }
