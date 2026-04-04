@@ -35,6 +35,11 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 [array]$DBReportUsersMemName    = $null
 [array]$DBReportUsersMemSIA     = $null
 [array]$DBReportUsersMemLic     = $null
+[array]$DBReportUsersMemFull    = $null
+
+[hashtable]$UsersMemFull_by_id_DB   = @{}
+[hashtable]$UsersMemFull_by_UPN_DB  = @{}
+[hashtable]$UsersMemLic_by_id_DB    = @{}
 
 [int]$ThrottlingDelayPerUserInMsec = 200
 
@@ -282,6 +287,66 @@ foreach ($User in $AllAADUsers) {
         ExtAADDisplayName		    = $Tenant.displayName
         ExtAADdefaultDomain		    = $Tenant.defaultDomainName
     }
+    
+    $UserRecordFull = [pscustomobject]@{
+        Id  						= $User.id
+        RecordCreated               = $CurrentDate
+        UserPrincipalName 			= $UPN
+        UPNDomain					= Get-DomainFromAddress -Address $UPN
+        DisplayName 				= $User.DisplayName
+        UserType 					= $User.UserType
+        AccountEnabled				= $User.AccountEnabled
+        Mail 						= $Mail
+        MailDomain 				    = $MailDomain
+        UPNExtMail				    = $UPNExtMail
+        UPNExtMailDomain		    = $UPNExtMailDomain
+        CompanyName					= $User.companyName
+        Department					= $User.department
+        JobTitle					= $User.jobTitle
+        EmployeeType				= $User.employeeType
+        MobilePhone 				= $MobilePhone
+        preferredLanguage			= $User.preferredLanguage
+        CreatedDateTime 			= $User.createdDateTime
+        DaysSinceCreated			= $DaysSinceCreated
+        LastSignIn				    = $LastSignInDateTime
+        LastSignIn_NI			    = $LastSignInDateTime_NI
+        DaysSinceLastSignIn		    = $DaysSinceLastSignIn
+        DaysSinceLastSignIn_NI 	    = $DaysSinceLastSignIn_NI
+        onPremisesSyncEnabled 		= $User.onPremisesSyncEnabled
+        onPremisesLastSyncDateTime 	= $User.onPremisesLastSyncDateTime
+        onPremisesSamAccountName	= $User.onPremisesSamAccountName
+        onPremisesDistinguishedName	= $User.onPremisesDistinguishedName
+        onPremisesImmutableId		= $onPremisesImmutableId
+        onPremisesGUID				= $onPremisesGUID
+        msExchExtensionAttribute40	= $msExchExtensionAttribute40
+        onpremDisplayName			= $onpremDisplayName
+        ExternalUserState 		    = $User.ExternalUserState
+        ExternalUserStateChangeDateTime = $User.ExternalUserStateChangeDateTime
+        ExtAADTenantId			    = $Tenant.tenantId
+        ExtAADDisplayName		    = $Tenant.displayName
+        ExtAADdefaultDomain		    = $Tenant.defaultDomainName
+
+        SKUCount            = $licensedSKUs.Count
+        M365E3SKU           = $M365E3SKU
+        M365E3UATSKU        = $M365E3UATSKU
+        M365E5SKU           = $M365E5SKU
+        M365F3SKU           = $M365F3SKU
+        M365CopilotSKU      = $M365CopilotSKU
+        M365E5SecSKU        = $M365E5SecSKU
+        TeamsPremSKU        = $TeamsPremSKU
+        PwrAutPremSKU       = $PwrAutPremSKU
+        PwrAppPremSKU       = $PwrAppPremSKU
+
+        AADPremLicense      = $AADPremLicense
+        EXOLicense          = $EXOLicense
+        SPOLicense          = $SPOLicense
+        TMSLicense          = $TMSLicense
+        IntuneLicense       = $IntuneLicense
+        PwrAutLicense       = $PwrAutLicense
+        PwrAppLicense       = $PwrAppLicense
+        CopilotLicense      = $CopilotLicense
+        AADPremLicenseNeeded = $AADPremLicenseNeeded
+    }
 
     # usertype member
     if ($User.UserType -eq "member") {
@@ -290,6 +355,13 @@ foreach ($User in $AllAADUsers) {
         $DBReportUsersMemStd += $UserRecordStd
         $DBReportUsersMemSIA += $UserRecordSIA
         $DBReportUsersMemLic += $UserRecordLic
+        $DBReportUsersMemFull += $UserRecordFull
+
+        $UsersMemFull_by_id_DB.Add($User.id, $UserRecordFull)
+        $UsersMemFull_by_UPN_DB.Add($UPN, $UserRecordFull)
+        if ($UserRecordLic) {
+            $UsersMemLic_by_id_DB.Add($User.id, $UserRecordLic)
+        }
     }
 
     # usertype guest
