@@ -380,6 +380,10 @@ foreach ($User in $AllAADUsers) {
     Start-Sleep -Milliseconds $ThrottlingDelayPerUserInMsec
 }
 
+Export-Clixml -InputObject $UsersMemFull_by_id_DB -Path $DBUsersMemFull_by_id
+Export-Clixml -InputObject $UsersMemFull_by_UPN_DB -Path $DBUsersMemFull_by_UPN
+Export-Clixml -InputObject $UsersMemLic_by_id_DB -Path $DBUsersMemLic_by_id
+
 Export-Report "member users (name only)" -Report $DBReportUsersMemName -Path $DBFileUsersMemName -SortProperty UserPrincipalName
 Export-Report "member users (minimal)" -Report $DBReportUsersMemMin -Path $DBFileUsersMemMin -SortProperty UserPrincipalName
 Export-Report "member users (standard)" -Report $DBReportUsersMemStd -Path $DBFileUsersMemStd -SortProperty UserPrincipalName
