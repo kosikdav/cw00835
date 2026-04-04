@@ -5,6 +5,7 @@ param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
     $SpecificDate,
     $MinusDays,
+    $DynamicLookup = $false,
     [switch]$NoRollup
 )
 $ScriptName = $MyInvocation.MyCommand.Name
@@ -33,7 +34,6 @@ $resultSize = 1000
 $intervalMinutes = 60
 $errorSleep = 30
 $stdSleep = 3
-[hashtable]$DynUser_DB = @{}
 
 function Update-DynUserDB {
     param(
@@ -41,17 +41,38 @@ function Update-DynUserDB {
         [hashtable]$DB,
         $AccessToken
     )
-
+    $CopilotLicense = $false
     $UriResource = "users/$($id)"
-    $UriSelect = "id,userPrincipalName,displayName,companyName,department,assignedLicenses"
+    $UriSelect = "id,displayName,companyName,department"
     $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
-    $User = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (extensions)" -ProgressDots
+    $User = Get-GraphOutputREST -Uri $Uri -AccessToken $AccessToken -ContentType $ContentTypeJSON
 
-    $UserObject = [pscustomobject]@{
-        DisplayName = $User.displayName
-        CompanyName = $User.companyName
-        Department  = $User.department
-        CopilotLicense = if ($User.assignedLicenses.skuId -contains "1E633AB9-7B9F-4A1B-B0C8-9E3B8D9F9334") {"Yes"} else {"No"}
+    if ($User) {
+        $UriResource = "users/$($id)/licenseDetails"
+        $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+        $licensedSKUs = Get-GraphOutputREST -Uri $Uri -AccessToken $AccessToken -ContentType $ContentTypeJSON
+
+        if ($licensedSKUs.count -gt 0) {
+            foreach ($sku in $licensedSKUs) {
+                foreach ($plan in $sku.servicePlans) {
+                    if ($M365CopilotLicensePlans.Contains($plan.servicePlanId)) {$CopilotLicense = $true}
+                } #plan
+            } #sku
+        } 
+        $UserObject = [pscustomobject]@{
+            DisplayName = $User.displayName
+            CompanyName = $User.companyName
+            Department  = $User.department
+            CopilotLicense = $CopilotLicense
+        }
+    }
+    else {
+        $UserObject = [pscustomobject]@{
+            DisplayName = [string]::Empty
+            CompanyName = [string]::Empty
+            Department  = [string]::Empty
+            CopilotLicense = $null
+        }
     }
     $DB.Add($id, $UserObject)
 }
@@ -117,8 +138,13 @@ Write-Log "Query interval: $($intervalMinutes) minutes"
 Write-Log "Query start: $($start)"
 Write-Log "Query end:   $($end)"
 
-$AADUSER_DB = @{}
-$AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
+[hashtable]$AADUSER_DB = @{}
+if ($DynamicLookup) {
+    Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+}
+else {
+    $AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
+}
 
 while ($true) {
     [int]$currentCount = 0
@@ -233,19 +259,22 @@ while ($true) {
                     if ($auditData.UserKey) {
                         $user = $AADUSER_DB[$auditData.UserKey]
                     }
-                    <#
-                    if ($DynUser_DB.ContainsKey($auditData.UserKey)) {
-                        $dynUser = $DynUser_DB[$auditData.UserKey]
+                    
+                    if ($AADUSER_DB.ContainsKey($auditData.UserKey)) {
+                        $user = $AADUSER_DB[$auditData.UserKey]
                     }
                     else {
-                        Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
-                        Update-DynUserDB -id $auditData.UserKey -DB $DynUser_DB -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken
-                        if ($DynUser_DB.ContainsKey($auditData.UserKey)) {
-                            $dynUser = $DynUser_DB[$auditData.UserKey]
+                        if ($DynamicLookup) {
+                            Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+                            Update-DynUserDB -id $auditData.UserKey -DB $AADUSER_DB -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken
+                            if ($AADUSER_DB.ContainsKey($auditData.UserKey)) {
+                                $User = $AADUSER_DB[$auditData.UserKey]
+                                #write-Host "$($dynUser.DisplayName) $($dynUser.CopilotLicense) $($dynUser.CompanyName) $($dynUser.Department)" -ForegroundColor Green
+                                write-host "." -NoNewline -ForegroundColor Cyan
+                            }
                         }
                     }
-                    #>
-                
+
                     $AISystemPlugin = $($auditData.CopilotEventData.AISystemPlugin.name + " (" + $auditData.CopilotEventData.AISystemPlugin.id + ")")
 
                     $auditObject = [pscustomobject]@{
@@ -255,10 +284,10 @@ while ($true) {
                         OperationType           = $auditData.Operation
                         UserId                  = $auditData.UserKey
                         UserPrincipalName       = $auditData.UserId
-                        UserDisplayName         = $user.DisplayName
-                        CompanyName             = $user.CompanyName
-                        Department              = $user.Department
-                        CopilotLicense          = $user.CopilotLicense
+                        UserDisplayName         = $dynUser.DisplayName
+                        CompanyName             = $dynUser.CompanyName
+                        Department              = $dynUser.Department
+                        CopilotLicense          = $dynUser.CopilotLicense
                         RecordType              = $auditData.RecordType
                         Workload                = $auditData.Workload
                         ClientIP                = $auditData.ClientIP
@@ -270,7 +299,7 @@ while ($true) {
                     }
                     $CopilotAuditLog += $auditObject
                 }#foreach ($result in $results)
-                
+                write-host
                 $currentTotal = $resCntFrst
                 $totalCount += $resCount
                 $currentCount += $resCount
