@@ -143,7 +143,7 @@ if ($DynamicLookup) {
     Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 }
 else {
-    $AADUSER_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
+    $AADUSER_DB = Import-Clixml -Path $DBUsersMemLic_by_id
 }
 
 while ($true) {
@@ -269,7 +269,7 @@ while ($true) {
                             Update-DynUserDB -id $auditData.UserKey -DB $AADUSER_DB -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken
                             if ($AADUSER_DB.ContainsKey($auditData.UserKey)) {
                                 $User = $AADUSER_DB[$auditData.UserKey]
-                                #write-Host "$($dynUser.DisplayName) $($dynUser.CopilotLicense) $($dynUser.CompanyName) $($dynUser.Department)" -ForegroundColor Green
+                                #write-Host "$($User.DisplayName) $($User.CopilotLicense) $($User.CompanyName) $($User.Department)" -ForegroundColor Green
                                 write-host "." -NoNewline -ForegroundColor Cyan
                             }
                         }
@@ -284,10 +284,10 @@ while ($true) {
                         OperationType           = $auditData.Operation
                         UserId                  = $auditData.UserKey
                         UserPrincipalName       = $auditData.UserId
-                        UserDisplayName         = $dynUser.DisplayName
-                        CompanyName             = $dynUser.CompanyName
-                        Department              = $dynUser.Department
-                        CopilotLicense          = $dynUser.CopilotLicense
+                        UserDisplayName         = $User.DisplayName
+                        CompanyName             = $User.CompanyName
+                        Department              = $User.Department
+                        CopilotLicense          = $User.CopilotLicense
                         RecordType              = $auditData.RecordType
                         Workload                = $auditData.Workload
                         ClientIP                = $auditData.ClientIP

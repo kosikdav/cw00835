@@ -222,7 +222,7 @@ ForEach ($User in $Users) {
 	}
 	
 	if ($user.onpremisesdistinguishedname) {
-		$OU = ($user.onpremisesdistinguishedname -split "," | Select-Object -First 2)[1].TrimStart("OU=")
+		$OU = ($user.onpremisesdistinguishedname -split ',OU=')[1].Split(',')[0]
 	}
 	$UserObject = [pscustomobject]@{
 		UserId						= $User.id
