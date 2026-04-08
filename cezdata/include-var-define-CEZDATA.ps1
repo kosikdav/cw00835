@@ -265,7 +265,6 @@ $NoPIMAdminRoles = (
 $VPN_ADM_DeviceGroup = "CiscoAnyConnect_ADM_dev"
 
 
-
 $NoPIMUsers = (
     "Sync_WINPADSYNC_05a1af03192b@cezdata.onmicrosoft.com",
     "Sync_WINPADSYNC_3dc2419ef613@cezdata.onmicrosoft.com",
@@ -331,6 +330,7 @@ $GroupId_OUSyncToAzure = "f13b7ff9-17cb-4fb8-8bb8-bed1a4186687"
 #TMS_ICTS_DEVOPS
 $GroupId_OCP_DevOpsTeam = "67a021d9-6fd9-4c0b-91f6-56d81ba6a40f"
 
+$GroupId_CEZ_OwnerGroup_ADO_Guest_Group_Mgmt = "685717d0-a578-4839-96a4-1be96a51aa20"
 
 $AADP2LicenseGroup = "CEZ_Lic_AAD_Prem_P2"
 $AADP2LicenseGroupId = "76ca69e2-fb34-4660-b07a-bd626504f470"
