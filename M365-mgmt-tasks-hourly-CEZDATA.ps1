@@ -19,7 +19,7 @@ $ScriptList = @(
     "Update-AAD-Devices.ps1"
 )
 
-$LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-mgmt-tasks" -Ext "log"
+$LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-mgmt-tasks-hourly" -Ext "log"
 
 #######################################################################################################################
 

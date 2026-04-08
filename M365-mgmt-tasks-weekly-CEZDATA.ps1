@@ -10,20 +10,9 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $ScriptList = @(
-    "Set-AAD-Synced-Users-Type.ps1",
-    "Update-Usage-Location.ps1",
-    "Get-M365-LicMgmt-Audit.ps1",
-    "Update-AAD-Groups.ps1",    
-    "Update-AD-Groups.ps1",
-    "Sync-AAD-Groups.ps1",
-    "Update-Teams-Channels-Membership.ps1",
-    "Set-AAD-Guests-Attributes.ps1",
-    "Update-AAD-Devices.ps1",
-    "Remove-Stale-AAD-Guests.ps1",
-    "Set-AAD-MFA-Phone-From-IDM.ps1"
 )
 
-$LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-mgmt-tasks" -Ext "log"
+$LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-mgmt-tasks-weekly" -Ext "log"
 
 #######################################################################################################################
 
