@@ -149,9 +149,11 @@ foreach ($env in $PwrEnvironments) {
         }
 
         $ReportFlows += [PSCustomObject]@{
+            EnvironmentName = $env.EnvironmentName
+            EnvironmentDisplayName = $env.DisplayName
             FlowName = $flow.FlowName
-            Enabled = $flow.Enabled
             DisplayName = $flow.DisplayName
+            Enabled = $flow.Enabled
             UserType = $flow.UserType
             CreatedTime = $flow.CreatedTime
             LastModifiedTime = $flow.LastModifiedTime
