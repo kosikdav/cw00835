@@ -117,7 +117,7 @@ $UriResource = "users"
 $UriSelect = "id,onPremisesExtensionAttributes"
 $UriFilter = "userType eq 'Member'"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 99 -Select $UriSelect
-[array]$UsersOpExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (on-premises extensions)" -ProgressDots
+[array]$UsersOpExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (onPremisesExtensionAttributes)" -ProgressDots
 $UsersOpExt | ForEach-Object {$OpExt_DB.Add($_.id, $_.onPremisesExtensionAttributes)}
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
