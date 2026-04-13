@@ -111,12 +111,11 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -T
 [array]$UsersSIA = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (signInActivity)" -ProgressDots
 $UsersSIA | ForEach-Object {$SIA_DB.Add($_.id, $_.signInActivity)}
 
-
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,onPremisesExtensionAttributes"
 $UriFilter = "userType eq 'Member'"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 99 -Select $UriSelect
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
 [array]$UsersOpExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (onPremisesExtensionAttributes)" -ProgressDots
 $UsersOpExt | ForEach-Object {$OpExt_DB.Add($_.id, $_.onPremisesExtensionAttributes)}
 
@@ -136,7 +135,7 @@ foreach ($user in $UsersExt) {
 	$EXT_DB.Add($user.id, $EXT_DB_Record)
 }
 
-Write-Log "Total users: $($Users.Count) SIA users: $($UsersSIA.Count) Extensions users: $($UsersExt.Count)"
+Write-Log "Total users: $($Users.Count) SIA users: $($UsersSIA.Count) OpExt users: $($UsersOpExt.Count) Extensions users: $($UsersExt.Count)"
 
 Remove-Variable UsersSIA
 Remove-Variable UsersOpExt
