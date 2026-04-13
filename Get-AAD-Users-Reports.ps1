@@ -94,6 +94,8 @@ Remove-Variable DeletedUserListReport
 $UserLicensing_DB = Import-Clixml -Path $DBUsersMemLic_by_id
 #$UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
+##############################################################################
+# users
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriFilter = "userType eq 'Member'"
@@ -103,6 +105,8 @@ $UriSelect = $UriSelect1 , $UriSelect2 -join ","
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
 [array]$Users = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users" -ProgressDots
 
+##############################################################################
+# signInActivity DB
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,signInActivity"
@@ -111,6 +115,8 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -T
 [array]$UsersSIA = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (signInActivity)" -ProgressDots
 $UsersSIA | ForEach-Object {$SIA_DB.Add($_.id, $_.signInActivity)}
 
+##############################################################################
+# onPremisesExtensionAttributes DB
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,onPremisesExtensionAttributes"
@@ -119,6 +125,8 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -T
 [array]$UsersOpExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (onPremisesExtensionAttributes)" -ProgressDots
 $UsersOpExt | ForEach-Object {$OpExt_DB.Add($_.id, $_.onPremisesExtensionAttributes)}
 
+##############################################################################
+# extensions DB
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,userPrincipalName," + $UriSelectExtensions
@@ -141,6 +149,7 @@ Remove-Variable UsersSIA
 Remove-Variable UsersOpExt
 Remove-Variable UsersExt
 
+##############################################################################
 
 ForEach ($User in $Users) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30

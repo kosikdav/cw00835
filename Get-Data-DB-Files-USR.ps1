@@ -1,5 +1,5 @@
 #######################################################################################################################
-# Get-Data-DB-Files
+# Get-Data-DB-Files-USR.ps1
 #######################################################################################################################
 param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
@@ -43,53 +43,89 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 [int]$ThrottlingDelayPerUserInMsec = 200
 
-[hashtable]$ADSyncedUsers_DB =@{}
-
-if (-not $interactiveRun) {
-    $ADCredential = Import-Clixml -Path $aad_grp_mgmt_cred
-}
+[hashtable]$SIA_DB = @{}
+[hashtable]$OpExt_DB = @{}
+[hashtable]$Ext_DB = @{}
 
 #######################################################################################################################
 . $IncFile_StdLogStartBlock
 
 $AADTenantDomain_DB = Import-CSVToHashDB -Path $DBFileExtAADTenants -KeyName "domain"
 
+##############################################################################
+# extensions
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
-$ADFilter = "msExchExtensionAttribute29 -like `"*`""
-$ADProperties = @(
-    "userPrincipalName",
-    "DisplayName",
-    "msExchExtensionAttribute40"
-)
-if ($interactiveRun) {
-    $SyncedADUsers = Get-ADUser -Filter $ADFilter -Properties $ADProperties 
+$UriResource = "directoryObjects/getAvailableExtensionProperties"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+$body = @{
+	isSyncedFromOnPremises = $true
+} | ConvertTo-Json
+$Result = Invoke-RestMethod -Uri $Uri -Method "POST" -Body $body -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -ContentType "application/json"
+foreach ($ext in $Result.value.name) {	
+	write-host $ext
+	$Extensions += $ext
+	$ExtensionsShort += "ext_" + ($ext -replace '^(?:[^_]*_){2}', '')
 }
-else {
-    $SyncedADUsers = Get-ADUser -Credential $ADCredential -Filter $ADFilter -Properties $ADProperties
-}
-Write-Log "SyncedADUsers: $($SyncedADUsers.Count)"
+$UriSelectExtensions = $Extensions -join ","
+Write-Log "Found $($extensions.count) extension properties."
 
-foreach ($user in $SyncedADUsers) {
-    $userObject = [pscustomobject]@{
-        UserPrincipalName = $user.UserPrincipalName;
-        DisplayName = $user.DisplayName;
-        msExchExtensionAttribute40 = $user.msExchExtensionAttribute40
-    }
-    $ADSyncedUsers_DB.Add($user.UserPrincipalName, $userObject)
-}
-Write-Log "ADSyncedUsers_DB: $($ADSyncedUsers_DB.Count)"
-
+##############################################################################
+# users
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
-$UriSelect1 = "id,userPrincipalName,displayName,userType,employeeType,accountEnabled,mail,companyName,department,jobTitle,mobilePhone,preferredLanguage"
-$UriSelect2 = "createdDateTime,creationType,externalUserState,externalUserStateChangeDateTime"
-$UriSelect3 = "onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesSamAccountName,onPremisesDistinguishedName,onPremisesImmutableId,signInActivity"
+$UriSelect1 = "id,userPrincipalName,displayName,userType,employeeType,accountEnabled,mail,companyName,department,jobTitle,mobilePhone"
+$UriSelect2 = "preferredLanguage,createdDateTime,creationType,externalUserState,externalUserStateChangeDateTime"
+$UriSelect3 = "onPremisesSyncEnabled,onPremisesLastSyncDateTime,onPremisesSamAccountName,onPremisesDistinguishedName,onPremisesImmutableId"
 $UriSelect = $UriSelect1,$UriSelect2,$UriSelect3 -join ","
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 99 -Select $UriSelect
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
 [array]$AllAADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "AAD users" -ProgressDots
+
+##############################################################################
+# onPremisesExtensionAttributes DB
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+$UriResource = "users"
+$UriSelect = "id,onPremisesExtensionAttributes"
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
+[array]$UsersOpExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (onPremisesExtensionAttributes)" -ProgressDots
+$UsersOpExt | ForEach-Object {$OpExt_DB.Add($_.id, $_.onPremisesExtensionAttributes)}
+
+##############################################################################
+# extensions DB
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+$UriResource = "users"
+$UriSelect = "id,userPrincipalName," + $UriSelectExtensions
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
+[array]$UsersExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (extensions)" -ProgressDots
+foreach ($user in $UsersExt) {
+	$EXT_DB_Record = [pscustomobject]@{}
+	foreach ($ext in $Extensions) {
+		$Name = "ext_" + ($ext -replace '^(?:[^_]*_){2}', '')
+		$Value = [string]($user."$ext")
+		Add-Member -InputObject $EXT_DB_Record -MemberType NoteProperty -Name $Name -Value $Value
+	}
+	$EXT_DB.Add($user.id, $EXT_DB_Record)
+}
+
+##############################################################################
+# signInActivity DB
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+$UriResource = "users"
+$UriSelect = "id,signInActivity"
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 99 -Select $UriSelect
+[array]$UsersSIA = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (signInActivity)" -ProgressDots
+$UsersSIA | ForEach-Object {$SIA_DB.Add($_.id, $_.signInActivity)}
+
+Remove-Variable UsersOpExt
+Remove-Variable UsersExt
+Remove-Variable UsersSIA
+
 foreach ($User in $AllAADUsers) {
     Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
     write-host "$($User.UserPrincipalName.PadRight(40)) " -ForegroundColor Yellow -NoNewline
-    $msExchExtensionAttribute40 = $onpremDisplayName = $lsi = $lsiNI = $Tenant	= $null
+    $msExchExtensionAttribute40 = $Tenant	= $null
     $UserRecordLic = $null
     
     $LastSignInDateTime = $LastSignInDateTime_NI = "never"
@@ -100,11 +136,15 @@ foreach ($User in $AllAADUsers) {
     $AADPremLicenseNeeded = $false
     $DaysSinceCreated = -1
     $UPN = $User.UserPrincipalName.ToLower()
-    if ($ADSyncedUsers_DB.ContainsKey($UPN)) {
-        $msExchExtensionAttribute40 = $ADSyncedUsers_DB[$UPN].msExchExtensionAttribute40
-        $onpremDisplayName = $ADSyncedUsers_DB[$UPN].DisplayName
-    }
 
+    if ($OpExt_DB.ContainsKey($User.id)) {
+		$OpExt = $OpExt_DB.Item($User.id)
+	}
+
+	if ($Ext_DB.ContainsKey($User.id)) {
+		$EXT = $Ext_DB.Item($User.id)
+	}
+    
     if ($user.Mail) {
         $Mail = $User.Mail.ToLower()
         $MailDomain	= Get-DomainFromAddress -Address $Mail
@@ -192,9 +232,24 @@ foreach ($User in $AllAADUsers) {
     $CreatedDate = (([DateTime]$User.CreatedDateTime).ToUniversalTime()).ToString("yyyy-MM-dd")
     $DaysSinceCreated = (New-TimeSpan -Start $createdDate -End $currentDate).Days
 
+
     # last signin
+    if ($SIA_DB.Contains(($User.id))) {
+		$SIA = $SIA_DB.Item($User.id)
+		if (-not (($null -eq $SIA.LastSignInDateTime) -or ($SIA.LastSignInDateTime -eq '1/1/0001 1:00:00 AM'))) {
+			$LastSignInDateTime	= [DateTime]$SIA.LastSignInDateTime
+			$DaysSinceLastSignIn = (New-TimeSpan -Start $SIA.LastSignInDateTime -End $Today).Days
+		}
+		if (-not (($null -eq $SIA.LastNonInteractiveSignInDateTime) -or ($SIA.LastNonInteractiveSignInDateTime -eq '1/1/0001 1:00:00 AM'))) {
+			$LastSignInDateTime_NI = [DateTime]$SIA.LastNonInteractiveSignInDateTime
+			$DaysSinceLastSignIn_NI = (New-TimeSpan -Start $SIA.LastNonInteractiveSignInDateTime -End $Today).Days
+		}
+	}
+
+    <#
     $lsi = $User.SignInActivity.LastSignInDateTime
     $lsiNI = $User.SignInActivity.LastNonInteractiveSignInDateTime
+
     if (-not (($null -eq $lsi) -or ($lsi -eq "0001-01-01T00:00:00Z"))) {
         $LastSignInDateTime	= [DateTime]$lsi
         $DaysSinceLastSignIn = (New-TimeSpan -Start $LastSignInDateTime.ToString("yyyy-MM-dd") -End $CurrentDate).Days
@@ -204,6 +259,7 @@ foreach ($User in $AllAADUsers) {
         $DaysSinceLastSignIn_NI = (New-TimeSpan -Start $LastSignInDateTime_NI.ToString("yyyy-MM-dd") -End $CurrentDate).Days
     }
     $DaysSinceLastSignIn,$DaysSinceLastSignIn_NI = $DaysSinceCreated
+    #>
 
     # userType = guest
     if ($user.userType -eq "guest") {
@@ -212,6 +268,12 @@ foreach ($User in $AllAADUsers) {
         }
         $UPNExtMail = Get-MailFromGuestUPN -GuestUPN $UPN
         $UPNExtMailDomain = Get-DomainFromGuestUPN -GuestUPN $UPN
+    }
+
+    if ($TenantShortName -eq "CEZDATA") {
+        if ($EXT_DB.ContainsKey($User.id)) {
+            $msExchExtensionAttribute40 = $Ext_DB.Item($User.id)."ext_msExchExtensionAttribute40"
+        }
     }
 
     # records
@@ -280,7 +342,6 @@ foreach ($User in $AllAADUsers) {
         onPremisesImmutableId		= $onPremisesImmutableId
         onPremisesGUID				= $onPremisesGUID
         msExchExtensionAttribute40	= $msExchExtensionAttribute40
-        onpremDisplayName			= $onpremDisplayName
         ExternalUserState 		    = $User.ExternalUserState
         ExternalUserStateChangeDateTime = $User.ExternalUserStateChangeDateTime
         ExtAADTenantId			    = $Tenant.tenantId
@@ -319,7 +380,6 @@ foreach ($User in $AllAADUsers) {
         onPremisesImmutableId		= $onPremisesImmutableId
         onPremisesGUID				= $onPremisesGUID
         msExchExtensionAttribute40	= $msExchExtensionAttribute40
-        onpremDisplayName			= $onpremDisplayName
         ExternalUserState 		    = $User.ExternalUserState
         ExternalUserStateChangeDateTime = $User.ExternalUserStateChangeDateTime
         ExtAADTenantId			    = $Tenant.tenantId
