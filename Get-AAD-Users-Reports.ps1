@@ -6,7 +6,7 @@ param(
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Init.ps1
 
 #######################################################################################################################
 
@@ -21,7 +21,7 @@ $OutputFileSuffixCopilotLic	= "copilot-lic"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
@@ -35,8 +35,8 @@ $OutputFileCopilotLic = New-OutputFile -RootFolder $ROF -Folder $OutputFolderCop
 [array]$DeletedUserListReport = @()
 [array]$CopilotLicenseReport = @()
 [hashtable]$SIA_DB = @{}
+[hashtable]$OpExt_DB = @{}
 [hashtable]$Ext_DB = @{}
-
 $now = Get-Date
 
 #######################################################################################################################
@@ -91,7 +91,8 @@ Export-Report -Text "AAD deleted users report" -Report $DeletedUserListReport -P
 Remove-Variable deletedUsers
 Remove-Variable DeletedUserListReport
 
-$UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
+$UserLicensing_DB = Import-Clixml -Path $DBUsersMemLic_by_id
+#$UserLicensing_DB = Import-CSVtoHashDB -Path $DBFileUsersMemLic -KeyName "id"
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
@@ -110,8 +111,16 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -T
 [array]$UsersSIA = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (signInActivity)" -ProgressDots
 $UsersSIA | ForEach-Object {$SIA_DB.Add($_.id, $_.signInActivity)}
 
-Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+$UriResource = "users"
+$UriSelect = "id,onPremisesExtensionAttributes"
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 99 -Select $UriSelect
+[array]$UsersOpExt = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users (on-premises extensions)" -ProgressDots
+$UsersOpExt | ForEach-Object {$OpExt_DB.Add($_.id, $_.onPremisesExtensionAttributes)}
+
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,userPrincipalName," + $UriSelectExtensions
 $UriFilter = "userType eq 'Member'"
@@ -130,7 +139,9 @@ foreach ($user in $UsersExt) {
 Write-Log "Total users: $($Users.Count) SIA users: $($UsersSIA.Count) Extensions users: $($UsersExt.Count)"
 
 Remove-Variable UsersSIA
+Remove-Variable UsersOpExt
 Remove-Variable UsersExt
+
 
 ForEach ($User in $Users) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
@@ -163,6 +174,10 @@ ForEach ($User in $Users) {
 			$LastSignInDateTime_NI = [DateTime]$SIA.LastNonInteractiveSignInDateTime
 			$DaysSinceLastSignIn_NI = (New-TimeSpan -Start $SIA.LastNonInteractiveSignInDateTime -End $Today).Days
 		}	
+	}
+
+	if ($OpExt_DB.ContainsKey($User.id)) {
+		$OpExt = $OpExt_DB.Item($User.id)
 	}
 
 	if ($Ext_DB.ContainsKey($User.id)) {
@@ -271,6 +286,21 @@ ForEach ($User in $Users) {
 		CopilotLicense				= $UserLicensingRecord.CopilotLicense
 		AADPremLicense				= $UserLicensingRecord.AADPremLicense
 		AADPremLicenseNeeded		= $UserLicensingRecord.AADPremLicenseNeeded
+		ext1						= $OpExt.extensionAttribute1
+		ext2						= $OpExt.extensionAttribute2
+		ext3						= $OpExt.extensionAttribute3
+		ext4						= $OpExt.extensionAttribute4
+		ext5						= $OpExt.extensionAttribute5
+		ext6						= $OpExt.extensionAttribute6
+		ext7						= $OpExt.extensionAttribute7
+		ext8						= $OpExt.extensionAttribute8
+		ext9						= $OpExt.extensionAttribute9
+		ext10						= $OpExt.extensionAttribute10
+		ext11						= $OpExt.extensionAttribute11
+		ext12						= $OpExt.extensionAttribute12
+		ext13						= $OpExt.extensionAttribute13
+		ext14						= $OpExt.extensionAttribute14
+		ext15						= $OpExt.extensionAttribute15
 	}
 	
 	if ($EXT) {

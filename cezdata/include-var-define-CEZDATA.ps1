@@ -25,6 +25,7 @@ $MaxSendSize 	= "150MB"
 $MSGraphResourceId  = "5796a0fc-bded-497c-ad31-4b35e292bc88"
 $InactivityLimitGuests = 190
 $InactivityLimitPendingInvites = 30
+$StaleEASDeviceLimit = 90
 
 $EXOMbxReportPermissions = $false
 $EXOMbxReportTNR = $true

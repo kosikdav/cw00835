@@ -21,13 +21,12 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 $DB_changed = $false
 $ToBeDeletedRecords = @()
-$CutoffDays = 180
-$StaleDeviceCutoffDate = (Get-Date).AddDays(-$CutoffDays)
+$StaleDeviceCutoffDate = (Get-Date).AddDays(-$StaleEASDeviceLimit)
 
 #######################################################################################################################
 
 . $ScriptPath\include-Script-StartLog-Generic.ps1
-Write-Log "Cutoff days: $($CutoffDays)"
+Write-Log "Cutoff days: $($StaleEASDeviceLimit)"
 Write-Log "Stale device cutoff date: $($StaleDeviceCutoffDate.ToString("yyyy-MM-dd"))"
 
 # load DB mailbox-mgmt-db from file or initialize empty
