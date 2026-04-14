@@ -208,45 +208,6 @@ foreach ($group in $AzureSAGroups) {
 $ASISAzureSubOwnersQS = (Get-GroupMembersFromGraphById -id $GroupId_AzureSubOwnersQS -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -Properties "id,onPremisesSamAccountName").onPremisesSamAccountName
 $ASISAzureSubOwnersStd = (Get-GroupMembersFromGraphById -id $GroupId_AzureSubOwnersStd -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -Properties "id,onPremisesSamAccountName").onPremisesSamAccountName
 
-<#
-$NamePattern = "CEZ_Azure_*_SA"
-$GroupFilter = "Name -like '$($NamePattern)'"
-
-write-log "Processing group $($GroupName_AzureSubOwnersQS) membership"
-write-log "Processing group $($GroupName_AzureSubOwnersStd) membership"
-
-$TOBEAzureSubOwnersQS = @()
-$TOBEAzureSubOwnersStd = @()
-
-if ($ADCredential) {
-    $ADGroups = Get-ADGroup -Credential $ADCredential -Filter $GroupFilter -SearchBase $OU_AzSub
-	$ASISAzureSubOwnersQS = (Get-ADGroupMember -Identity $GroupName_AzureSubOwnersQS -Credential $ADCredential).samaccountname
-    $ASISAzureSubOwnersStd = (Get-ADGroupMember -Identity $GroupName_AzureSubOwnersStd -Credential $ADCredential).samaccountname
-}
-else {
-    $ADGroups = Get-ADGroup -Filter $GroupFilter -SearchBase $OU_AzSub
-	$ASISAzureSubOwnersQS = (Get-ADGroupMember -Identity $GroupName_AzureSubOwnersQS).samaccountname
-    $ASISAzureSubOwnersStd = (Get-ADGroupMember -Identity $GroupName_AzureSubOwnersStd).samaccountname
-}
-write-log "$($ADGroups.count) AD groups found in $($OU_AzSub) matching pattern $($NamePattern)"
-write-log "$($GroupName_AzureSubOwnersQS) current members: $($ASISAzureSubOwnersQS.count)"
-write-log "$($GroupName_AzureSubOwnersStd) current members: $($ASISAzureSubOwnersStd.count)"
-
-foreach ($group in $ADGroups) {
-	write-host "Processing group $($group.name) " -ForegroundColor Yellow -NoNewline
-    if ($ADCredential) {
-        $members  = Get-ADGroupMember -Identity $group.samaccountname -Credential $ADCredential | ForEach-Object { Get-ADUser $_.samaccountname -Credential $ADCredential -Properties "extensionAttribute3" | Select-Object userPrincipalName,samAccountName,extensionAttribute3 }
-    }
-    else {
-        $members  = Get-ADGroupMember -Identity $group.samaccountname | ForEach-Object { Get-ADUser $_.samaccountname -Properties "extensionAttribute3" | Select-Object userPrincipalName,samAccountName,extensionAttribute3 }
-    }
-	write-host $members.count -ForegroundColor Green
-	$TOBEAzureSubOwnersQS += $members.samAccountName
-    $TOBEAzureSubOwnersStd += $members.extensionAttribute3
-}
-
-#>
-
 $TOBEAzureSubOwnersQS = $TOBEAzureSubOwnersQS | Sort-Object -Unique
 $TOBEAzureSubOwnersStd = $TOBEAzureSubOwnersStd | Sort-Object -Unique
 
@@ -280,24 +241,14 @@ if ($DifferenceQS) {
 		write-log "Missing members QS: $($missingMembersQS.count)"
         foreach ($samAccountName in $missingMembersQS) {
             Write-Log "Adding $($samAccountName) to $($GroupName_AzureSubOwnersQS)"
-            if ($ADCredential) {
-                Add-ADGroupMember -Identity $GroupName_AzureSubOwnersQS -Members $samAccountName -Credential $ADCredential
-            }
-            else {
-                Add-ADGroupMember -Identity $GroupName_AzureSubOwnersQS -Members $samAccountName
-            }
+			Add-ADGroupMember -Identity $GroupName_AzureSubOwnersQS -Members $samAccountName -Credential $ADCredential
         }
     }
     if ($extraMembersQS) {
 		write-log "Extra members QS: $($extraMembersQS.count)"
         foreach ($samAccountName in $extraMembersQS) {
             Write-Log "Removing $($samAccountName) from $($GroupName_AzureSubOwnersQS)"
-            if ($ADCredential) {
-                Remove-ADGroupMember -Identity $GroupName_AzureSubOwnersQS -Members $samAccountName -Credential $ADCredential -Confirm:$false
-            }
-            else {
-                Remove-ADGroupMember -Identity $GroupName_AzureSubOwnersQS -Members $samAccountName -Confirm:$false
-            }
+            Remove-ADGroupMember -Identity $GroupName_AzureSubOwnersQS -Members $samAccountName -Credential $ADCredential -Confirm:$false
         }
     }
 }
@@ -309,29 +260,17 @@ if ($DifferenceStd) {
 		write-log "Missing members Std: $($missingMembersStd.count)"
 		foreach ($samAccountName in $missingMembersStd) {
 			Write-Log "Adding $($samAccountName) to $($GroupName_AzureSubOwnersStd)"
-			if ($ADCredential) {
-				Add-ADGroupMember -Identity $GroupName_AzureSubOwnersStd -Members $samAccountName -Credential $ADCredential
-			}
-			else {
-				Add-ADGroupMember -Identity $GroupName_AzureSubOwnersStd -Members $samAccountName
-			}
+			Add-ADGroupMember -Identity $GroupName_AzureSubOwnersStd -Members $samAccountName -Credential $ADCredential
 		}
 	}
 	if ($extraMembersStd) {
 		write-log "Extra members Std: $($extraMembersStd.count)"
 		foreach ($samAccountName in $extraMembersStd) {
 			Write-Log "Removing $($samAccountName) from $($GroupName_AzureSubOwnersStd)"
-			if ($ADCredential) {
-				Remove-ADGroupMember -Identity $GroupName_AzureSubOwnersStd -Members $samAccountName -Credential $ADCredential -Confirm:$false
-			}
-			else {
-				Remove-ADGroupMember -Identity $GroupName_AzureSubOwnersStd -Members $samAccountName -Confirm:$false
-			}
+			Remove-ADGroupMember -Identity $GroupName_AzureSubOwnersStd -Members $samAccountName -Credential $ADCredential -Confirm:$false
 		}
 	}
-}	
-
-#>
+}
 
 #######################################################################################################################
 # CEZ_Lic_AAD_Prem_P2 #################################################################################################
@@ -394,12 +333,7 @@ if ($missingUsersOnprem) {
 		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
 		$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 		$missingSAM = $QSUser.onPremisesSamAccountName
-		if ($ADCredential) {
-			Add-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $missingSAM -Confirm:$false
-		}
-		else {
-			Add-ADGroupMember -Identity $AADP2LicenseGroup -Members $missingSAM -Confirm:$false
-		}
+		Add-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $missingSAM -Confirm:$false
 	}
 }
 
@@ -412,12 +346,7 @@ if ($extraUsersOnprem) {
 		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
 		$QSUser = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 		$extraSAM = $QSUser.onPremisesSamAccountName
-		if ($ADCredential) {
-			Remove-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $extraSAM -Confirm:$false
-		}
-		else {
-			Remove-ADGroupMember -Identity $AADP2LicenseGroup -Members $extraSAM -Confirm:$false	
-		}
+		Remove-ADGroupMember -Credential $ADCredential -Identity $AADP2LicenseGroup -Members $extraSAM -Confirm:$false
 	}
 }
 
@@ -476,6 +405,58 @@ foreach ($User in $ASISF3SharedMembers) {
 
 Write-Log "Removed $($counter) disabled QL user accounts from $($M365F3SharedLicenseGroup)"
 
+
+#######################################################################################################################
+# YOUTRACK ############################################################################################################
+#######################################################################################################################
+$YouTrackGroupName = "CEZ_AAD_Usr_EA_YouTrack"
+$Filter = "Name -like 'YOU_P_*'"
+$SearchBase = "OU=Youtrack,OU=skupiny,DC=cezdata,DC=corp"
+$DifferenceYouTrack = $false
+[array]$YouTrackMembers = @()
+[array]$ASISYouTrackMembers = @()
+[array]$TOBEYouTrackMembers = @()
+
+$YouTrackGroups = Get-ADGroup -Filter $Filter -SearchBase $SearchBase -Credential $ADCredential
+foreach ($Group in $YouTrackGroups) {
+	Write-Log "Processing group $($Group.Name)"
+	$Members = Get-ADGroupMember -Identity $Group -Credential $ADCredential
+	foreach ($Member in $Members) {
+		if ($Member.objectClass -ne "user") {
+			continue
+		}
+		$YouTrackMembers += $Member.SamAccountName
+	}
+}
+
+$TOBEYouTrackMembers = $YouTrackMembers | Sort-Object -Unique
+$ASISYouTrackMembers = (Get-ADGroupMember -Credential $ADCredential -Identity $YouTrackGroupName -ErrorAction Stop).samAccountName | Sort-Object -Unique
+
+Try {
+	$DifferenceYouTrack = Compare-Object -ReferenceObject $ASISYouTrackMembers -DifferenceObject $TOBEYouTrackMembers
+}
+Catch {
+	$DifferenceYouTrack = $true
+}
+
+if ($DifferenceYouTrack) {
+    $missingMembersYouTrack = $TOBEYouTrackMembers | Where-Object { $ASISYouTrackMembers -notcontains $_ }
+    $extraMembersYouTrack = $ASISYouTrackMembers | Where-Object { $TOBEYouTrackMembers -notcontains $_ }
+	if ($missingMembersYouTrack) {
+		write-log "Missing members YouTrack: $($missingMembersYouTrack.count)"
+        foreach ($samAccountName in $missingMembersYouTrack) {
+            Write-Log "Adding $($samAccountName) to $($YouTrackGroupName)"
+            Add-ADGroupMember -Identity $YouTrackGroupName -Members $samAccountName -Credential $ADCredential
+        }
+    }
+    if ($extraMembersYouTrack) {
+		write-log "Extra members YouTrack: $($extraMembersYouTrack.count)"
+        foreach ($samAccountName in $extraMembersYouTrack) {
+            Write-Log "Removing $($samAccountName) from $($YouTrackGroupName)"
+            Remove-ADGroupMember -Identity $YouTrackGroupName -Members $samAccountName -Credential $ADCredential -Confirm:$false
+        }
+    }
+}
 
 #######################################################################################################################
 

@@ -311,7 +311,6 @@ else {
     [hashtable]$TMS_CloudPoradna_DB = @{}
 }
 
-
 $ASISAzureSubOwners = (Get-GroupMembersFromGraphById -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -id $GroupId_AzureSubOwnersStd).id | Sort-Object -Unique
 write-host "Current $($AzureSubOwnersGroup_Name) members: $($ASISAzureSubOwners.count)"
 
