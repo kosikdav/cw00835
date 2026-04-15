@@ -144,6 +144,7 @@ $DBFileUsersMemFull         = [System.IO.Path]::Combine($ROF,$DBFolderName,"user
 $DBUsersMemFull_by_id       = [System.IO.Path]::Combine($ROF,$DBFolderName,"users-mem-full-by-id.xml")
 $DBUsersMemFull_by_UPN      = [System.IO.Path]::Combine($ROF,$DBFolderName,"users-mem-full-by-upn.xml")
 $DBUsersMemLic_by_id        = [System.IO.Path]::Combine($ROF,$DBFolderName,"users-mem-lic-by-id.xml")
+$DBUsersAllStd_by_id        = [System.IO.Path]::Combine($ROF,$DBFolderName,"users-all-std-by-id.xml")
 
 $DBFileGroups               = [System.IO.Path]::Combine($ROF,$DBFolderName,"groups.csv")
 $DBFileGroupsMembers        = [System.IO.Path]::Combine($ROF,$DBFolderName,"groups-members.csv")

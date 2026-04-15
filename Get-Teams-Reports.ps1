@@ -6,7 +6,7 @@ param(
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Generic.ps1
 
 #######################################################################################################################
 
@@ -33,7 +33,7 @@ $OutputFileSuffixStatUsrMTR		= "stats-per-user-MTRPro"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
@@ -96,7 +96,8 @@ function Set-TempVars {
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StartLog-Generic.ps1
+. $IncFile_StdLogStartBlock
+
 write-Log "OutputFileMembers: $($OutputFileMembers)"
 write-Log "OutputFileTmsChnl: $($OutputFileTmsChnl)"
 write-Log "OutputFileTmsCEZTpl: $($OutputFileTmsCEZTpl)"
@@ -279,8 +280,10 @@ Remove-Variable ReportPSTNUsers
 #######################################################################################################################
 
 $AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersAllStd -KeyName "id"
+#$AADUsers_DB = Import-Clixml -Path $DBUsersAllStd_by_id
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+
 [array]$ReportTeamsMembers = @()
 [array]$ReportTeamsList = @()
 $UriResource = "groups"
@@ -312,6 +315,9 @@ foreach ($M365Group in $M365Groups) {
 		# Team channels
 		if ($NonStdChannels.Count -gt 0) {
 			foreach ($Channel in $NonStdChannels) {
+				if ($null -eq $Channel.id) {
+					continue
+				}
 				$ChannelType = ($Channel.membershipType).ToLower()
 				$TypeColor = "Cyan"
 				If ($Channel.id -in $IncomingChannelIds) {
@@ -334,6 +340,9 @@ foreach ($M365Group in $M365Groups) {
 				
 				if ($ChannelMembers.Count -gt 0) {
 					foreach ($ChannelMember in $ChannelMembers) {
+						if ($null -eq $ChannelMember.UserId) {
+							continue
+						}
 						Initialize-TempVars
 						If ($ChannelMember.email) {
 							$Mail = $ChannelMember.email
@@ -371,7 +380,8 @@ foreach ($M365Group in $M365Groups) {
 	$Uri = New-GraphUri -Version "beta" -Resource $UriResource
 	[array]$AllMemberObjects = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 	
-	$Uri = "https://graph.microsoft.com/beta/groups/$($M365Group.id)/owners"
+	$UriResource = "groups/$($M365Group.id)/owners"
+	$Uri = New-GraphUri -Version "beta" -Resource $UriResource
 	[array]$AllOwnerObjects = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 	
 	$AllOwnersUPN = $AllOwnerObjects.userPrincipalName
@@ -382,6 +392,9 @@ foreach ($M365Group in $M365Groups) {
 	# Team owners
 	if ($AllOwnerObjects.Count -gt 0) {
 		ForEach ($Owner in $AllOwnerObjects) {
+			if ($null -eq $Owner.id) {
+				continue
+			}
 			Initialize-TempVars
 			Set-TempVars -UserId $Owner.Id
 				$TeamsMembersRecord = [pscustomobject]@{
@@ -409,6 +422,9 @@ foreach ($M365Group in $M365Groups) {
 	# Team members
 	if ($AllMemberObjects.Count -gt 0) {
 		ForEach ($Member in $AllMemberObjects) {
+			if ($null -eq $Member.id) {
+				continue
+			}
 			if ($Member.UserPrincipalName -notin $AllOwnersUPN) {
 				Initialize-TempVars
 				Set-TempVars -UserId $Member.Id
@@ -796,4 +812,4 @@ Remove-Variable ReportTeamsCEZTplMem
 
 ##################################################################################################
 
-. $ScriptPath\include-Script-EndLog-Generic.ps1
+. $IncFile_StdLogEndBlock

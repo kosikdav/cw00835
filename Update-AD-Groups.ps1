@@ -405,7 +405,6 @@ foreach ($User in $ASISF3SharedMembers) {
 
 Write-Log "Removed $($counter) disabled QL user accounts from $($M365F3SharedLicenseGroup)"
 
-
 #######################################################################################################################
 # YOUTRACK ############################################################################################################
 #######################################################################################################################
@@ -419,7 +418,6 @@ $DifferenceYouTrack = $false
 
 $YouTrackGroups = Get-ADGroup -Filter $Filter -SearchBase $SearchBase -Credential $ADCredential
 foreach ($Group in $YouTrackGroups) {
-	Write-Log "Processing group $($Group.Name)"
 	$Members = Get-ADGroupMember -Identity $Group -Credential $ADCredential
 	foreach ($Member in $Members) {
 		if ($Member.objectClass -ne "user") {

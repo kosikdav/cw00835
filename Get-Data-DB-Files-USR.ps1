@@ -40,6 +40,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 [hashtable]$UsersMemFull_by_id_DB   = @{}
 [hashtable]$UsersMemFull_by_UPN_DB  = @{}
 [hashtable]$UsersMemLic_by_id_DB    = @{}
+[hashtable]$UsersAllStd_by_id_DB    = @{}
 
 [int]$ThrottlingDelayPerUserInMsec = 200
 
@@ -436,13 +437,15 @@ foreach ($User in $AllAADUsers) {
     $DBReportUsersAllMin += $UserRecordMin
     $DBReportUsersAllStd += $UserRecordStd
     $DBReportUsersAllSIA += $UserRecordSIA
-    
+    $UsersAllStd_by_id_DB.Add($User.id, $UserRecordStd)
+
     Start-Sleep -Milliseconds $ThrottlingDelayPerUserInMsec
 }
 
 Export-Clixml -InputObject $UsersMemFull_by_id_DB -Path $DBUsersMemFull_by_id
 Export-Clixml -InputObject $UsersMemFull_by_UPN_DB -Path $DBUsersMemFull_by_UPN
 Export-Clixml -InputObject $UsersMemLic_by_id_DB -Path $DBUsersMemLic_by_id
+Export-Clixml -InputObject $UsersAllStd_by_id_DB -Path $DBUsersAllStd_by_id
 
 Export-Report "member users (name only)" -Report $DBReportUsersMemName -Path $DBFileUsersMemName -SortProperty UserPrincipalName
 Export-Report "member users (minimal)" -Report $DBReportUsersMemMin -Path $DBFileUsersMemMin -SortProperty UserPrincipalName

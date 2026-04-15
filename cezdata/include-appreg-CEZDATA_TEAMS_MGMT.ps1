@@ -15,7 +15,7 @@ $ApplicationId = $ClientId
 
 <#
 $appName = "CEZ_TEAMS_MGMT"
-$certYears = 2
-$certPassword = "21-!d12f5ygye1aF#$&#"
+$certYears = 10
+$certPassword = "hsdklsdj"
 Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
 #>
