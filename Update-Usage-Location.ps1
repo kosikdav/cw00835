@@ -6,7 +6,7 @@ param(
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Generic.ps1
 
 #######################################################################################################################
 
@@ -15,7 +15,7 @@ $LogFilePrefix		= "update-usage-location"
 
 #######################################################################################################################
 
-. $ScriptPath\include\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 $LogFileMin = New-OutputFile -RootFolder $ROF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
@@ -27,8 +27,8 @@ $LogFileMin = New-OutputFile -RootFolder $ROF -Folder $LogFolder -Prefix $LogFil
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,userPrincipalName,displayName,usageLocation"
-$UriFilter = "usageLocation+eq+null&`$count=true"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Filter $UriFilter
+$UriFilter = "usageLocation eq null"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Filter $UriFilter -Count
 $AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual" -ProgressDots -Text "licensed AAD users"
 Write-Log "AAD users without usage location: $(Get-Count($AADUsers))"
 
