@@ -17,6 +17,7 @@ $LogFolderGAT		= "aad-guests-audit-trace"
 $LogFilePrefixGAT	= "aad-guests-audit-trace"
 
 $OutputFolder           = "spo\audit"
+$OutputFolderCPR_BR     = "spo\audit\cpr_br"
 $OutputFilePrefix       = "spo-file-audit"
 
 $OutputFileSuffixAccAll = "access-b2b-all"
@@ -68,6 +69,7 @@ $now = Get-Date
 $UserDeletedDaysAgoLimitODfB = 3
 $DB_changed = $false
 $ProgressPreference = "SilentlyContinue"
+#$RecordProcessingLimit = 1000
 
 ##############################################################################
 . $IncFile_StdLogStartBlock
@@ -247,8 +249,8 @@ foreach ($Blob in $AvailableContentBlobs){
             if ($Record.UserId -like "*$($GuestUPNSuffix)" -and ($Record.SourceFileExtension -notin $ignoredFileTypes)) {
                 $guestData = $mail = $null
                 $currentEventProperties = [PSCustomObject]@{
-                    Operation   = $Record.Operation;
-                    UserId      = $Record.UserId;
+                    Operation   = $Record.Operation
+                    UserId      = $Record.UserId
                     ObjectId    = $Record.ObjectId
                 }
                 if ($lastEventProperties -and (compare-object $currentEventProperties $lastEventProperties)) {
@@ -446,12 +448,13 @@ foreach ($Blob in $AvailableContentBlobs){
             if ($Record.TargetUserOrGroupName -like "*$($GuestUPNSuffix)") {
                 $ReportSPOAuditLogShrB2B += $auditObjectShare
             }
+            Clear-Variable auditObjectShare
         } # sharing
 
         if ($Record.UserId -like "*$($GuestUPNSuffix)") {
             Update-GuestAuditRecordDB -Id $Record.UserId -DateTime $Record.CreationTime -hashtableDB $guestAuditRecords_DB
         }
-        Clear-Variable auditObjectShare
+        
     }
     
     $blobRecord = [PSCustomObject]@{
@@ -463,12 +466,12 @@ foreach ($Blob in $AvailableContentBlobs){
     $ProcessedBlobs += $blobRecord
     Clear-Variable AuditRecords
     Clear-Variable BlobRecord
-    <#
-    if ($ProcessedBlobs.count -ge 500) {
-        break
+    
+    if ($RecordProcessingLimit -and ($ProcessedBlobs.count -ge $RecordProcessingLimit)) {
+            Write-Host "Record processing limit of $RecordProcessingLimit reached, stopping further processing" -ForegroundColor Yellow
+            break
+        }
     }
-    #>
-}
 
 Write-Log "Processed blobs: $($ProcessedBlobs.count)"
 Write-Log "Ignored blobs: $($IgnoredBlobCount)"
@@ -501,7 +504,7 @@ foreach ($Date in $AuditLogEventDates) {
     $CurrentOutputFileAccDEL = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixAccDEL -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileShrAll = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixShrAll -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileShrB2B = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixShrB2B -SpecificDate $Date -Ext "csv"
-    $CurrentOutputFileCPR_BR = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixCPR_BR -SpecificDate $Date -Ext "csv"
+    $CurrentOutputFileCPR_BR = New-OutputFile -RootFolder $ROF -Folder $OutputFolderCPR_BR -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixCPR_BR -SpecificDate $Date -Ext "csv"
 
     if ($CurrentReportAccAll.Count -gt 0) {
         Export-Report "$($Date) - file access (all B2B)" -Report $CurrentReportAccAll -Path $CurrentOutputFileAccAll -SortProperty "CreationTime" -Append $true
@@ -524,6 +527,11 @@ foreach ($Date in $AuditLogEventDates) {
     write-host "-----------------------------------------------------------------------------------------" -ForegroundColor Green
 }
 
+#write guest audit records to Entra attribute "employeeHireDate"
+Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
+Write-GuestAuditRecordDBToEntra -AccessToken $AuthDB[$AppReg_USR_MGMT].AccessToken -hashtableDB $guestAuditRecords_DB -EntraAttribute "employeeHireDate" -AuditType "SPOAudit" -LogFile $LogFileGAT
+
+
 #add processed blobs to DB
 foreach ($blobRecord in $ProcessedBlobs) {
     $AuditSPOblobs_DB.Add($blobRecord.contentId, $blobRecord)
@@ -535,7 +543,7 @@ foreach ($blobId in $AuditSPOblobs_DB.Keys) {
     $contentExpiration = [datetime]$AuditSPOblobs_DB[$blobId].contentExpiration
     if ($contentExpiration -lt $now) {
         $ToBeDeletedBlobs += $blobId
-        #write-host "Expired blob: $($blobId) $($AuditSPOblobs_DB[$blobId].contentExpiration) " -ForegroundColor Red
+        write-host "Expired blob: $($blobId) $($AuditSPOblobs_DB[$blobId].contentExpiration) " -ForegroundColor Red
     }
 }
 Write-Log "Expired blobs in DB: $($ToBeDeletedBlobs.Count)"
@@ -556,10 +564,6 @@ if (($AuditSPOblobs_DB.count -gt 0) -and ($DB_changed)){
         Write-Log "Error exporting $($DBFileMGMTAPI_Audit_SPO)" -MessageType "Error"
     }
 }
-
-#write guest audit records to Entra attribute "employeeHireDate"
-Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
-Write-GuestAuditRecordDBToEntra -AccessToken $AuthDB[$AppReg_USR_MGMT].AccessToken -hashtableDB $guestAuditRecords_DB -EntraAttribute "employeeHireDate" -AuditType "SPOAudit" -LogFile $LogFileGAT
 
 #######################################################################################################################
 
