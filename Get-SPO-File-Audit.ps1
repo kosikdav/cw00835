@@ -135,23 +135,24 @@ $Headers = $AuthDB[$AppReg_LOG_READER].AuthHeaders
 $Uri = "https://manage.office.com/api/v1.0/$($tenantId)/activity/feed/subscriptions/content?contentType=Audit.SharePoint"
 write-host "Reading available content blobs" -NoNewline
 Do {
-    write-host $Uri -ForegroundColor Cyan
-    $Request = Invoke-WebRequest -Headers $Headers -Uri $Uri -Method "GET" -UseBasicParsing
+    #write-host $Uri -ForegroundColor Cyan
+    $Response = Invoke-WebRequest -Headers $Headers -Uri $Uri -Method "GET" -UseBasicParsing
+    write-host "." -NoNewline
     Try{
-        $QueryRecords = $Request | ConvertFrom-Json
-        #write-host "." -NoNewline
-        $PageCount++
+        $QueryRecords = $Response | ConvertFrom-Json
+            $PageCount++
     }
     Catch {
         Write-Host "Error converting JSON" -ForegroundColor Red
     } 
     $AvailableContentBlobs += $QueryRecords
-    $Uri = $Request.Headers.NextPageUri
-    Clear-Variable Request
+    $Uri = $Response.Headers.NextPageUri
+    Clear-Variable Response
     Clear-Variable QueryRecords
 } Until (-not $Uri)
 write-host "done ($($AvailableContentBlobs.Count))"
 write-log "AvailableContentBlobs: $($AvailableContentBlobs.Count)"
+
 ##############################################################################
 # download blobs and process audit records
 $ProcessedBlobCount = 0
@@ -166,17 +167,19 @@ foreach ($Blob in $AvailableContentBlobs){
     Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30 -Resource $Resource -Authority "login.windows.net"
     $AuditRecords = @()
     Try {
-        $Request = Invoke-WebRequest -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -Uri $Blob.ContentUri -Method "GET" -UseBasicParsing
+        $Response = Invoke-WebRequest -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -Uri $Blob.ContentUri -Method "GET" -UseBasicParsing
         Try{
-            $AuditRecords = $Request | ConvertFrom-Json
-            Clear-Variable Request
+            $AuditRecords = $Response.Content | ConvertFrom-Json
+            Clear-Variable Response
         }
         Catch {
+            write-host $_.Exception.Message -ForegroundColor Red
             Write-Host "Error converting JSON" -ForegroundColor Red
             Continue
         }
     } 
     Catch {
+        write-host $_.Exception.Message -ForegroundColor Red
         Write-Log "Error reading $($Blob.contentId) ($($ProcessedBlobCount))" -MessageType "Error" -ForegroundColor Red
         Continue
     }
