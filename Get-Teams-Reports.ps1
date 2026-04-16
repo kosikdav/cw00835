@@ -279,8 +279,8 @@ Remove-Variable ReportPSTNUsers
 # TEAMS MEMBERSHIP REPORT + O365Group_DB 
 #######################################################################################################################
 
-$AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersAllStd -KeyName "id"
-#$AADUsers_DB = Import-Clixml -Path $DBUsersAllStd_by_id
+#$AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersAllStd -KeyName "id"
+$AADUsers_DB = Import-Clixml -Path $DBUsersAllStd_by_id
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 

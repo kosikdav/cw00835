@@ -24,6 +24,7 @@ $OutputFileSuffixAccSNE = "access-b2b-sensitive-noenc"
 $OutputFileSuffixAccDEL = "access-deleted-odfb"
 $OutputFileSuffixShrAll = "sharing-all"
 $OutputFileSuffixShrB2B = "sharing-b2b"
+$OutputFileSuffixCPR_BR = "access-cpr-br"
 
 #setting unified log query parameters
 [array]$auditedOperationsAccess = @(
@@ -58,6 +59,7 @@ $LogFileGAT = New-OutputFile -RootFolder $RLF -Folder $LogFolderGAT -Prefix $Log
 [array]$ReportSPOAuditLogAccDEL = @()
 [array]$ReportSPOAuditLogShrAll = @()
 [array]$ReportSPOAuditLogShrB2B = @()
+[array]$ReportCPR_BR = @()
 
 [array]$ProcessedBlobs = @()
 [array]$ToBeDeletedBlobs = @()
@@ -132,7 +134,7 @@ $Uri = "https://manage.office.com/api/v1.0/$($tenantId)/activity/feed/subscripti
 write-host "Reading available content blobs" -NoNewline
 Do {
     write-host $Uri -ForegroundColor Cyan
-    $Request = Invoke-WebRequest -Headers $Headers -Uri $Uri -Method "GET"
+    $Request = Invoke-WebRequest -Headers $Headers -Uri $Uri -Method "GET" -UseBasicParsing
     Try{
         $QueryRecords = $Request | ConvertFrom-Json
         #write-host "." -NoNewline
@@ -162,7 +164,7 @@ foreach ($Blob in $AvailableContentBlobs){
     Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30 -Resource $Resource -Authority "login.windows.net"
     $AuditRecords = @()
     Try {
-        $Request = Invoke-WebRequest -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -Uri $Blob.ContentUri -Method "GET"
+        $Request = Invoke-WebRequest -Headers $AuthDB[$AppReg_LOG_READER].AuthHeaders -Uri $Blob.ContentUri -Method "GET" -UseBasicParsing
         Try{
             $AuditRecords = $Request | ConvertFrom-Json
             Clear-Variable Request
@@ -329,6 +331,47 @@ foreach ($Blob in $AvailableContentBlobs){
             }
         }
         
+        #CPR https://cezdata.sharepoint.com/sites/cpr_br        
+        if ($SiteUrl -like "https://cezdata.sharepoint.com/sites/cpr_br*" -and ($Record.SourceFileExtension -notin $ignoredFileTypes)) {
+            $auditObject = [PSCustomObject]@{
+                Id              = $Record.Id;
+                CorrelationId   = $Record.CorrelationId;
+                AADSessionId    = $Record.AppAccessContext.AADSessionId;
+                CreationTime    = $Record.CreationTime;
+                CreationDate    = $Record.CreationTime.Substring(0,10);
+                Operation       = $Record.Operation;
+                UserId          = $Record.UserId;
+
+                ClientIP = $Record.ClientIP;
+                GeoLocation = $Record.GeoLocation;
+                AuthenticationType = $Record.AuthenticationType;
+                BrowserName = $Record.BrowserName;
+                BrowserVersion = $Record.BrowserVersion;
+                IsManagedDevice = $Record.IsManagedDevice;
+                ItemType = $Record.ItemType;
+                ListId = $Record.ListId;
+                ListItemUniqueId = $Record.ListItemUniqueId;
+                Platform = $Record.Platform;
+                Site = $Record.Site;
+                UserAgent = $Record.UserAgent;
+                WebId = $Record.WebId;
+                DeviceDisplayName = $Record.DeviceDisplayName;
+                ListBaseType = $Record.ListBaseType;
+                ListServerTemplate = $Record.ListServerTemplate;
+                SensitivityLabelId  = $Record.SensitivityLabelId;
+                SensitivityLabelName = $sensitivityLabelName;
+                SiteSensitivityLabelId = $Record.SiteSensitivityLabelId;
+                SourceFileExtension = $Record.SourceFileExtension;
+                SensitivityLabelOwnerEmail = $Record.SensitivityLabelOwnerEmail;
+                SiteUrl = $SiteUrl;
+                ObjectId = $Record.ObjectId;
+                SourceRelativeUrl = $Record.SourceRelativeUrl;
+                SourceFileName = $Record.SourceFileName;
+                ApplicationDisplayName = $Record.ApplicationDisplayName
+            }
+            $ReportCPR_BR += $auditObject
+            Clear-Variable auditObject
+        }
         ##############################################################################
         # sharing
         if ($Record.Operation -in $auditedOperationsSharing) {
@@ -446,18 +489,19 @@ foreach ($Date in $AuditLogEventDates) {
     $CurrentReportAccAll = $CurrentReportAccSNE = $CurrentReportAccDEL = $CurrentReportShrAll = $CurrentReportShrB2B = $null
     write-host "---Processing date: $($Date) ----------------------------------------------------------" -ForegroundColor Green
 
-
     $CurrentReportAccAll = @($ReportSPOAuditLogAccAll | Where-Object { $_.CreationDate -eq $Date })
     $CurrentReportAccSNE = @($ReportSPOAuditLogAccSNE | Where-Object { $_.CreationDate -eq $Date })
     $CurrentReportAccDEL = @($ReportSPOAuditLogAccDEL | Where-Object { $_.CreationDate -eq $Date })
     $CurrentReportShrAll = @($ReportSPOAuditLogShrAll | Where-Object { $_.CreationDate -eq $Date })
     $CurrentReportShrB2B = @($ReportSPOAuditLogShrB2B | Where-Object { $_.CreationDate -eq $Date })
+    $CurrentReportCPR_BR = @($ReportCPR_BR | Where-Object { $_.CreationDate -eq $Date })
 
     $CurrentOutputFileAccAll = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixAccAll -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileAccSNE = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixAccSNE -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileAccDEL = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixAccDEL -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileShrAll = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixShrAll -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileShrB2B = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixShrB2B -SpecificDate $Date -Ext "csv"
+    $CurrentOutputFileCPR_BR = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixCPR_BR -SpecificDate $Date -Ext "csv"
 
     if ($CurrentReportAccAll.Count -gt 0) {
         Export-Report "$($Date) - file access (all B2B)" -Report $CurrentReportAccAll -Path $CurrentOutputFileAccAll -SortProperty "CreationTime" -Append $true
@@ -473,6 +517,9 @@ foreach ($Date in $AuditLogEventDates) {
     }
     if ($CurrentReportShrB2B.Count -gt 0) {
         Export-Report "$($Date) - sharing operations (B2B)" -Report $CurrentReportShrB2B -Path $CurrentOutputFileShrB2B -SortProperty "CreationTime" -Append $true
+    }
+    if ($CurrentReportCPR_BR.Count -gt 0) {
+        Export-Report "$($Date) - file access in CPR_BR site" -Report $CurrentReportCPR_BR -Path $CurrentOutputFileCPR_BR -SortProperty "CreationTime" -Append $true
     }
     write-host "-----------------------------------------------------------------------------------------" -ForegroundColor Green
 }

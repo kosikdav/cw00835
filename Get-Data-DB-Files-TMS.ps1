@@ -8,7 +8,7 @@ param(
 
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Generic.ps1
 
 #######################################################################################################################
 
@@ -17,15 +17,16 @@ $LogFilePrefix		= "get-data-db-files-tms"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
 [array]$DBReportTeams               = @()
 [array]$DBReportTeamsChannelsOwners = @()
 [hashtable]$TeamsUser_DB = @{}
+[hashtable]$DBTCOwners_by_URL = @{}
 [int]$ThrottlingDelayPerGroupInMsec = 500
-[int]$ThrottlingDelayPerChannelInMsec = 300
+[int]$ThrottlingDelayPerChannelInMsec = 350
 
 $TTL = 10
 
@@ -38,7 +39,7 @@ Write-Log "ThrottlingDelayPerChannelInMsec: $($ThrottlingDelayPerChannelInMsec)"
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL $TTL
 
 $UriResource = "users"
-$UriSelect = "id,userPrincipalName"
+$UriSelect = "id,userPrincipalName,accountEnabled"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
 [array]$AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 
@@ -46,6 +47,7 @@ foreach ($User in $AADUsers) {
     $UserRecord = [pscustomobject]@{
         Id  						= $User.id
         UserPrincipalName 			= $User.userPrincipalName
+        AccountEnabled				= $User.accountEnabled
     }
     $TeamsUser_DB.Add($User.id,$UserRecord)
 }
@@ -99,7 +101,7 @@ foreach ($TeamGroup in $TeamGroups) {
     }
 
     #add team to report DB TeamsChannelsOwners
-    $DBReportTeamsChannelsOwners += [pscustomobject]@{
+    $RecordTeam = [pscustomobject]@{
         TeamId              = $TeamGroup.id;
         TeamName		    = $TeamGroup.displayName;
         Mail		        = $TeamGroup.mail;
@@ -129,6 +131,9 @@ foreach ($TeamGroup in $TeamGroups) {
         ChannelOwnerCount       = "n/a";
         ChannelMemberCount      = "n/a"
     }
+    $DBReportTeamsChannelsOwners += $RecordTeam
+    $DBTCOwners_by_URL.Add($TeamFilesFolderURL,$RecordTeam)
+
     #add team to report DB Teams
     $DBReportTeams += [pscustomobject]@{
         TeamId              = $TeamGroup.id;
@@ -217,7 +222,7 @@ foreach ($TeamGroup in $TeamGroups) {
             }
 
             #add channel to report DB TeamsChannelsOwners
-            $DBReportTeamsChannelsOwners += [pscustomobject]@{
+            $RecordChannel = [pscustomobject]@{
                 TeamId				= $TeamGroup.id;
                 TeamName		    = $TeamGroup.displayName;
                 Mail                = $TeamGroup.mail;
@@ -247,6 +252,8 @@ foreach ($TeamGroup in $TeamGroups) {
                 ChannelOwnerCount       = $AllChannelOwners.Count;
                 ChannelMemberCount      = $AllChannelMembers.Count
             }
+            $DBReportTeamsChannelsOwners += $RecordChannel
+            $DBTCOwners_by_URL.Add($ChannelFilesFolderURL,$RecordChannel)
             Start-Sleep -Milliseconds $ThrottlingDelayPerChannelInMsec
         }
     }
@@ -255,5 +262,6 @@ foreach ($TeamGroup in $TeamGroups) {
 
 Export-Report "DBReportTeams" -Report $DBReportTeams -Path $DBFileTeams -SortProperty "TeamName"
 Export-Report "DBReportTeamsChannelsOwners" -Report $DBReportTeamsChannelsOwners -Path $DBFileTeamsChannelsOwners -SortProperty "TeamName"
+Export-CliXml -InputObject $DBTCOwners_by_URL -Path $DBTeamsChannelsOwners_by_URL
 
 . $IncFile_StdLogEndBlock
