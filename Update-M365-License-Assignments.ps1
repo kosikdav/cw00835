@@ -6,7 +6,7 @@ param(
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Generic.ps1
 
 #######################################################################################################################
 
@@ -15,7 +15,7 @@ $LogFilePrefix		= "update-license-assignments"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile 	= New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 $LogFileMin = New-OutputFile -RootFolder $ROF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
@@ -33,10 +33,11 @@ $AllowedDirectSKUs = @(
 $SKU_DB = Import-CSVToHashDB -Path $DBFileLicensingInfoSKUs -KeyName "skuId"
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
-$UriResource = "users"
-$UriSelect = "id,userPrincipalName,displayName,assignedLicenses"
-$UriFilter = "assignedLicenses/`$count+ne+0&`$count=true"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect -Filter $UriFilter
+#$UriResource = "users"
+#$UriSelect = "id,userPrincipalName,displayName,assignedLicenses"
+#$UriFilter = "assignedLicenses/`$count ne 0"
+#$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect -Filter $UriFilter
+$Uri = "https://graph.microsoft.com/v1.0/users?`$filter=assignedLicenses/`$count ne 0&`$count=true&ConsistencyLevel=eventual"
 write-host $Uri -ForegroundColor Green
 $AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual" -ProgressDots -Text "licensed AAD users"
 write-Log "Licensed AAD users: $($AADUsers.Count)"

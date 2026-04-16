@@ -33,12 +33,15 @@ $end = $strYesterdayUTCEnd
 
 . $IncFile_StdLogStartBlock
 
-$AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersAllMin -KeyName "id"
-$AADGroups_DB = Import-CSVtoHashDB -Path $DBFileGroupsAllMin -KeyName "id"
+#$AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersAllMin -KeyName "id"
+$AADUsers_DB = Import-CliXml -Path $DBUsersAllStd_by_id
+
+#$AADGroups_DB = Import-CSVtoHashDB -Path $DBFileGroupsAllMin -KeyName "id"
+$AADGroups_DB = Import-CliXml -Path $DBGroupsAllMin_by_id
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "auditLogs/directoryAudits"
-$UriFilter = "loggedByService+eq+'Core Directory'+and+category+eq+'GroupManagement'+and+activityDateTime+ge+$($start)+and+activityDateTime+le+$($end)"
+$UriFilter = "loggedByService eq 'Core Directory' and category eq 'GroupManagement' and activityDateTime ge $($start) and activityDateTime le $($end)"
 $Uri = New-GraphUri -Version "beta" -Resource $UriResource -Filter $UriFilter
 $AuditLogEventsGrp = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 

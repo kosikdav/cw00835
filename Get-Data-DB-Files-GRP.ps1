@@ -23,6 +23,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 [array]$DBReportGroupsAllMin        = $null
 [array]$DBReportGroupsM365          = $null
+[hashtable]$GroupsAllMin_by_id = @{}
 
 [int]$ThrottlingDelayPerGroupInMsec = 200
 
@@ -68,7 +69,7 @@ foreach ($Group in $AllAADGroups) {
     $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
     $MemberCount = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual"
 
-    $DBReportGroupsAllMin += [pscustomobject]@{
+    $minObject = [pscustomobject]@{
         id						= $Group.id
         displayName 			= $Group.displayName
         createdDateTime         = $Group.createdDateTime
@@ -78,7 +79,9 @@ foreach ($Group in $AllAADGroups) {
         onPremisesSyncEnabled   = $Group.onPremisesSyncEnabled
         MemberCount             = $MemberCount
     }
-    
+    $DBReportGroupsAllMin += $minObject
+    $GroupsAllMin_by_id.add($Group.id, $minObject)
+
     if ($groupIsUnified -and (-not $groupIsTeam)) {
         $UriResource = "groups/$($Group.id)/owners"
         $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
@@ -118,5 +121,5 @@ foreach ($Group in $AllAADGroups) {
 
 Export-Report "DBReportGroupsAllMin" -Report $DBReportGroupsAllMin -Path $DBFileGroupsAllMin -SortProperty "displayName"
 Export-Report "DBReportGroupsM365" -Report $DBReportGroupsM365 -Path $DBFileGroupsM365 -SortProperty "mail"
-
+Export-CliXml -InputObject $GroupsAllMin_by_id -Path $DBGroupsAllMin_by_id
 . $IncFile_StdLogEndBlock

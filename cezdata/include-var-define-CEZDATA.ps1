@@ -151,6 +151,8 @@ $DBFileGroups               = [System.IO.Path]::Combine($ROF,$DBFolderName,"grou
 $DBFileGroupsMembers        = [System.IO.Path]::Combine($ROF,$DBFolderName,"groups-members.csv")
 $DBFileGroupsAllMin         = [System.IO.Path]::Combine($ROF,$DBFolderName,"groups-all-min.csv")
 $DBFileGroupsM365           = [System.IO.Path]::Combine($ROF,$DBFolderName,"groups-m365.csv")
+$DBGroupsAllMin_by_id       = [System.IO.Path]::Combine($ROF,$DBFolderName,"groups-all-min-by-id.xml")
+
 $DBFileGroupsO365           = $DBFileGroupsM365
 $DBFileO365Groups           = $DBFileGroupsM365
 $DBFileTeams                = [System.IO.Path]::Combine($ROF,$DBFolderName,"teams.csv")
@@ -162,7 +164,6 @@ $DBFileSPOSites             = [System.IO.Path]::Combine($ROF,$DBFolderName,"spo-
 $DBFileSPOSitesGraph        = [System.IO.Path]::Combine($ROF,$DBFolderName,"spo-sites-graph.csv")
 $DBFileODfBSites            = [System.IO.Path]::Combine($ROF,$DBFolderName,"odfb-sites.csv")
 $DBFilePwrEnvironments      = [System.IO.Path]::Combine($ROF,$DBFolderName,"pwrplat-environments.csv")
-
 
 $DBFileLicensingPlans       = "d:\data\m365-licensing\plans.csv"
 $DBFileLicensingSKUs        = "d:\data\m365-licensing\skus.csv"

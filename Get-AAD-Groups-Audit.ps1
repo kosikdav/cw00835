@@ -31,12 +31,12 @@ $end = $strYesterdayUTCEnd
 
 . $IncFile_StdLogStartBlock
 
-$AADGroupsDB = Import-CSVtoHashDB -Path $DBFileGroupsAllMin -KeyName "id"
-$AADUsersDB = Import-CSVtoHashDB -Path $DBFileUsersAllMin -KeyName "id"
+$AADGroupsDB = Import-CliXml -Path $DBGroupsAllMin_by_id
+$AADUsersDB = Import-CliXml -Path $DBUsersAllStd_by_id
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "auditLogs/directoryAudits"
-$UriFilter = "loggedByService+eq+'Core Directory'+and+category+eq+'GroupManagement'+and+activityDateTime+ge+$($start)+and+activityDateTime+le+$($end)"
+$UriFilter = "loggedByService eq 'Core Directory' and category eq 'GroupManagement' and activityDateTime ge $($start) and activityDateTime le $($end)"
 $Uri = New-GraphUri -Version "beta" -Resource $UriResource -Filter $UriFilter
 $AuditLogEventsGrp = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 Write-Log "Audit log events (Group Management) found: $($AuditLogEventsGrp.Count)"

@@ -31,14 +31,14 @@ $end = $strYesterdayUTCEnd
 
 . $IncFile_StdLogStartBlock
 
-$AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersAllName -KeyName "userPrincipalName"
+$AADUsers_DB = Import-CliXml -Path $DBUsersAllStd_by_id
 
 Write-Log "Getting AAD guests audit events for: $($strYesterday)"
 Write-Log "Time interval: $($strYesterdayUTCStart) - $($strYesterdayUTCEnd)"
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "auditLogs/directoryAudits"
-$UriFilter = "loggedByService+eq+'Invited Users'+and+activityDateTime+ge+$($start)+and+activityDateTime+le+$($end)"
+$UriFilter = "loggedByService eq 'Invited Users' and activityDateTime ge $($start) and activityDateTime le $($end)"
 $Uri = New-GraphUri -Version "beta" -Resource $UriResource -Filter $UriFilter
 $AuditLogEventsInvite = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 Write-Log "Log events (Invited Users) returned: $($AuditLogEventsInvite.Count)"
@@ -92,7 +92,7 @@ foreach ($AuditLogEvent in $AuditLogEventsInvite) {
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "auditLogs/directoryAudits"
-$UriFilter = "loggedByService+eq+'Core Directory'+and+category+eq+'GroupManagement'+and+activityDateTime+ge+$($start)+and+activityDateTime+le+$($end)"
+$UriFilter = "loggedByService eq 'Core Directory' and category eq 'GroupManagement' and activityDateTime ge $($start) and activityDateTime le $($end)"
 $Uri = New-GraphUri -Version "beta" -Resource $UriResource -Filter $UriFilter
 $AuditLogEventsGrp = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 Write-Log "Log events (Group Management) returned: $($AuditLogEventsGrp.Count)"

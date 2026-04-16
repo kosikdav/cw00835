@@ -16,7 +16,12 @@ $OutputFileSuffixList	= "list"
 $OutputFileSuffixMem	= "members"
 
 $OutputFolderAzSub   	= "azure\reports"
-$OutputFilePrefixAzSub	= "az-sub-groups"
+$OutputFilePrefixAzSub	= "azure-groups"
+$OutputFileSuffixAzSub	= "subscriptions"
+
+$OutputFolderAzOwners	    = "azure\reports"
+$OutputFilePrefixAzOwners 	= "azure-groups"
+$OutputFileSuffixAzOwners	= "owners"
 
 $OutputFolderADO   	    = "aad-groups\ou-devops"
 $OutputFilePrefixADO	= "ado-groups"
@@ -39,9 +44,6 @@ $OutputFilePrefixPwr    = "pwr-groups"
 $OutputFolderSPO   	        = "aad-groups\ou-spo"
 $OutputFilePrefixSPO	    = "spo-groups"
 
-$OutputFolderAzOwners	= "azure\reports"
-$OutputFilePrefixAzOwners 	= "az-owners-groups"
-
 $ADCredentialPath = $aad_grp_mgmt_cred
 
 #######################################################################################################################
@@ -50,7 +52,9 @@ $ADCredentialPath = $aad_grp_mgmt_cred
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
-$OutputFileAzSub = New-OutputFile -RootFolder $ROF -Folder $OutputFolderAzSub -Prefix $OutputFilePrefixAzSub -Ext "csv"
+$OutputFileAzSub = New-OutputFile -RootFolder $ROF -Folder $OutputFolderAzSub -Prefix $OutputFilePrefixAzSub -Suffix $OutputFileSuffixAzSub -Ext "csv"
+$OutputFileGrpMemAzOwners = New-OutputFile -RootFolder $ROF -Folder $OutputFolderAzOwners -Prefix $OutputFilePrefixAzOwners -Suffix $OutputFileSuffixAzOwners -Ext "csv"
+
 $OutputFileADO  = New-OutputFile -RootFolder $ROF -Folder $OutputFolderADO -Prefix $OutputFilePrefixADO -Ext "csv"
 $OutputFileEXO  = New-OutputFile -RootFolder $ROF -Folder $OutputFolderEXO -Prefix $OutputFilePrefixEXO -Ext "csv"
 $OutputFileLicList  = New-OutputFile -RootFolder $ROF -Folder $OutputFolderLic -Prefix $OutputFilePrefixLic -Suffix $OutputFileSuffixList -Ext "csv"
@@ -61,7 +65,7 @@ $OutputFilePwrList  = New-OutputFile -RootFolder $ROF -Folder $OutputFolderPwr -
 $OutputFilePwrMem   = New-OutputFile -RootFolder $ROF -Folder $OutputFolderPwr -Prefix $OutputFilePrefixPwr -Suffix $OutputFileSuffixMem -Ext "csv"
 $OutputFileSPOList  = New-OutputFile -RootFolder $ROF -Folder $OutputFolderSPO -Prefix $OutputFilePrefixSPO -Suffix $OutputFileSuffixList -Ext "csv"
 $OutputFileSPOMem   = New-OutputFile -RootFolder $ROF -Folder $OutputFolderSPO -Prefix $OutputFilePrefixSPO -Suffix $OutputFileSuffixMem -Ext "csv"
-$OutputFileGrpMemAzOwners = New-OutputFile -RootFolder $ROF -Folder $OutputFolderAzOwners -Prefix $OutputFilePrefixAzOwners -Suffix $OutputFileSuffixMem -Ext "csv"
+
 
 #######################################################################################################################
 
