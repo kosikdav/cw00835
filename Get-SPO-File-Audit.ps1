@@ -46,7 +46,16 @@ $OutputFileSuffixCPR = "access-cpr"
 [hashtable]$guestAuditRecords_DB = @{}
 [array]$CPR_SPO_Audited_Sites = @(
     "https://cezdata.sharepoint.com/sites/cpr_br",
-    "https://cezdata.sharepoint.com/sites/cpr_xxxxxxx"
+    "https://cezdata.sharepoint.com/sites/ext_cpr_ret",
+    "https://cezdata.sharepoint.com/sites/TechnologieCPR",
+    "https://cezdata.sharepoint.com/sites/CPOST",
+    "https://cezdata.sharepoint.com/sites/Nekomoditnproduktyasluby",
+    "https://cezdata.sharepoint.com/sites/ext_cpr",
+    "https://cezdata.sharepoint.com/sites/TMS_CPR_Kompetencni_centum",
+    "https://cezdata.sharepoint.com/sites/TMS_CPR_Odbor_SSV_komodity",
+    "https://cezdata.sharepoint.com/sites/ECC_Comdata",
+    "https://cezdata.sharepoint.com/sites/TMS_CPR_CP",
+    "https://cezdata.sharepoint.com/sites/TMS_CPR_Odbor_Kreditni_riziko"
 )
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
