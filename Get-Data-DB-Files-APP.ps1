@@ -51,7 +51,7 @@ foreach ($permission in $GraphPermissions.oauth2PermissionScopes) {
 }
 
 foreach ($permission in $GraphPermissions.appRoles) {
-    write-host $permission -ForegroundColor Green
+    write-host $permission.allowedMemberTypes -ForegroundColor Green
     $AADPermTemp += [PSCustomObject]@{
         id = $permission.id;
         source  = "Graph"
