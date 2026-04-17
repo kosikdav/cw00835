@@ -37,21 +37,19 @@ $UriSelect2 = "easActivated,easDeviceId,azureADRegistered,deviceEnrollmentType,e
 $UriSelect3 = "deviceCategoryDisplayName,isSupervised"
 $UriSelect4 = "isEncrypted,userPrincipalName,model,manufacturer,imei,complianceGracePeriodExpirationDateTime,serialNumber,phoneNumber,androidSecurityPatchLevel,userDisplayName"
 $UriSelect5 = "configurationManagerClientEnabledFeatures,wiFiMacAddress,subscriberCarrier,meid,totalStorageSpaceInBytes,freeStorageSpaceInBytes,managedDeviceName"
-$UriSelect6 = "requireUserEnrollmentApproval,managementCertificateExpirationDate"
+$UriSelect6 = "requireUserEnrollmentApproval,managementCertificateExpirationDate,hardwareInformation"
 $UriSelect = $UriSelect1,$UriSelect2,$UriSelect3,$UriSelect4,$UriSelect5,$UriSelect6 -join ","
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
+$Uri = New-GraphUri -Version "beta" -Resource $UriResource -Select $UriSelect
 $Devices = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "Intune devices" -ProgressDots
 
 Write-Log "Total devices: $($Devices.Count)"
 
-Initialize-ProgressBarMain -Activity "Building Intune device report" -Total $Devices.Count
 ForEach ($Device in $Devices) {
-	Update-ProgressBarMain
-        $enrolledDateTime = [datetime]$Device.enrolledDateTime
-        $lastSyncDateTime,$enrolledDateTime,$imei,$meid = $null
+    $enrolledDateTime = [datetime]$Device.enrolledDateTime
+    $lastSyncDateTime,$enrolledDateTime,$imei,$meid = $null
         
     $daysSinceLastSync,$daysSinceEnrolled = "n/a"
-
+    
     if ($Device.enrolledDateTime) {
         $enrolledDateTime = [datetime]$Device.enrolledDateTime
         $DaysSinceEnrolled = (New-TimeSpan -Start $enrolledDateTime -End $Today).Days
@@ -75,7 +73,8 @@ ForEach ($Device in $Devices) {
     if ($Device.meid) {
         $meid = [char]34 + $Device.meid + [char]34
     }
-    
+    $HWInfo = $Device.hardwareInformation
+
     $DeviceObject = [pscustomobject]@{
         id = $Device.id;
         deviceName = $Device.deviceName;
@@ -118,6 +117,47 @@ ForEach ($Device in $Devices) {
         freeStorageSpaceInBytes = $Device.freeStorageSpaceInBytes;
         requireUserEnrollmentApproval = $Device.requireUserEnrollmentApproval;
         managementCertificateExpirationDate = $Device.managementCertificateExpirationDate
+
+        hw_sn = $HWInfo.serialNumber
+        hw_totalStorageSpace = $HWInfo.totalStorageSpace;
+        hw_freeStorageSpace = $HWInfo.freeStorageSpace;
+        hw_imei= $HWInfo.imei;
+        hw_meid= $HWInfo.meid;
+        hw_manufacturer= $HWInfo.manufacturer;
+        hw_model= $HWInfo.model;
+        hw_phoneNumber= $HWInfo.phoneNumber;
+        hw_subscriberCarrier= $HWInfo.subscriberCarrier;
+        hw_cellularTechnology= $HWInfo.cellularTechnology;
+        hw_wifiMac = $HWInfo.wifiMac
+        hw_operatingSystemLanguage = $HWInfo.operatingSystemLanguage;
+        hw_isSupervised = $HWInfo.isSupervised;
+        hw_isEncrypted = $HWInfo.isEncrypted;
+        hw_batterySerialNumber = $HWInfo.batterySerialNumber;
+        hw_batteryHealthPercentage = $HWInfo.batteryHealthPercentage;
+        hw_batteryChargeCycles = $HWInfo.batteryChargeCycles;
+        hw_isSharedDevice = $HWInfo.isSharedDevice;
+        hw_tpmSpecificationVersion = $HWInfo.tpmSpecificationVersion;
+        hw_operatingSystemEdition = $HWInfo.operatingSystemEdition;
+        hw_deviceFullQualifiedDomainName = $HWInfo.deviceFullQualifiedDomainName;
+        hw_dgrdVsecHWReqState= $HWInfo.deviceGuardVirtualizationBasedSecurityHardwareRequirementState;
+        hw_dgrdVsecState= $HWInfo.deviceGuardVirtualizationBasedSecurityState;
+        hw_dgrdLSACredGuardState= $HWInfo.deviceGuardLocalSystemAuthorityCredentialGuardState;
+        hw_osBuildNumber= $HWInfo.osBuildNumber;
+        hw_operatingSystemProductType= $HWInfo.operatingSystemProductType;
+        hw_ipAddressV4 = $HWInfo.ipAddressV4;
+        hw_subnetAddress = $HWInfo.subnetAddress;
+        hw_esimIdentifier = $HWInfo.esimIdentifier;
+        hw_systemManagementBIOSVersion = $HWInfo.systemManagementBIOSVersion;
+        hw_tpmManufacturer = $HWInfo.tpmManufacturer;
+        hw_tpmVersion = $HWInfo.tpmVersion;
+        hw_wiredIPv4Addresses = $HWInfo.wiredIPv4Addresses -join ";";
+        hw_batteryLevelPercentage = $HWInfo.batteryLevelPercentage;
+        hw_residentUsersCount = $HWInfo.residentUsersCount;
+        hw_productName = $HWInfo.productName;
+        hw_deviceLicensingStatus = $HWInfo.deviceLicensingStatus;
+        hw_deviceLicensingLastErrorCode = $HWInfo.deviceLicensingLastErrorCode;
+        hw_deviceLicensingLastErrorDescription = $HWInfo.deviceLicensingLastErrorDescription;
+        hw_sharedDeviceCachedUsers = $HWInfo.sharedDeviceCachedUsers -join ";"
     }
     $DevicesReport += $DeviceObject
 }

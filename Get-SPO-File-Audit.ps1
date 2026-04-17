@@ -17,7 +17,7 @@ $LogFolderGAT		= "aad-guests-audit-trace"
 $LogFilePrefixGAT	= "aad-guests-audit-trace"
 
 $OutputFolder           = "spo\audit"
-$OutputFolderCPR_BR     = "spo\audit\cpr_br"
+$OutputFolderCPR     = "spo\audit\cpr"
 $OutputFilePrefix       = "spo-file-audit"
 
 $OutputFileSuffixAccAll = "access-b2b-all"
@@ -25,7 +25,7 @@ $OutputFileSuffixAccSNE = "access-b2b-sensitive-noenc"
 $OutputFileSuffixAccDEL = "access-deleted-odfb"
 $OutputFileSuffixShrAll = "sharing-all"
 $OutputFileSuffixShrB2B = "sharing-b2b"
-$OutputFileSuffixCPR_BR = "access-cpr-br"
+$OutputFileSuffixCPR = "access-cpr"
 
 #setting unified log query parameters
 [array]$auditedOperationsAccess = @(
@@ -44,6 +44,10 @@ $OutputFileSuffixCPR_BR = "access-cpr-br"
 )
 [array]$ignoredFileTypes = @("aspx","spcolor","sptheme","DS_Store","url","conf","options","icp","modules","dat","version","png","jpg","jpeg","gif","svg")
 [hashtable]$guestAuditRecords_DB = @{}
+[array]$CPR_SPO_Audited_Sites = @(
+    "https://cezdata.sharepoint.com/sites/cpr_br",
+    "https://cezdata.sharepoint.com/sites/cpr_xxxxxxx"
+)
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
 . $IncFile_AIP_labels
@@ -60,7 +64,7 @@ $LogFileGAT = New-OutputFile -RootFolder $RLF -Folder $LogFolderGAT -Prefix $Log
 [array]$ReportSPOAuditLogAccDEL = @()
 [array]$ReportSPOAuditLogShrAll = @()
 [array]$ReportSPOAuditLogShrB2B = @()
-[array]$ReportCPR_BR = @()
+[array]$ReportCPR = @()
 
 [array]$ProcessedBlobs = @()
 [array]$ToBeDeletedBlobs = @()
@@ -94,8 +98,10 @@ else {
 
 ##############################################################################
 # load DB hashtables from files
-$O365TeamGroup_DB = Import-CSVtoHashDB -Path $DBFileTeamsChannelsOwners -Keyname "FilesFolderUrl"
-$AADGuest_DB = Import-CSVtoHashDB -Path $DBFileGuestsStd -KeyName "userPrincipalName"
+$O365TeamGroup_DB = Import-Clixml -Path $DBTeamsChannelsOwners_by_URL
+write-log "O365TeamGroup_DB: $($O365TeamGroup_DB.count)"
+$AADGuest_DB = Import-Clixml -Path $DBGuestsStd_by_UPN
+write-log "AADGuest_DB: $($AADGuest_DB.count)"
 
 ##############################################################################
 # deleted users
@@ -336,8 +342,10 @@ foreach ($Blob in $AvailableContentBlobs){
             }
         }
         
-        #CPR https://cezdata.sharepoint.com/sites/cpr_br        
-        if ($SiteUrl -like "https://cezdata.sharepoint.com/sites/cpr_br*" -and ($Record.SourceFileExtension -notin $ignoredFileTypes)) {
+        #CPR SPO audited sites     
+        if ($SiteUrl -in $CPR_SPO_Audited_Sites -and ($Record.SourceFileExtension -notin $ignoredFileTypes)) {
+            write-host "$('{0:d4}' -f $ProcessedBlobCount)" -ForegroundColor Yellow -BackgroundColor Green -NoNewline
+            write-host " $($Record.CreationTime) $($Record.Operation) - $($Mail) - $($Record.SourceFileName)" -ForegroundColor Cyan
             $auditObject = [PSCustomObject]@{
                 Id              = $Record.Id;
                 CorrelationId   = $Record.CorrelationId;
@@ -374,7 +382,7 @@ foreach ($Blob in $AvailableContentBlobs){
                 SourceFileName = $Record.SourceFileName;
                 ApplicationDisplayName = $Record.ApplicationDisplayName
             }
-            $ReportCPR_BR += $auditObject
+            $ReportCPR += $auditObject
             Clear-Variable auditObject
         }
         ##############################################################################
@@ -500,14 +508,14 @@ foreach ($Date in $AuditLogEventDates) {
     $CurrentReportAccDEL = @($ReportSPOAuditLogAccDEL | Where-Object { $_.CreationDate -eq $Date })
     $CurrentReportShrAll = @($ReportSPOAuditLogShrAll | Where-Object { $_.CreationDate -eq $Date })
     $CurrentReportShrB2B = @($ReportSPOAuditLogShrB2B | Where-Object { $_.CreationDate -eq $Date })
-    $CurrentReportCPR_BR = @($ReportCPR_BR | Where-Object { $_.CreationDate -eq $Date })
+    $CurrentReportCPR = @($ReportCPR | Where-Object { $_.CreationDate -eq $Date })
 
     $CurrentOutputFileAccAll = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixAccAll -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileAccSNE = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixAccSNE -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileAccDEL = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixAccDEL -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileShrAll = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixShrAll -SpecificDate $Date -Ext "csv"
     $CurrentOutputFileShrB2B = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixShrB2B -SpecificDate $Date -Ext "csv"
-    $CurrentOutputFileCPR_BR = New-OutputFile -RootFolder $ROF -Folder $OutputFolderCPR_BR -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixCPR_BR -SpecificDate $Date -Ext "csv"
+    $CurrentOutputFileCPR = New-OutputFile -RootFolder $ROF -Folder $OutputFolderCPR -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixCPR -SpecificDate $Date -Ext "csv"
 
     if ($CurrentReportAccAll.Count -gt 0) {
         Export-Report "$($Date) - file access (all B2B)" -Report $CurrentReportAccAll -Path $CurrentOutputFileAccAll -SortProperty "CreationTime" -Append $true
@@ -524,8 +532,8 @@ foreach ($Date in $AuditLogEventDates) {
     if ($CurrentReportShrB2B.Count -gt 0) {
         Export-Report "$($Date) - sharing operations (B2B)" -Report $CurrentReportShrB2B -Path $CurrentOutputFileShrB2B -SortProperty "CreationTime" -Append $true
     }
-    if ($CurrentReportCPR_BR.Count -gt 0) {
-        Export-Report "$($Date) - file access in CPR_BR site" -Report $CurrentReportCPR_BR -Path $CurrentOutputFileCPR_BR -SortProperty "CreationTime" -Append $true
+    if ($CurrentReportCPR.Count -gt 0) {
+        Export-Report "$($Date) - file access in CPR sites" -Report $CurrentReportCPR -Path $CurrentOutputFileCPR -SortProperty "CreationTime" -Append $true
     }
     write-host "-----------------------------------------------------------------------------------------" -ForegroundColor Green
 }
