@@ -49,6 +49,7 @@ foreach ($obj in $srcObjArray) {
     }
 }
 $DBReportAADPermissions = $AADPermTemp + $AADPermCustom
+$DBReportAADPermissions = $DBReportAADPermissions | Sort-Object -Property Id -Unique
 
 #############################################
 
