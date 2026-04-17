@@ -37,8 +37,8 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 #$UriSelect = "id,userPrincipalName,displayName,assignedLicenses"
 #$UriFilter = "assignedLicenses/`$count ne 0"
 #$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect -Filter $UriFilter
-$Uri = "https://graph.microsoft.com/v1.0/users?`$filter=assignedLicenses/`$count ne 0&`$count=true&ConsistencyLevel=eventual"
-write-host $Uri -ForegroundColor Green
+$Uri = "https://graph.microsoft.com/v1.0/users?`$filter=assignedLicenses/`$count ne 0&`$count=true&`$Top=999"
+#write-host $Uri -ForegroundColor Green
 $AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual" -ProgressDots -Text "licensed AAD users"
 write-Log "Licensed AAD users: $($AADUsers.Count)"
 
@@ -53,7 +53,7 @@ foreach ($User in $AADUsers) {
 	Catch {
 		$licenseAssignmentStates = $null
 	}
-	write-host "$($User.userPrincipalName) $($licenseAssignmentStates.Count)" -ForegroundColor Green
+	#write-host "$($User.userPrincipalName) $($licenseAssignmentStates.Count)" -ForegroundColor Green
 	foreach ($state in $licenseAssignmentStates) {
 		if (($null -eq $state.assignedByGroup) -and ( -not ($AllowedDirectSKUs -contains $state.skuid))) {
 			Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
