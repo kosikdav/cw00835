@@ -40,14 +40,39 @@ $UriSelect = "id,appId,displayName,appRoles,oauth2PermissionScopes,resourceSpeci
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
 [array]$GraphPermissions = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 [array]$srcObjArray = @($GraphPermissions.oauth2PermissionScopes,$GraphPermissions.appRoles,$GraphPermissions.resourceSpecificApplicationPermissions)   
-foreach ($obj in $srcObjArray) {
+foreach ($obj in $GraphPermissions.oauth2PermissionScopes) {
     foreach ($permission in $obj) {
         $AADPermTemp += [PSCustomObject]@{
             id = $permission.id;
+            source  = "Graph"
+            type= "delegated"
             value = $permission.value
         }
     }
 }
+foreach ($obj in $GraphPermissions.appRoles) {
+    foreach ($permission in $obj) {
+        $AADPermTemp += [PSCustomObject]@{
+            id = $permission.id;
+            source  = "Graph"
+            type = "application"
+            value = $permission.value
+        }
+    }
+}
+foreach ($obj in $GraphPermissions.resourceSpecificApplicationPermissions) {
+    write-host $obj
+    foreach ($permission in $obj) {
+        write-host $permission
+        $AADPermTemp += [PSCustomObject]@{
+            id = $permission.id;
+            source  = "Graph"
+            type= "RSAP"
+            value = $permission.value
+        }
+    }
+}
+
 $DBReportAADPermissions = $AADPermTemp + $AADPermCustom
 $DBReportAADPermissions = $DBReportAADPermissions | Sort-Object -Property Id -Unique
 
