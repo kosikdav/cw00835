@@ -4,7 +4,8 @@
 param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
 	[Parameter(Mandatory)][string]$Id,
-	[Parameter(Mandatory)][string]$Permission
+	[Parameter(Mandatory)][string]$Permission,
+	[ValidateSet("Application","Delegated")]$Type
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
@@ -16,7 +17,8 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
-[hashtable]$GraphPermissions_DB = @{}
+[hashtable]$GraphPermissions_App_DB = @{}
+[hashtable]$GraphPermissions_Dlg_DB = @{}
 
 function Get-YesNoKeyboardInput {
     param (
@@ -35,7 +37,13 @@ function Get-YesNoKeyboardInput {
 
 ##################################################################################################
 
-$GraphPermissions_DB = Import-CSVtoHashDB -Path $DBFileAADPermissions -KeyName "value"
+[array]$GraphPermissions = Import-CSVtoArray -Path $DBFileAADPermissions
+
+$GraphPermissions_App = $GraphPermissions | Where-Object { $_.type -eq "application" }
+$GraphPermissions_App | forEach-Object { $GraphPermissions_App_DB.add($_.value, $_) }
+
+$GraphPermissions_Dlg = $GraphPermissions | Where-Object { $_.type -eq "delegated" }
+$GraphPermissions_Dlg | forEach-Object { $GraphPermissions_Dlg_DB.add($_.value, $_) }
 
 Request-MSALToken -AppRegName $AppReg_APP_MGMT -TTL 30
 
@@ -56,18 +64,31 @@ if ($null -eq $Application) {
 	exit
 }
 
-if ($GraphPermissions_DB.ContainsKey($Permission)) {
-	$AppRoleId = $GraphPermissions_DB[$Permission].id
-}
-else {
-	Write-Host "Permission '$($Permission)' not found in permissions database!"
-	exit
+switch ($Type) {
+	"Application" {
+		if ($GraphPermissions_App_DB.ContainsKey($Permission)) {
+			$AppRoleId = $GraphPermissions_App_DB[$Permission].id
+		}
+		else {
+			Write-Host "Application permission '$($Permission)' not found in database!"
+			exit
+		}
+	}
+	"Delegated" {
+		if ($GraphPermissions_Dlg_DB.ContainsKey($Permission)) {
+			$AppRoleId = $GraphPermissions_Dlg_DB[$Permission].id
+		}
+		else {
+			Write-Host "Delegated permission '$($Permission)' not found in database!"
+			exit
+		}
+	}
 }
 
 Write-host ("Permission:").PadRight(15) -NoNewline
-Write-Host $Permission -ForegroundColor Yellow -NoNewline
+Write-Host "$($Permission) ($($Type))" -ForegroundColor Yellow -NoNewline
 Write-Host " (AppRoleId: $($AppRoleId))"
-Write-Host ("Application:").PadRight(15) -NoNewline 
+Write-Host "Application: " -NoNewline 
 Write-Host $Application.displayName -ForegroundColor Cyan -NoNewline
 Write-Host " (AppId: $($Application.appId))"
 If (Get-YesNoKeyboardInput -Prompt "Continue?") {
@@ -80,14 +101,21 @@ If (Get-YesNoKeyboardInput -Prompt "Continue?") {
 		"appRoleId"   = $AppRoleId
 	} | ConvertTo-Json
 	write-host $Body 
-	$Result = Invoke-RestMethod -Uri $Uri -Headers $Headers -ContentType $ContentTypeJSON -Body $Body -Method "POST"
+	Try {
+		$Result = Invoke-RestMethod -Uri $Uri -Headers $Headers -ContentType $ContentTypeJSON -Body $Body -Method "POST"
 
-	if ($null -ne $Result) {
-		Write-Host "Permission '$($Permission)' added successfully!" -ForegroundColor Green
+		if ($null -ne $Result) {
+			Write-Host "Permission '$($Permission)' added successfully!" -ForegroundColor Green
+		}
+		else {
+			Write-Host "Failed to add permission '$($Permission)'!" -ForegroundColor Red
+		}
 	}
-	else {
-		Write-Host "Failed to add permission '$($Permission)'!" -ForegroundColor Red
+	Catch {
+		Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+		exit
 	}
+
 }
 else {
 	Exit

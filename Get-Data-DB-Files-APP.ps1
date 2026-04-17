@@ -41,7 +41,7 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect
 [array]$GraphPermissions = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 [array]$srcObjArray = @($GraphPermissions.oauth2PermissionScopes,$GraphPermissions.appRoles,$GraphPermissions.resourceSpecificApplicationPermissions)   
 foreach ($permission in $GraphPermissions.oauth2PermissionScopes) {
-    write-host $permission -ForegroundColor Yellow
+    #write-host $permission -ForegroundColor Yellow
     $AADPermTemp += [PSCustomObject]@{
         id = $permission.id;
         source  = "Graph"
@@ -51,7 +51,7 @@ foreach ($permission in $GraphPermissions.oauth2PermissionScopes) {
 }
 
 foreach ($permission in $GraphPermissions.appRoles) {
-    write-host $permission.allowedMemberTypes -ForegroundColor Green
+    #write-host $permission.allowedMemberTypes -ForegroundColor Green
     $AADPermTemp += [PSCustomObject]@{
         id = $permission.id;
         source  = "Graph"
@@ -60,17 +60,19 @@ foreach ($permission in $GraphPermissions.appRoles) {
     }
 }
 
+<#
 foreach ($permission in $GraphPermissions.resourceSpecificApplicationPermissions) {
-    write-host $permission -ForegroundColor Cyan
+    #write-host $permission -ForegroundColor Cyan
     $AADPermTemp += [PSCustomObject]@{
         id = $permission.id;
-        source  = "Graph"
+        source  = "???"
         type= "RSAP"
         value = $permission.value
     }
 }
+#>
 
-$DBReportAADPermissions = $AADPermTemp + $AADPermCustom
+$DBReportAADPermissions = $AADPermTemp
 $DBReportAADPermissions = $DBReportAADPermissions | Sort-Object -Property Id -Unique
 
 #############################################
