@@ -63,6 +63,7 @@ $OutputFileStatODfBUsr 	= New-OutputFile -RootFolder $ROF -Folder $OutputFolder 
 [array]$ReportStatsODfBSites = @()
 [array]$ReportStatsODfBUsers = @()
 [hashtable]$GraphSites_DB = @{}
+[hashtable]$GraphSiteCollURL_DB = @{}
 
 #######################################################################################################################
 
@@ -75,6 +76,7 @@ write-log "$($OutputFileStatSPOSte)"
 write-log "$($OutputFileStatSPOUsr)"
 write-log "$($OutputFileStatODfBSte)"
 write-log "$($OutputFileStatODfBUsr)"
+
 
 ############################################################
 # Get SPO site owners report
@@ -143,11 +145,15 @@ $UriSelect = "id,createdDateTime,webUrl"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Top 999
 $GraphSites = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "Getting SPO sites" -ProgressDots
 foreach ($Site in $GraphSites) {
+	$SiteHostname = ($Site.id.Split(","))[0]
+	$SiteCollectionId = ($Site.id.Split(","))[1]
+	$SiteId = ($Site.id.Split(","))[2]
 	$SiteObject = [pscustomobject]@{
 		id = $Site.id;
 		createdDateTime = $Site.createdDateTime
 	}
 	$GraphSites_DB.Add($Site.webUrl, $SiteObject)
+	$GraphSiteCollURL_DB.Add($SiteCollectionId, $Site.webUrl)
 }
 
 $AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersAllMin -KeyName "userPrincipalName"
@@ -261,12 +267,16 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "reports/getSharePointSiteUsageDetail"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -ReportPeriod "D180"
 Write-Host "Getting per-site SPO statistics..." -NoNewline
-$SharePointSiteUsageDetailReport = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeCSV -ProgressDots
+[array]$SharePointSiteUsageDetailReport = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeCSV -ProgressDots
 
 foreach ($SiteStat in $SharePointSiteUsageDetailReport) {
+	$SiteURL = $null
+	if ($GraphSiteCollURL_DB.ContainsKey($SiteStat."Site Id")) {
+		$SiteURL = $GraphSiteCollURL_DB.Item($SiteStat."Site Id")
+	}
 	$ReportStatsSPOSites += [pscustomobject]@{
         SiteId 				= $SiteStat."Site Id";
-		SiteURL 			= $SiteStat."Site URL";
+		SiteURL 			= $SiteURL;
 		OwnerPrincipalName 	= $SiteStat."Owner Principal Name";
 		OwnerDisplayName 	= $SiteStat."Owner Display Name";
 		IsDeleted 			= $SiteStat."Is Deleted";
@@ -335,8 +345,12 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -ReportPeriod "D180"
 Write-Host "Getting per-site ODfB statistics..." -NoNewline
 $OneDriveUsageAccountDetailReport = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeCSV -ProgressDots
 foreach ($SiteStat in $OneDriveUsageAccountDetailReport) {
+	$SiteURL = $null
+	if ($GraphSiteCollURL_DB.ContainsKey($SiteStat."Site Id")) {
+		$SiteURL = $GraphSiteCollURL_DB.Item($SiteStat."Site Id")
+	}
 	$ReportStatsODfBSites += [pscustomobject]@{
-		SiteURL 			= $SiteStat."Site URL";
+		SiteURL 			= $SiteURL;
 		OwnerPrincipalName 	= $SiteStat."Owner Principal Name";
 		OwnerDisplayName 	= $SiteStat."Owner Display Name";
 		IsDeleted 			= $SiteStat."Is Deleted";
@@ -347,25 +361,24 @@ foreach ($SiteStat in $OneDriveUsageAccountDetailReport) {
 		StorageAllocated 	= $SiteStat."Storage Allocated (Byte)";
     }
 }
-Complete-ProgressBarMain
 Export-Report -Text "per-site ODfB statistic" -Report $ReportStatsODfBSites -SortProperty "UserPrincipalName" -Path $OutputFileStatODfBSte
 
 ############################################################
 # Get per-user ODfB statistics
 ############################################################
-Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+Request-MSALToken -AppRegName $AppReg_SPO_MGMT -TTL 30
 $UriResource = "reports/getOneDriveActivityUserDetail"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -ReportPeriod "D180"
 Write-Host "Getting per-user ODfB statistics..." -NoNewline
-$OneDriveActivityUserDetailReport = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER]AccessToken -ContentType $ContentTypeCSV -ProgressDots
-Initialize-ProgressBarMain -Activity "Building per-site ODfB statistics" -Total $OneDriveActivityUserDetailReport.Count
+$OneDriveActivityUserDetailReport = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_SPO_MGMT].AccessToken -ContentType $ContentTypeCSV -ProgressDots
 foreach ($UserStat in $OneDriveActivityUserDetailReport) {
-	Update-ProgressBarMain
 	$UPN = $UserStat."User Principal Name"
 	if ($AADUsers_DB.ContainsKey($UPN)) {
 		$CurrentUser = $AADUsers_DB.Item($UPN)
-		$mail = $CurrentUser.Mail
-		if ($null -ne $mail) { $maildomain = $mail.Split("@")[1] } else { $maildomain = $null }
+		$maildomain = $null
+		if ($null -ne $CurrentUser.Mail) {
+			$maildomain = $CurrentUser.Mail.Split("@")[1] 
+		} 
 		$ReportStatsODfBUsers += [pscustomobject]@{
 			UPN							= $upn;
 			UPNDomain 					= $upn.Split("@")[1];
@@ -373,7 +386,7 @@ foreach ($UserStat in $OneDriveActivityUserDetailReport) {
 			UserType 					= $CurrentUser.UserType;
 			ServiceAccount 				= Test-IsServiceAccount -Upn $upn;
 			AccountEnabled 				= $CurrentUser.accountEnabled;
-			Mail 						= $mail;
+			Mail 						= $CurrentUser.Mail;
 			Maildomain 					= $maildomain;
 			onPremisesSyncEnabled 		= $CurrentUser.onPremisesSyncEnabled;
 			CompanyName 				= $CurrentUser.CompanyName;
