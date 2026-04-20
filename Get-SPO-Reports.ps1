@@ -41,6 +41,11 @@ $OutputFileSuffixStatODfBUsr 	= "odfb-stats-per-user"
 	"RedirectSite*"
 )
 
+[array]$SiteStats_IgnoredOwners = @(
+	"System Account",
+	"Company Administrator"
+)
+
 #######################################################################################################################
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
@@ -183,70 +188,70 @@ foreach ($Site in $SPOSites) {
 		$createdDateTime = $GraphSites_DB.Item($Site.Url).createdDateTime
 	}
 	$SiteObject = [pscustomobject]@{
-		Title = $Site.Title;
-		Url = $Site.Url;
-		SiteId = $SiteId;
-		Template = $Site.Template;
-		PersonalSite = $PersonalSite;
-		GroupId = $Site.GroupId;
-		HubSiteId = $Site.HubSiteId;
-		Status = $Site.Status;
-		CreatedDateTime = $createdDateTime;
-		LastModifiedDateTime = $Site.LastContentModifiedDate;		
-		AllowDownloadingNonWebViewableFiles = $Site.AllowDownloadingNonWebViewableFiles;
-		AllowEditing = $Site.AllowEditing;
-		AllowSelfServiceUpgrade = $Site.AllowSelfServiceUpgrade;
-		AnonymousLinkExpirationInDays = $Site.AnonymousLinkExpirationInDays;
-		BlockDownloadLinksFileType = $Site.BlockDownloadLinksFileType;
-		CommentsOnSitePagesDisabled = $Site.CommentsOnSitePagesDisabled;
-		CompatibilityLevel = $Site.CompatibilityLevel;
-		ConditionalAccessPolicy = $Site.ConditionalAccessPolicy;
-		DefaultLinkPermission = $Site.DefaultLinkPermission;
-		DefaultLinkToExistingAccess = $Site.DefaultLinkToExistingAccess;
-		DefaultSharingLinkType = $Site.DefaultSharingLinkType;
-		DenyAddAndCustomizePages = $Site.DenyAddAndCustomizePages;
-		Description = $Site.Description;
-		DisableAppViews = $Site.DisableAppViews;
-		DisableCompanyWideSharingLinks = $Site.DisableCompanyWideSharingLinks;
-		DisableFlows = $Site.DisableFlows;
-		DisableSharingForNonOwnersStatus = $Site.DisableSharingForNonOwnersStatus;
-		ExternalUserExpirationInDays = $Site.ExternalUserExpirationInDays;
-		InformationSegment = $Site.InformationSegment;
-		IsHubSite = $Site.IsHubSite;
-		LimitedAccessFileType = $Site.LimitedAccessFileType;
-		LocaleId = $Site.LocaleId;
-		LockIssue = $Site.LockIssue;
-		LockState = $Site.LockState;
-		OverrideTenantAnonymousLinkExpirationPolicy = $Site.OverrideTenantAnonymousLinkExpirationPolicy;
-		OverrideTenantExternalUserExpirationPolicy = $Site.OverrideTenantExternalUserExpirationPolicy;
-		Owner = $Site.Owner;
-		OwnerId = $ownerId;
-		OwnerEmail = $ownerMail;
-		OwnerName = $ownerName;
-		OwnerCompany = $ownerCompany;
-		OwnerDepartment = $ownerDepartment;
-		ProtectionLevelName = $Site.ProtectionLevelName;
-		PWAEnabled = $Site.PWAEnabled;
-		RelatedGroupId = $Site.RelatedGroupId;
-		ResourceQuota = $Site.ResourceQuota;
-		ResourceQuotaWarningLevel = $Site.ResourceQuotaWarningLevel;
-		ResourceUsageAverage = $Site.ResourceUsageAverage;
-		ResourceUsageCurrent = $Site.ResourceUsageCurrent;
-		RestrictedToGeo = $Site.RestrictedToGeo;
-		SandboxedCodeActivationCapability = $Site.SandboxedCodeActivationCapability;
-		SensitivityLabel = $Site.SensitivityLabel;
-		SharingAllowedDomainList = $Site.SharingAllowedDomainList;
-		SharingBlockedDomainList = $Site.SharingBlockedDomainList;
-		SharingCapability = $Site.SharingCapability;
-		SharingDomainRestrictionMode = $Site.SharingDomainRestrictionMode;
-		ShowPeoplePickerSuggestionsForGuestUsers = $Site.ShowPeoplePickerSuggestionsForGuestUsers;
-		SiteDefinedSharingCapability = $Site.SiteDefinedSharingCapability;
-		SocialBarOnSitePagesDisabled = $Site.SocialBarOnSitePagesDisabled;
-		StorageQuota = $Site.StorageQuota;
-		StorageQuotaType = $Site.StorageQuotaType;
-		StorageQuotaWarningLevel = $Site.StorageQuotaWarningLevel;
-		StorageUsageCurrent = $Site.StorageUsageCurrent;
-		WebsCount = $Site.WebsCount;
+		Title = $Site.Title
+		Url = $Site.Url
+		SiteId = $SiteId
+		Template = $Site.Template
+		PersonalSite = $PersonalSite
+		GroupId = $Site.GroupId
+		HubSiteId = $Site.HubSiteId
+		Status = $Site.Status
+		CreatedDateTime = $createdDateTime
+		LastModifiedDateTime = $Site.LastContentModifiedDate		
+		AllowDownloadingNonWebViewableFiles = $Site.AllowDownloadingNonWebViewableFiles
+		AllowEditing = $Site.AllowEditing
+		AllowSelfServiceUpgrade = $Site.AllowSelfServiceUpgrade
+		AnonymousLinkExpirationInDays = $Site.AnonymousLinkExpirationInDays
+		BlockDownloadLinksFileType = $Site.BlockDownloadLinksFileType
+		CommentsOnSitePagesDisabled = $Site.CommentsOnSitePagesDisabled
+		CompatibilityLevel = $Site.CompatibilityLevel
+		ConditionalAccessPolicy = $Site.ConditionalAccessPolicy
+		DefaultLinkPermission = $Site.DefaultLinkPermission
+		DefaultLinkToExistingAccess = $Site.DefaultLinkToExistingAccess
+		DefaultSharingLinkType = $Site.DefaultSharingLinkType
+		DenyAddAndCustomizePages = $Site.DenyAddAndCustomizePages
+		Description = $Site.Description
+		DisableAppViews = $Site.DisableAppViews
+		DisableCompanyWideSharingLinks = $Site.DisableCompanyWideSharingLinks
+		DisableFlows = $Site.DisableFlows
+		DisableSharingForNonOwnersStatus = $Site.DisableSharingForNonOwnersStatus
+		ExternalUserExpirationInDays = $Site.ExternalUserExpirationInDays
+		InformationSegment = $Site.InformationSegment
+		IsHubSite = $Site.IsHubSite
+		LimitedAccessFileType = $Site.LimitedAccessFileType
+		LocaleId = $Site.LocaleId
+		LockIssue = $Site.LockIssue
+		LockState = $Site.LockState
+		OverrideTenantAnonymousLinkExpirationPolicy = $Site.OverrideTenantAnonymousLinkExpirationPolicy
+		OverrideTenantExternalUserExpirationPolicy = $Site.OverrideTenantExternalUserExpirationPolicy
+		Owner = $Site.Owner
+		OwnerId = $ownerId
+		OwnerEmail = $ownerMail
+		OwnerName = $ownerName
+		OwnerCompany = $ownerCompany
+		OwnerDepartment = $ownerDepartment
+		ProtectionLevelName = $Site.ProtectionLevelName
+		PWAEnabled = $Site.PWAEnabled
+		RelatedGroupId = $Site.RelatedGroupId
+		ResourceQuota = $Site.ResourceQuota
+		ResourceQuotaWarningLevel = $Site.ResourceQuotaWarningLevel
+		ResourceUsageAverage = $Site.ResourceUsageAverage
+		ResourceUsageCurrent = $Site.ResourceUsageCurrent
+		RestrictedToGeo = $Site.RestrictedToGeo
+		SandboxedCodeActivationCapability = $Site.SandboxedCodeActivationCapability
+		SensitivityLabel = $Site.SensitivityLabel
+		SharingAllowedDomainList = $Site.SharingAllowedDomainList
+		SharingBlockedDomainList = $Site.SharingBlockedDomainList
+		SharingCapability = $Site.SharingCapability
+		SharingDomainRestrictionMode = $Site.SharingDomainRestrictionMode
+		ShowPeoplePickerSuggestionsForGuestUsers = $Site.ShowPeoplePickerSuggestionsForGuestUsers
+		SiteDefinedSharingCapability = $Site.SiteDefinedSharingCapability
+		SocialBarOnSitePagesDisabled = $Site.SocialBarOnSitePagesDisabled
+		StorageQuota = $Site.StorageQuota
+		StorageQuotaType = $Site.StorageQuotaType
+		StorageQuotaWarningLevel = $Site.StorageQuotaWarningLevel
+		StorageUsageCurrent = $Site.StorageUsageCurrent
+		WebsCount = $Site.WebsCount
 	}
 	if ($PersonalSite) {
 		$ReportODfBSites += $SiteObject
@@ -271,22 +276,28 @@ Write-Host "Getting per-site SPO statistics..." -NoNewline
 
 foreach ($SiteStat in $SharePointSiteUsageDetailReport) {
 	$SiteURL = $null
+	if ($SiteStat."Owner Display Name" -in $SiteStats_IgnoredOwners) {
+		continue
+	}
+	if ($SiteStat."Is Deleted") {
+		continue
+	}
 	if ($GraphSiteCollURL_DB.ContainsKey($SiteStat."Site Id")) {
 		$SiteURL = $GraphSiteCollURL_DB.Item($SiteStat."Site Id")
 	}
 	$ReportStatsSPOSites += [pscustomobject]@{
-        SiteId 				= $SiteStat."Site Id";
-		SiteURL 			= $SiteURL;
-		OwnerPrincipalName 	= $SiteStat."Owner Principal Name";
-		OwnerDisplayName 	= $SiteStat."Owner Display Name";
-		IsDeleted 			= $SiteStat."Is Deleted";
-		LastActivityDate 	= $SiteStat."Last Activity Date";
-		FileCount 			= $SiteStat."File Count";
-		ActiveFileCount 	= $SiteStat."Active File Count";
-		PageViewCount 		= $SiteStat."Page View Count";
-		VisitedPageCount 	= $SiteStat."Visited Page Count";
-		StorageUsed 		= $SiteStat."Storage Used (Byte)";
-		StorageAllocated 	= $SiteStat."Storage Allocated (Byte)";
+        SiteId 				= $SiteStat."Site Id"
+		SiteURL 			= $SiteURL
+		OwnerPrincipalName 	= $SiteStat."Owner Principal Name"
+		OwnerDisplayName 	= $SiteStat."Owner Display Name"
+		IsDeleted 			= $SiteStat."Is Deleted"
+		LastActivityDate 	= $SiteStat."Last Activity Date"
+		FileCount 			= $SiteStat."File Count"
+		ActiveFileCount 	= $SiteStat."Active File Count"
+		PageViewCount 		= $SiteStat."Page View Count"
+		VisitedPageCount 	= $SiteStat."Visited Page Count"
+		StorageUsed 		= $SiteStat."Storage Used (Byte)"
+		StorageAllocated 	= $SiteStat."Storage Allocated (Byte)"
 		RootWebTemplate 	= $SiteStat."Root Web Template"
     }
 }
@@ -313,23 +324,23 @@ foreach ($UserStat in $SharePointActivityUserDetailReport) {
 			$maildomain = $null 
 		}
 		$ReportStatsSPOUsers += [pscustomobject]@{
-			UPN							= $upn;
-			UPNDomain 					= $upn.Split("@")[1];
-			DisplayName 				= $CurrentUser.DisplayName;
-			UserType 					= $CurrentUser.UserType;
-			ServiceAccount 				= Test-IsServiceAccount -Upn $upn;
-			AccountEnabled 				= $CurrentUser.accountEnabled;
-			Mail 						= $mail;
-			Maildomain 					= $maildomain;
-			onPremisesSyncEnabled 		= $CurrentUser.onPremisesSyncEnabled;
-			CompanyName 				= $CurrentUser.CompanyName;
-			LastActivityDate 			= $UserStat."Last Activity Date";
-			IsOfficeLicensed 			= Test-ContainsOfficeLicense -LicenseString $UserStat."Assigned Products";
-			ViewedOrEditedFileCount 	= $UserStat."Viewed Or Edited File Count";
-			SyncedFileCount 			= $UserStat."Synced File Count";
-			SharedInternallyFileCount	= $UserStat."Shared Internally File Count";
-			SharedExternallyFileCount	= $UserStat."Shared Externally File Count";
-			VisitedPageCount			= $UserStat."Visited Page Count";
+			UPN							= $upn
+			UPNDomain 					= $upn.Split("@")[1]
+			DisplayName 				= $CurrentUser.DisplayName
+			UserType 					= $CurrentUser.UserType
+			ServiceAccount 				= Test-IsServiceAccount -Upn $upn
+			AccountEnabled 				= $CurrentUser.accountEnabled
+			Mail 						= $mail
+			Maildomain 					= $maildomain
+			onPremisesSyncEnabled 		= $CurrentUser.onPremisesSyncEnabled
+			CompanyName 				= $CurrentUser.CompanyName
+			LastActivityDate 			= $UserStat."Last Activity Date"
+			IsOfficeLicensed 			= Test-ContainsOfficeLicense -LicenseString $UserStat."Assigned Products"
+			ViewedOrEditedFileCount 	= $UserStat."Viewed Or Edited File Count"
+			SyncedFileCount 			= $UserStat."Synced File Count"
+			SharedInternallyFileCount	= $UserStat."Shared Internally File Count"
+			SharedExternallyFileCount	= $UserStat."Shared Externally File Count"
+			VisitedPageCount			= $UserStat."Visited Page Count"
 			AssignedProducts 			= $UserStat."Assigned Products"
 		}
 	}
@@ -346,19 +357,22 @@ Write-Host "Getting per-site ODfB statistics..." -NoNewline
 $OneDriveUsageAccountDetailReport = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeCSV -ProgressDots
 foreach ($SiteStat in $OneDriveUsageAccountDetailReport) {
 	$SiteURL = $null
+	if ($SiteStat."Is Deleted") {
+		continue
+	}
 	if ($GraphSiteCollURL_DB.ContainsKey($SiteStat."Site Id")) {
 		$SiteURL = $GraphSiteCollURL_DB.Item($SiteStat."Site Id")
 	}
 	$ReportStatsODfBSites += [pscustomobject]@{
-		SiteURL 			= $SiteURL;
-		OwnerPrincipalName 	= $SiteStat."Owner Principal Name";
-		OwnerDisplayName 	= $SiteStat."Owner Display Name";
-		IsDeleted 			= $SiteStat."Is Deleted";
-		LastActivityDate 	= $SiteStat."Last Activity Date";
-		FileCount 			= $SiteStat."File Count";
-		ActiveFileCount 	= $SiteStat."Active File Count";
-		StorageUsed 		= $SiteStat."Storage Used (Byte)";
-		StorageAllocated 	= $SiteStat."Storage Allocated (Byte)";
+		SiteURL 			= $SiteURL
+		OwnerPrincipalName 	= $SiteStat."Owner Principal Name"
+		OwnerDisplayName 	= $SiteStat."Owner Display Name"
+		IsDeleted 			= $SiteStat."Is Deleted"
+		LastActivityDate 	= $SiteStat."Last Activity Date"
+		FileCount 			= $SiteStat."File Count"
+		ActiveFileCount 	= $SiteStat."Active File Count"
+		StorageUsed 		= $SiteStat."Storage Used (Byte)"
+		StorageAllocated 	= $SiteStat."Storage Allocated (Byte)"
     }
 }
 Export-Report -Text "per-site ODfB statistic" -Report $ReportStatsODfBSites -SortProperty "UserPrincipalName" -Path $OutputFileStatODfBSte
@@ -380,22 +394,22 @@ foreach ($UserStat in $OneDriveActivityUserDetailReport) {
 			$maildomain = $CurrentUser.Mail.Split("@")[1] 
 		} 
 		$ReportStatsODfBUsers += [pscustomobject]@{
-			UPN							= $upn;
-			UPNDomain 					= $upn.Split("@")[1];
-			DisplayName 				= $CurrentUser.DisplayName;
-			UserType 					= $CurrentUser.UserType;
-			ServiceAccount 				= Test-IsServiceAccount -Upn $upn;
-			AccountEnabled 				= $CurrentUser.accountEnabled;
-			Mail 						= $CurrentUser.Mail;
-			Maildomain 					= $maildomain;
-			onPremisesSyncEnabled 		= $CurrentUser.onPremisesSyncEnabled;
-			CompanyName 				= $CurrentUser.CompanyName;
-			LastActivityDate 			= $UserStat."Last Activity Date";
-			IsOfficeLicensed 			= Test-ContainsOfficeLicense -LicenseString $UserStat."Assigned Products";
-			ViewedOrEditedFileCount 	= $UserStat."Viewed Or Edited File Count";
-			SyncedFileCount 			= $UserStat."Synced File Count";
-			SharedInternallyFileCount	= $UserStat."Shared Internally File Count";
-			SharedExternallyFileCount	= $UserStat."Shared Externally File Count";
+			UPN							= $upn
+			UPNDomain 					= $upn.Split("@")[1]
+			DisplayName 				= $CurrentUser.DisplayName
+			UserType 					= $CurrentUser.UserType
+			ServiceAccount 				= Test-IsServiceAccount -Upn $upn
+			AccountEnabled 				= $CurrentUser.accountEnabled
+			Mail 						= $CurrentUser.Mail
+			Maildomain 					= $maildomain
+			onPremisesSyncEnabled 		= $CurrentUser.onPremisesSyncEnabled
+			CompanyName 				= $CurrentUser.CompanyName
+			LastActivityDate 			= $UserStat."Last Activity Date"
+			IsOfficeLicensed 			= Test-ContainsOfficeLicense -LicenseString $UserStat."Assigned Products"
+			ViewedOrEditedFileCount 	= $UserStat."Viewed Or Edited File Count"
+			SyncedFileCount 			= $UserStat."Synced File Count"
+			SharedInternallyFileCount	= $UserStat."Shared Internally File Count"
+			SharedExternallyFileCount	= $UserStat."Shared Externally File Count"
 			AssignedProducts 			= $UserStat."Assigned Products"
 		}
 	}
