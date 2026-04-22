@@ -1,5 +1,5 @@
 #######################################################################################################################
-# New-AAD-Guest
+# Add-GroupMembership.ps1
 #######################################################################################################################
 param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
@@ -10,7 +10,7 @@ param(
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Init.ps1
 
 if (-not $SourceFile) {
     if (-not ($GroupId -and $Members)){
@@ -19,7 +19,6 @@ if (-not $SourceFile) {
     }
 }
 
-
 #######################################################################################################################
 
 $LogFolder			= "aad-group-mgmt"
@@ -27,7 +26,7 @@ $LogFilePrefix		= "add-group-membership"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
