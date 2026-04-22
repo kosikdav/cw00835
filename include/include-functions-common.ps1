@@ -1038,9 +1038,9 @@ function Get-GraphOutputREST {
 						[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 						Try {
 							if ((Get-Host).Version.Major -ge 7) {
-								$Query = Invoke-RestMethod -Headers $Headers -Uri $GraphUri -Method "GET" -ContentType "application/json" -ResponseHeadersVariable ResponseHeaders -ErrorAction Stop -WarningAction Stop
+								$Query = Invoke-RestMethod -Headers $Headers -Uri $GraphUri -Method "GET" -ContentType "application/json; charset=utf-8" -ResponseHeadersVariable ResponseHeaders -ErrorAction Stop -WarningAction Stop
 							} else {
-								$Query = Invoke-RestMethod -Headers $Headers -Uri $GraphUri -Method "GET" -ContentType "application/json" -ErrorAction Stop -WarningAction Stop
+								$Query = Invoke-RestMethod -Headers $Headers -Uri $GraphUri -Method "GET" -ContentType "application/json; charset=utf-8" -ErrorAction Stop -WarningAction Stop
 							}
 							if ($Query.Value) {
 									$Result += $Query.Value
@@ -1114,7 +1114,9 @@ function Get-GraphOutputREST {
 			}
 			"text/csv" { 
 				[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-				$Query = Invoke-RestMethod -Uri $GraphUri -Headers $Headers -Method "GET" -ContentType "text/csv" -ErrorAction Stop -WarningAction Stop
+				
+				$Query = Invoke-RestMethod -Uri $GraphUri -Headers $Headers -Method "GET" -ContentType "text/csv; charset=utf-8" -ErrorAction Stop -WarningAction Stop
+				
 				$Result = ConvertFrom-Csv -InputObject $Query
 				if ($ProgressDots -and $interactiveRun -and (-Not $Silent)) {
 					Write-Host "..." -NoNewline

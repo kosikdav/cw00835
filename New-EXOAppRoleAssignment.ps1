@@ -19,9 +19,8 @@ $AADConnected = $false
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 
-. $ScriptPath\include-Var-Define.ps1
-. $ScriptPath\include-Var-Init.ps1
-. $ScriptPath\include-Functions-Common.ps1
+. $ScriptPath\include-Script-Start-Init.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 [hashtable]$AADSPDB_ByAppId = @{}
 [hashtable]$AADSPDB_ByObjectId = @{}

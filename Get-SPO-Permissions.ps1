@@ -23,7 +23,7 @@ foreach ($Site in $Sites) {
 	$Site_DB.Add($Site.webUrl,$Site.id)
 }
 
-if $Site_DB.ContainsKey($Url) {
+if ($Site_DB.ContainsKey($Url)) {
 	$SiteId = $Site_DB[$Url]
 } else {
 	write-host "Site $Url not found" -ForegroundColor Red

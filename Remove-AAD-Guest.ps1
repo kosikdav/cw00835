@@ -10,7 +10,7 @@ param(
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Init.ps1
 
 if (-not $SourceFile) {
     if (-not ($Mail -or $Identity)) {
@@ -26,7 +26,7 @@ $LogFilePrefix		= "remove-aad-guest"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 

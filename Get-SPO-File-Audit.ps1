@@ -55,7 +55,8 @@ $OutputFileSuffixCPR = "access-cpr"
     "https://cezdata.sharepoint.com/sites/TMS_CPR_Odbor_SSV_komodity",
     "https://cezdata.sharepoint.com/sites/ECC_Comdata",
     "https://cezdata.sharepoint.com/sites/TMS_CPR_CP",
-    "https://cezdata.sharepoint.com/sites/TMS_CPR_Odbor_Kreditni_riziko"
+    "https://cezdata.sharepoint.com/sites/TMS_CPR_Odbor_Kreditni_riziko",
+    "https://cezdata.sharepoint.com/sites/ext_prodej"
 )
 
 . $ScriptPath\include-Script-StdIncBlock.ps1
