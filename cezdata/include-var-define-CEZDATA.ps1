@@ -250,6 +250,7 @@ $TMS_CloudPoradna_TagName_Azure = "Azure"
 $knownServiceAccountPrefixes    = @("Q1","QB","QE","QL","QN","QP")
 $NoExtSharingAccountPrefixes    = @("Q1","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QR","QS","QU","QW","QY","QZ")
 $NoMFAPhoneMgmtAccountPrefixes  = @("Q1","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QR","QS","QU","QW","QY","QZ")
+$NoT2TAccountPrefixes           = @("Q1","QA","QB","QD","QE","QF","QG","QK","QL","QN","QP","QQ","QR","QS","QT","QU","QW","QY","QZ")
 $NoPIMAccountPrefixes           = @("QP","QA","QB","QD","QE","QF","QG","QL","QN","QP","QQ","QW","QY","QZ")
 
 $NoPIMAdminRoles = (
