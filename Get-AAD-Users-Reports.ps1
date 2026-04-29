@@ -378,4 +378,4 @@ Export-Report -Text "AAD users report (Copilot lic)" -Report $CopilotLicenseRepo
 
 #######################################################################################################################
 
-. $IncFile_StdLogStartBlock
+. $IncFile_StdLogEndBlock

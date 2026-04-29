@@ -95,7 +95,7 @@ function New-OutputFile {
 		[string]$Folder,
 		[parameter(Mandatory = $true)][string]$Prefix,
 		[string]$Suffix,
-		[string][ValidateSet("Y","YM","YMD","YMDH","YMDHM")]$Freq,
+		[string][ValidateSet("Y","YM","YMD","YMDH","YMDHM","YMDHMS")]$Freq,
 		[switch]$NoDate,
 		[string]$SpecificDate,
 		[parameter(Mandatory = $true)][string][ValidateSet("LOG","CSV")]$Ext,
