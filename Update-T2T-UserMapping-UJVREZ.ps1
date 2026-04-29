@@ -115,7 +115,7 @@ $Uri = New-GraphUri -Resource $UriResource -Version "v1.0" -Select $UriSelect -F
 [array]$DstAADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Dst_AppReg_LOG_READER].AccessToken -ProgressDots -Text "DST AAD users"
 write-host "CEZDATA AAD users: $($DstAADUsers.count)"
 $DstAADUsers = $DstAADUsers | Where-Object { $_.onpremisesSamAccountName -notlike 'Q*' }
-write-host "CEZDATA AAD users (Q): $($DstAADUsers.count)"
+write-host "CEZDATA AAD users - (filtered out Q?): $($DstAADUsers.count)"
 
 write-host "CEZDATA AAD users - adding OU property..." -NoNewline
 foreach ($user in $DstAADUsers) {    
@@ -199,8 +199,8 @@ foreach ($user in $SrcAADUsers) {
 							$currentExt10 = "<empty>"
 						}
 						try {
-							#Set-ADUser -Identity $DstUser.onPremisesSamAccountName -Replace @{extensionAttribute10 = $user.$Src_PN_attr} -Credential $ADCredential
-							Write-Log "UPDATING:  $($user.userPrincipalName) ($($user.displayName)) PN:$($user.$Src_PN_attr) - $($DstUser.userPrincipalName) $($DstUser.onPremisesSamAccountName) $($currentExt10) -> $($user.$Src_PN_attr)" -ForegroundColor Yellow
+							Set-ADUser -Identity $DstUser.onPremisesSamAccountName -Replace @{extensionAttribute10 = $user.$Src_PN_attr} -Credential $ADCredential
+							Write-Log "UPDATING:  $($user.userPrincipalName) ($($user.displayName)) PN:$($user.$Src_PN_attr) - $($DstUser.userPrincipalName) $($DstUser.onPremisesSamAccountName) ext10:$($currentExt10) -> $($user.$Src_PN_attr)" -ForegroundColor Yellow
 							$ReportObject.OldExt10 = $currentExt10
 							$ReportObject.NewExt10 = $user.$Src_PN_attr
 							$ReportObject.Result = "UPDATED"
