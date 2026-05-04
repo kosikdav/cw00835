@@ -326,49 +326,52 @@ write-host $string_divider
 #######################################################################################################################
 write-log "DST MAPPING" -ForegroundColor Cyan
 #check duplicates in ext10 before proceeding
-write-host "DST AD users - checking duplicate ext10..." -NoNewline
-$DstExt10Users = Get-ADUser -Filter {extensionAttribute10 -like "*"} -SearchBase "OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp" -Properties extensionAttribute10 -Credential $ADCredential
-$duplicateUsers = $DstExt10Users | Group-Object -Property "extensionAttribute10" | Where-Object { $_.Count -gt 1 }
-foreach ($group in $duplicateUsers) {
-	write-host "Duplicate ext10: $($group.Name) - Count: $($group.Count)"
-	foreach ($user in $group.Group) {
-		write-host "  User: $($user.DisplayName) - UPN: $($user.UserPrincipalName)"
+
+if ($countSRCUpdated -gt 0) {
+	write-host "DST AD users - checking duplicate ext10..." -NoNewline
+	$DstExt10Users = Get-ADUser -Filter {extensionAttribute10 -like "*"} -SearchBase "OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp" -Properties extensionAttribute10 -Credential $ADCredential
+	$duplicateUsers = $DstExt10Users | Group-Object -Property "extensionAttribute10" | Where-Object { $_.Count -gt 1 }
+	foreach ($group in $duplicateUsers) {
+		write-host "Duplicate ext10: $($group.Name) - Count: $($group.Count)"
+		foreach ($user in $group.Group) {
+			write-host "  User: $($user.DisplayName) - UPN: $($user.UserPrincipalName)"
+		}
+		exit
 	}
-	exit
-}
-write-host "done"
+	write-host "done"
+	#read DST AD users and filter only those with enabled account
+	write-host "DST AD users..." -NoNewline
+	$DstADUsers = Get-ADUser -Filter {Enabled -eq $true -and ObjectClass -eq "user"} -SearchBase "OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp" -Properties displayName,mail,extensionAttribute10,employeeNumber,employeeId,msExchExtensionAttribute40 -Credential $ADCredential | Select-Object userPrincipalName,displayName,samAccountName,extensionAttribute10,employeeId,employeeNumber,msExchExtensionAttribute40,DistinguishedName
+	write-host "done ($($DstADUsers.count))"
 
-#read DST AD users and filter only those with enabled account
-write-host "DST AD users..." -NoNewline
-$DstADUsers = Get-ADUser -Filter {Enabled -eq $true -and ObjectClass -eq "user"} -SearchBase "OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp" -Properties displayName,mail,extensionAttribute10,employeeNumber,employeeId,msExchExtensionAttribute40 -Credential $ADCredential | Select-Object userPrincipalName,displayName,samAccountName,extensionAttribute10,employeeId,employeeNumber,msExchExtensionAttribute40,DistinguishedName
-write-host "done ($($DstADUsers.count))"
+	#filter out users with samAccountName starting with Q
+	$DstADUsers = $DstADUsers | Where-Object { $_.SamAccountName -notlike 'Q*' }
+	write-host "DST AD users - (filtered out Q?): $($DstADUsers.count)"
 
-#filter out users with samAccountName starting with Q
-$DstADUsers = $DstADUsers | Where-Object { $_.SamAccountName -notlike 'Q*' }
-write-host "DST AD users - (filtered out Q?): $($DstADUsers.count)"
-
-#OU property to each user object by parsing it from DistinguishedName, we will need it for filtering users by OU and for reporting
-write-host "DST AD users - adding OU property..." -NoNewline
-foreach ($user in $DstADUsers) {    
-	$user | Add-Member -NotePropertyName 'OU' -NotePropertyValue ( $user.DistinguishedName -replace '^CN=[^,]+,' )
-}
-write-host "done"
-
-#filter out only users from specific OUs
-$DstADUsers = $DstADUsers | Where-Object { $_.OU -in $Dst_AD_OU_list }
-write-host "DST AD users (filtered by OU): $($DstADUsers.count)"
-
-#check if we have duplicate employeeNumber in DST AD users, if yes, we cannot proceed as the mapping is based on employeeNumber and it must be unique
-write-host "DST AD users - checking duplicate employeeNumber..." -NoNewline
-$duplicateUsers = $DstADUsers | Group-Object -Property "employeeNumber" | Where-Object { $_.Count -gt 1 }
-foreach ($group in $duplicateUsers) {
-	write-host "Duplicate CEZ_pn: $($group.Name) - Count: $($group.Count)"
-	foreach ($user in $group.Group) {
-		write-host "  User: $($user.DisplayName) - UPN: $($user.UserPrincipalName) - OU: $($user.OU)"
+	#OU property to each user object by parsing it from DistinguishedName, we will need it for filtering users by OU and for reporting
+	write-host "DST AD users - adding OU property..." -NoNewline
+	foreach ($user in $DstADUsers) {    
+		$user | Add-Member -NotePropertyName 'OU' -NotePropertyValue ( $user.DistinguishedName -replace '^CN=[^,]+,' )
 	}
-	exit
+	write-host "done"
+
+	#filter out only users from specific OUs
+	$DstADUsers = $DstADUsers | Where-Object { $_.OU -in $Dst_AD_OU_list }
+	write-host "DST AD users (filtered by OU): $($DstADUsers.count)"
+
+	#check if we have duplicate employeeNumber in DST AD users, if yes, we cannot proceed as the mapping is based on employeeNumber and it must be unique
+	write-host "DST AD users - checking duplicate employeeNumber..." -NoNewline
+	$duplicateUsers = $DstADUsers | Group-Object -Property "employeeNumber" | Where-Object { $_.Count -gt 1 }
+	foreach ($group in $duplicateUsers) {
+		write-host "Duplicate CEZ_pn: $($group.Name) - Count: $($group.Count)"
+		foreach ($user in $group.Group) {
+			write-host "  User: $($user.DisplayName) - UPN: $($user.UserPrincipalName) - OU: $($user.OU)"
+		}
+		exit
+	}
+	write-host "done"
 }
-write-host "done"
+
 $CountDSTNoMapping = 0
 $UsersByKIP = $DstADUsers | Group-Object -Property "employeeId"
 foreach ($group in $UsersByKIP) {
@@ -389,10 +392,9 @@ foreach ($group in $UsersByKIP) {
 
 #######################################################################################################################
 
-Export-Report -Text "SRC - T2T user mapping report UJVREZ-CEZDATA" -Report $MappingReportSRC -Path $OutputFileSRC -SortProperty "UJV_UPN"
-Export-Report -Text "SRC - T2T user mapping SGUM file UJVREZ-CEZDATA" -Report $SGUMReport -Path $SGUMFile
 Write-Host
-Write-Log "SRC mapping summary" -ForegroundColor Cyan
+Write-Log "SRC mapping summary:" -ForegroundColor Cyan
+Write-Log "----------------------------" -ForegroundColor Cyan
 Write-Log "Total:     $countSRCTotal"
 Write-Log "OK:        $($countSRCOK) $(($countSRCOK/$countSRCTotal*100).ToString("##.##"))%" -foregroundcolor green
 Write-Log "Updated:   $($countSRCUpdated) $(($countSRCUpdated/$countSRCTotal*100).ToString("##.##"))%" -foregroundcolor yellow
@@ -401,11 +403,15 @@ Write-Log "NoMapping: $($countSRCNoMapping) $(($countSRCNoMapping/$countSRCTotal
 Write-Log "MailErr:   $($countSRCMailErr) $(($countSRCMailErr/$countSRCTotal*100).ToString("##.##"))%" -foregroundcolor darkcyan
 Write-Host
 
-
-Export-Report -Text "DST - users without mapping UJVREZ-CEZDATA by KIP" -Report $MappingReportDST -Path $OutputFileDST -SortProperty "displayName"
-Write-Log "DST mapping summary" -ForegroundColor Cyan
+Write-Log "DST mapping summary:" -ForegroundColor Cyan
+Write-Log "----------------------------" -ForegroundColor Cya
 Write-Log "Total:     $($DstADUsers.count)"
 Write-Log "NoMapping: $($CountDSTNoMapping) $(($CountDSTNoMapping/$DstADUsers.count*100).ToString("##.##"))%" -foregroundcolor darkyellow
+Write-Host
+
+Export-Report -Text "SRC - T2T user mapping report UJVREZ-CEZDATA" -Report $MappingReportSRC -Path $OutputFileSRC -SortProperty "UJV_UPN"
+Export-Report -Text "SRC - T2T user mapping SGUM file UJVREZ-CEZDATA" -Report $SGUMReport -Path $SGUMFile
+Export-Report -Text "DST - users without mapping UJVREZ-CEZDATA by KIP" -Report $MappingReportDST -Path $OutputFileDST -SortProperty "displayName"
 
 #######################################################################################################################
 
