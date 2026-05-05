@@ -159,6 +159,7 @@ $Properties = @(
 	'mail',
 	'distinguishedName',
 	'samAccountName',
+	'userPrincipalName',
 	'extensionAttribute10',
 	'employeeId',
 	'employeeNumber',
@@ -220,6 +221,7 @@ foreach ($user in $DstADUsers) {
 		samAccountName = $user.samAccountName
 		ext10 = $user.extensionAttribute10
 		employeeNumber = $user.employeeNumber
+		employeeId = $user.employeeId
 		mail = $user.mail
 		mailAD40 = $user.msExchExtensionAttribute40
 	}
@@ -253,6 +255,7 @@ foreach ($user in $SrcAADUsers) {
 			CEZ_mail = $null
 			CEZ_samAccountName = $null
 			CEZ_PN = $null
+			CEZ_KIP = $null
 			OldExt10 = $null
 			NewExt10 = $null
 			CEZ_mailAD40 = $null
@@ -269,6 +272,7 @@ foreach ($user in $SrcAADUsers) {
 				$ReportObject.CEZ_mail = $DstUser.mailAD40
 				$ReportObject.CEZ_samAccountName = $DstUser.SamAccountName
 				$ReportObject.CEZ_PN = $DstUser.employeeNumber
+				$ReportObject.CEZ_KIP = $DstUser.employeeId
 				$ReportObject.CEZ_mailAD40 = $DstUser.mailAD40
 				if ($DstUser.mailAD40 -and ($DstUser.mailAD40 -eq $user.mail)) {
 					$ReportObject.mailAD40match = "YES"
