@@ -56,7 +56,6 @@ function Set-TempVars {
 	}
 }
 
-
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
@@ -67,7 +66,7 @@ Write-Log "Getting AAD groups report as of: $(Get-Date -Format "yyyy-MM-dd HH:MM
 
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "groups"
-$Uriselect = "id,displayName,mailEnabled,securityEnabled,mail,onPremisesSyncEnabled,groupTypes,resourceProvisioningOptions,isAssignableToRole"
+$Uriselect = "id,displayName,createdDateTime,mailEnabled,securityEnabled,mail,onPremisesSyncEnabled,onPremisesSamAccountName,onPremisesSecurityIdentifier,groupTypes,resourceProvisioningOptions,isAssignableToRole"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $Uriselect
 [array]$AADGroups = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "Getting AAD groups" -ProgressDots
 
@@ -174,6 +173,8 @@ ForEach ($Group in $AADGroups) {
 		Unified				= $GroupIsUnified
 		Team 				= $GroupIsTeam
 		SyncedFromAD		= $Group.onPremisesSyncEnabled
+		SamAccountName 		= $Group.onPremisesSamAccountName
+		SID 				= $Group.onPremisesSecurityIdentifier
 		Members				= $MemberCount
 		Owners				= $OwnerCount
 	}

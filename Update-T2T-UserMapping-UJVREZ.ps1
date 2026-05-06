@@ -7,6 +7,7 @@ param(
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-Start-Generic.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFolder				= "t2t-ujvrez"
 $LogFilePrefix			= "user-mapping"
@@ -15,11 +16,63 @@ $OutputFilePrefix		= "user-mapping"
 $OutputFileSuffixSRC 	= "src"
 $OutputFileSuffixDST 	= "dst-no-mapping"
 
+$MappingCSV_ALL_FilePath 		= "d:\data\t2t-ujvrez\userMapping.csv"
+$MappingCSV_ENGPRAHA_FilePath 	= "d:\data\t2t-ujvrez\userMapping-engpraha.csv"
+$MappingCSV_NQSAFE_FilePath 	= "d:\data\t2t-ujvrez\userMapping-nqsafe.csv"
+
 $SGUMFolder				= $OutputFolder+"\sgum"
 
-#######################################################################################################################
+$MailErrIgnore = $false
 
-. $ScriptPath\include-Script-Start-Include.ps1
+$Src_map_attr = "UJV_pn"
+$Dst_map_attr = "CEZ_pn"
+$Src_PN_attr = "extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
+$Dst_PN_attr = "employeeNumber"
+$Dst_mailAD40 = "msExchExtensionAttribute40"
+
+$Dst_AD_OU_list = @(
+	"OU=CVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
+	"OU=RadioMedic,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
+	"OU=EGP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
+	"OU=EngineeringPraha,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
+	"OU=iCVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",	
+	"OU=NQ-Safe,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
+	"OU=UJVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
+	"OU=VZUP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp"
+)
+
+$DstADUserProperties = @(
+	'displayName',
+	'mail',
+	'distinguishedName',
+	'samAccountName',
+	'userPrincipalName',
+	'extensionAttribute10',
+	'employeeId',
+	$Dst_PN_attr,
+	$Dst_mailAD40
+)
+
+$DstADSearchBaseAll  = "OU=uzivatele,DC=cezdata,DC=corp"
+$DstADSearchBaseSKC  = "OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp"
+
+$Src_AppReg_LOG_READER 			= $AppReg_UJVREZ_LOG_READER
+$Src_AppReg_EXO_MGMT 			= $AppReg_UJVREZ_EXO_MGMT   
+$Src_T2T_EXO_MIGRATION_GROUP 	= $UJVREZ_T2T_EXO_MIGRATION_GROUP
+
+$Dst_AppReg_LOG_READER 			= $AppReg_CEZDATA_LOG_READER
+$Dst_AppReg_EXO_MGMT 			= $AppReg_CEZDATA_EXO_MGMT   
+
+$CommonEntraAttributes = "id,userPrincipalName,displayName,onPremisesSamAccountName,mail"
+
+[array]$MappingReportSRC = @()
+[array]$MappingReportDST = @()
+[array]$SGUMReport = @()
+
+[hashtable]$mapping_DB = @{}
+[hashtable]$Dst_UserDB_per_pn = @{}
+
+#######################################################################################################################
 
 $LogFile 	= New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 $OutputFileSRC	= New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixSRC -Ext "csv" -Freq "YMDHMS"
@@ -36,49 +89,30 @@ else {
 	$ADCredentialPath = $aad_grp_mgmt_cred
 }
 
-$MappingCSV_ALL_FilePath = "d:\data\t2t-ujvrez\userMapping.csv"
-$MappingCSV_ENGPRAHA_FilePath = "d:\data\t2t-ujvrez\userMapping-engpraha.csv"
-
-$Dst_AD_OU_list = @(
-	"OU=CVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=EGP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=EngineeringPraha,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=iCVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",	
-	"OU=NQ-Safe,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=UJVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=VZUP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp"
-)
-
-$Dst_ADSearchBaseAll  = "OU=uzivatele,DC=cezdata,DC=corp"
-$Dst_ADSearchBaseSKC  = "OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp"
-
-$Src_AppReg_LOG_READER 			= $AppReg_UJVREZ_LOG_READER
-$Src_AppReg_EXO_MGMT 			= $AppReg_UJVREZ_EXO_MGMT   
-$Src_T2T_EXO_MIGRATION_GROUP 	= $UJVREZ_T2T_EXO_MIGRATION_GROUP
-
-$Dst_AppReg_LOG_READER 			= $AppReg_CEZDATA_LOG_READER
-$Dst_AppReg_EXO_MGMT 			= $AppReg_CEZDATA_EXO_MGMT   
-
-$Src_map_attr = "UJV_pn"
-$Dst_map_attr = "CEZ_pn"
-$Src_PN_attr = "extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
-$Dst_PN_attr = "employeeNumber"
-$Dst_mailAD40 = "msExchExtensionAttribute40"
-
-$CommonEntraAttributes = "id,userPrincipalName,displayName,onPremisesSamAccountName,mail"
-
-[array]$MappingReportSRC = @()
-[array]$MappingReportDST = @()
-[array]$SGUMReport = @()
-
-[hashtable]$mapping_DB = @{}
-[hashtable]$Dst_UserDB_per_pn = @{}
-
 $ADCredential = Import-Clixml -Path $ADCredentialPath
+
+$DstGetADUserParams = @{
+	Filter = "Enabled -eq `$true -and ObjectClass -eq 'user'"
+	SearchBase = $DstADSearchBaseAll
+	Properties = $DstADUserProperties
+	Credential = $ADCredential
+}
 
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
+
+Write-Log "SGUMFolder: $SGUMFolder"
+Write-Log "MailErrIgnore: $MailErrIgnore"
+Write-Log "DstADSearchBaseAll: $DstADSearchBaseAll"
+Write-Log "DstADSearchBaseSKC: $DstADSearchBaseSKC"
+Write-Log "Src_map_attr: $Src_map_attr"
+Write-Log "Dst_map_attr: $Dst_map_attr"
+Write-Log "Src_PN_attr: $Src_PN_attr"
+Write-Log "Dst_PN_attr: $Dst_PN_attr"
+Write-Log "Dst_mailAD40: $Dst_mailAD40"
+
+write-log $string_divider
 
 write-log "SRC MAPPING" -ForegroundColor Cyan
 Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
@@ -88,8 +122,9 @@ Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 #######################################################################################################################
 [array]$userMappingALL = Import-CSVtoArray -Path $MappingCSV_ALL_FilePath
 [array]$userMappingENGPRAHA = Import-CSVtoArray -Path $MappingCSV_ENGPRAHA_FilePath
+[array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
 
-$userMapping = $userMappingALL + $userMappingENGPRAHA
+$userMapping = $userMappingALL + $userMappingENGPRAHA + $userMappingNQSAFE
 
 write-host "User mapping: $($userMapping.count)"
 $userMapping = $userMapping | Where-Object { $_.prio -eq 1 }
@@ -154,24 +189,7 @@ write-host "done"
 
 #read CEZDATA AD users and filter only those with enabled account
 write-host "DST AD users - reading from AD (takes long)..." -NoNewline
-$Properties = @(
-	'displayName',
-	'mail',
-	'distinguishedName',
-	'samAccountName',
-	'userPrincipalName',
-	'extensionAttribute10',
-	'employeeId',
-	'employeeNumber',
-	'msExchExtensionAttribute40'
-)
-$GetADUserParams = @{
-	Filter = "Enabled -eq `$true -and ObjectClass -eq 'user'"
-	SearchBase = $Dst_ADSearchBaseAll
-	Properties = $Properties
-	Credential = $ADCredential
-}
-$DstADUsers = Get-ADUser @GetADUserParams | Select-Object $Properties
+$DstADUsers = Get-ADUser @DstGetADUserParams | Select-Object $DstADUserProperties
 write-host "done ($($DstADUsers.count))"
 
 #check duplicates in ext10 before proceeding
@@ -204,7 +222,7 @@ write-host "DST AD users - filtered by OU: $($DstADUsers.count)"
 
 #check if we have duplicate employeeNumber in DST AD users, if yes, we cannot proceed as the mapping is based on employeeNumber and it must be unique
 write-host "DST AD users - checking duplicate employeeNumber..." -NoNewline
-$duplicateUsers = $DstADUsers | Group-Object -Property "employeeNumber" | Where-Object { $_.Count -gt 1 }
+$duplicateUsers = $DstADUsers | Group-Object -Property $Dst_PN_attr | Where-Object { $_.Count -gt 1 }
 foreach ($group in $duplicateUsers) {
 	write-host "Duplicate CEZ_pn: $($group.Name) - Count: $($group.Count)"
 	foreach ($user in $group.Group) {
@@ -220,14 +238,15 @@ foreach ($user in $DstADUsers) {
 		displayName = $user.displayName
 		samAccountName = $user.samAccountName
 		ext10 = $user.extensionAttribute10
-		employeeNumber = $user.employeeNumber
+		employeeNumber = $user.$Dst_PN_attr
 		employeeId = $user.employeeId
 		mail = $user.mail
 		mailAD40 = $user.msExchExtensionAttribute40
 	}
-	$Dst_UserDB_per_pn.add($userObject.employeeNumber, $userObject)
+	$Dst_UserDB_per_pn.add($user.$Dst_PN_attr, $userObject)
 }
 write-host "DST AD userDB: $($Dst_UserDB_per_pn.count)"
+Export-Clixml -InputObject $Dst_UserDB_per_pn -Path "d:\data\t2t-ujvrez\Dst_UserDB_per_pn.xml"
 
 write-host $string_divider
 
@@ -242,11 +261,19 @@ foreach ($user in $SrcAADUsers) {
 	$ReportObject = $SGUMObject = $null
 	if ($user.$Src_PN_attr) {
 		$countSRCTotal++
+		if ($user.mail) {
+			$UJV_mailDomain = $user.mail.Split("@")[1]
+		}
+		else {
+			$UJV_mailDomain = [string]::Empty
+		}
 		$ReportObject = [PSCustomObject]@{
+			Result = $null
 			UJV_UPN = $user.userPrincipalName
 			UJV_UPNdomain = $user.userPrincipalName.Split("@")[1]
 			UJV_DisplayName = $user.displayName
 			UJV_mail = $user.mail
+			UJV_mailDomain = $UJV_mailDomain
 			UJV_samAccountName = $user.onpremisesSamAccountName
 			UJV_PN = $user.$Src_PN_attr
 			Mapped_PN = $null
@@ -260,7 +287,6 @@ foreach ($user in $SrcAADUsers) {
 			NewExt10 = $null
 			CEZ_mailAD40 = $null
 			mailAD40match = $null
-			Result = $null
 		}
 		if ($mapping_DB.ContainsKey($user.$Src_PN_attr)) {
 			$mapped_pn = $mapping_DB[$user.$Src_PN_attr]
@@ -271,7 +297,7 @@ foreach ($user in $SrcAADUsers) {
 				$ReportObject.CEZ_DisplayName = $DstUser.displayName
 				$ReportObject.CEZ_mail = $DstUser.mailAD40
 				$ReportObject.CEZ_samAccountName = $DstUser.SamAccountName
-				$ReportObject.CEZ_PN = $DstUser.employeeNumber
+				$ReportObject.CEZ_PN = $DstUser.$Dst_PN_attr
 				$ReportObject.CEZ_KIP = $DstUser.employeeId
 				$ReportObject.CEZ_mailAD40 = $DstUser.mailAD40
 				if ($DstUser.mailAD40 -and ($DstUser.mailAD40 -eq $user.mail)) {
@@ -281,7 +307,7 @@ foreach ($user in $SrcAADUsers) {
 					$ReportObject.mailAD40match = "NO"
 				}
 				if ($DstUser.ext10 -ne $user.$Src_PN_attr) {
-					if ($ReportObject.mailAD40match -eq "YES") {
+					if (($ReportObject.mailAD40match -eq "YES") -or $MailErrIgnore) {
 						if ($DstUser.ext10) {
 							$currentExt10 = $DstUser.ext10
 						}
@@ -350,27 +376,10 @@ write-host $string_divider
 # get DST AD users
 #######################################################################################################################
 write-log "DST MAPPING" -ForegroundColor Cyan
-#check duplicates in ext10 before proceeding
 
 if ($countSRCUpdated -gt 0) {
 	write-host "DST AD users - reading from AD (takes long)..." -NoNewline
-	$Properties = @(
-		'displayName',
-		'mail',
-		'distinguishedName',
-		'samAccountName',
-		'extensionAttribute10',
-		'employeeId',
-		'employeeNumber',
-		'msExchExtensionAttribute40'
-	)
-	$GetADUserParams = @{
-		Filter = "Enabled -eq `$true -and ObjectClass -eq 'user'"
-		SearchBase = $Dst_ADSearchBase_All
-		Properties = $Properties
-		Credential = $ADCredential
-	}
-	$DstADUsers = Get-ADUser @GetADUserParams | Select-Object $Properties
+	$DstADUsers = Get-ADUser @DstGetADUserParams | Select-Object $DstADUserProperties
 	write-host "done ($($DstADUsers.count))"
 
 	write-host "DST AD users - checking duplicate ext10..." -NoNewline
@@ -402,7 +411,7 @@ if ($countSRCUpdated -gt 0) {
 
 	#check if we have duplicate employeeNumber in DST AD users, if yes, we cannot proceed as the mapping is based on employeeNumber and it must be unique
 	write-host "DST AD users - checking duplicate employeeNumber..." -NoNewline
-	$duplicateUsers = $DstADUsers | Group-Object -Property "employeeNumber" | Where-Object { $_.Count -gt 1 }
+	$duplicateUsers = $DstADUsers | Group-Object -Property $Dst_PN_attr | Where-Object { $_.Count -gt 1 }
 	foreach ($group in $duplicateUsers) {
 		write-host "Duplicate CEZ_pn: $($group.Name) - Count: $($group.Count)"
 		foreach ($user in $group.Group) {
@@ -425,9 +434,13 @@ foreach ($group in $UsersByKIP) {
 		foreach ($user in $group.Group) {
 			write-host "$($user.UserPrincipalName) ($($user.DisplayName)) KIP: $($user.employeeId) OU: $($user.OU)"
 			$MappingReportDST += [PSCustomObject]@{
-				employeeId = $user.employeeId
+				KIP = $user.employeeId
+				PN = $user.$Dst_PN_attr
 				displayName = $user.DisplayName
+				samAccountName = $user.SamAccountName
 				userPrincipalName = $user.UserPrincipalName
+				mail = $user.mail
+				mailAD40 = $user.$Dst_mailAD40
 				OU = $user.OU
 			}
 			$CountDSTNoMapping++
