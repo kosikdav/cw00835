@@ -20,6 +20,8 @@ $MappingCSV_ALL_FilePath 		= "d:\data\t2t-ujvrez\userMapping.csv"
 $MappingCSV_ENGPRAHA_FilePath 	= "d:\data\t2t-ujvrez\userMapping-engpraha.csv"
 $MappingCSV_NQSAFE_FilePath 	= "d:\data\t2t-ujvrez\userMapping-nqsafe.csv"
 
+$MappingCSV_ignoredPNs_FilePath = "d:\data\t2t-ujvrez\userMapping-ignoredSrcPNs.csv"
+
 $SGUMFolder				= $OutputFolder+"\sgum"
 
 $MailErrIgnore = $false
@@ -123,6 +125,7 @@ Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 [array]$userMappingALL = Import-CSVtoArray -Path $MappingCSV_ALL_FilePath
 [array]$userMappingENGPRAHA = Import-CSVtoArray -Path $MappingCSV_ENGPRAHA_FilePath
 [array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
+[array]$userMappingIgnoredPNs = Import-CSVtoArray -Path $MappingCSV_ignoredPNs_FilePath
 
 $userMapping = $userMappingALL + $userMappingENGPRAHA + $userMappingNQSAFE
 
@@ -161,7 +164,7 @@ write-host "User mapping DB: $($mapping_DB.count)"
 # get SRC AAD users
 #######################################################################################################################
 $UriResource = "users"
-$UriSelect = "$CommonEntraAttributes,$Src_PN_attr"
+$UriSelect = "$CommonEntraAttributes,$Src_PN_attr,assignedLicenses"
 $UriFilter = "userType eq 'Member' and onpremisesSyncEnabled eq true"
 $Uri = New-GraphUri -Resource $UriResource -Version "v1.0" -Select $UriSelect -Filter $UriFilter -Top 999
 [array]$SrcAADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -ProgressDots -Text "SRC AAD users"
@@ -259,6 +262,15 @@ $countSRCTotal = 0
 
 foreach ($user in $SrcAADUsers) {
 	$ReportObject = $SGUMObject = $null
+	if ($userMappingIgnoredPNs -contains $user.$Src_PN_attr) {
+		write-log "IGNORED:   $($user.userPrincipalName) ($($user.displayName)) UJV_PN:$($user.$Src_PN_attr)" -ForegroundColor DarkYellow
+		continue
+	}
+	if (-not $user.assignedLicenses -or $user.assignedLicenses.Count -eq 0) {
+		write-log "NOLICENSE: $($user.userPrincipalName) ($($user.displayName)) UJV_PN:$($user.$Src_PN_attr)" -ForegroundColor DarkYellow
+		continue
+	}
+
 	if ($user.$Src_PN_attr) {
 		$countSRCTotal++
 		if ($user.mail) {
@@ -306,7 +318,7 @@ foreach ($user in $SrcAADUsers) {
 				else {
 					$ReportObject.mailAD40match = "NO"
 				}
-				if ($DstUser.ext10 -ne $user.$Src_PN_attr) {
+				if ($DstUser.ext10 -ne $user.$Src_PN_attr) {#
 					if (($ReportObject.mailAD40match -eq "YES") -or $MailErrIgnore) {
 						if ($DstUser.ext10) {
 							$currentExt10 = $DstUser.ext10

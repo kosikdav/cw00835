@@ -163,7 +163,6 @@ ForEach ($Group in $AADGroups) {
 		GroupId				= $Group.id
 		GroupName			= $Group.displayName
 		CreatedDateTime		= $Group.createdDateTime
-		CreatedByAppId		= $Group.createdbyAppId
 		MailEnabled			= $Group.mailEnabled
 		SecurityEnabled		= $Group.securityEnabled
 		AssignableToRole	= $Group.isAssignableToRole
