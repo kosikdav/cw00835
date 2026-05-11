@@ -8,20 +8,17 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-function-Request-MSALtoken.ps1
 
 <#
-$appName = "CEZ_UJV_T2T_MIGRATION_STORAGE"
-$certYears = 10
-$certPassword = "123456xxxxxx"
+$AppName = "CEZ_UJV_T2T_MIGRATION_STORAGE"
+$CertYears = 10
+$CertPassword = "12345678"
 $StartDate = (Get-Date).AddDays(-1)
-$EndDate = (Get-Date).AddYears($certYears)
-$Password = ConvertTo-SecureString $certPassword -AsPlainText -Force
+$EndDate = (Get-Date).AddYears($CertYears)
+$Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
+
 Create-SelfSignedCertificate.ps1 -CommonName $AppName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
 #>
 
-#######################################################################################################################
-# parameter definitions
-#######################################################################################################################
-
-$LogFile = "d:\logs\$($ScriptName).log"
+$interactiveRun = [Environment]::UserInteractive
 
 $AppName = "CEZ_UJV_T2T_MIGRATION_STORAGE"
 $StorageAccount = "cezt2tstore"
