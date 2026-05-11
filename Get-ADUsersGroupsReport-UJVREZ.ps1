@@ -9,7 +9,7 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 <#
 $appName = "CEZ_UJV_T2T_MIGRATION_STORAGE"
 $certYears = 10
-$certPassword = "xxxxxxds3$$%x"
+$certPassword = "xxxxxx"
 Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
 #>
 
