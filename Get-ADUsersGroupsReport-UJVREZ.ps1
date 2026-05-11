@@ -30,8 +30,8 @@ $Container = "ujvrez"
 $ClientId   = 'c0b8e48f-aacc-4db1-bcae-8a7341ce436d'
 $TenantId   = "b233f9e1-5599-4693-9cef-38858fe25406"
 
-#$ADUserSearchBase  = "OU=uzivatele,DC=cezdata,DC=corp"
-#$ADGroupSearchBase  = "OU=uzivatele,DC=cezdata,DC=corp"
+#$ADUserSearchBase  = "DC=ad,DC=ujv,DC=cz"
+#$ADGroupSearchBase  = "DC=ad,DC=ujv,DC=cz"
 $ADUserSearchBase  = "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
 $ADGroupSearchBase = "OU=EXO,OU=M365,OU=AAD,OU=Cloud,OU=skupiny,DC=cezdata,DC=corp"
 
