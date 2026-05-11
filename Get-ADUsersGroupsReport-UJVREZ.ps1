@@ -5,8 +5,7 @@
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 
-. "$ScriptPath\include-function-Write-Log.ps1"
-. "$ScriptPath\include-function-Request-MSALtoken.ps1"
+. $ScriptPath\include-function-Request-MSALtoken.ps1
 
 <#
 $appName = "CEZ_UJV_T2T_MIGRATION_STORAGE"
@@ -62,8 +61,6 @@ $ADGroupProperties = @(
 # variable initialization
 #######################################################################################################################
 
-$Today = (Get-Date).ToString("yyyy-MM-dd")
-$Now   = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
 $interactiveRun = [Environment]::UserInteractive
 
 [array]$ReportUsr = @()
@@ -75,23 +72,30 @@ $UploadParams = @{
 	Container = $container
 }
 
-$GetADUserParams = @{
-	Filter = '*'
-	SearchBase = $ADUserSearchBase
-	Properties = $ADUserProperties
-	Credential = $ADCredential
-}
-
-$GetADGroupParams = @{
-	Filter = '*'
-	SearchBase = $ADGroupSearchBase
-	Properties = $ADGroupProperties
-	Credential = $ADCredential
-}
-
 #######################################################################################################################
 # function definitions
 #######################################################################################################################
+
+function Write-Log {
+	[CmdletBinding(SupportsShouldProcess = $true)]
+	param (
+		[Parameter(Position=0)][string]$String,
+		[string][ValidateSet("Info","Warning","Warn","Error","Err")]$MessageType = "Info"
+	)
+	# main function body ##################################
+	$File = $script:LogFile
+	$TimeStamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+	switch ($MessageType) {
+		"Info"		{$LineType = "INFO"}
+		"Warning" 	{$LineType = "WARN"}
+		"Error" 	{$LineType = "ERR"}
+		Default 	{$LineType = "INFO"}
+	}
+	$LinePrefix = $TimeStamp + " [" + ($LineType.PadRight(4," ")).ToUpper() + "] "
+	Add-Content $File -Value ($LinePrefix + $String)
+	Write-Host $String
+}
+
 function Invoke-AzureBlobUpload {
 	[CmdletBinding()]
 	param (
@@ -101,7 +105,7 @@ function Invoke-AzureBlobUpload {
 		[string]$Content,
 		[string]$AccessToken
 	)
-
+	# main function body ##################################
 	$uri = "https://$StorageAccount.blob.core.windows.net/$Container/$BlobName"
 	$headers  = @{
 		Authorization = "Bearer $AccessToken"
@@ -109,7 +113,6 @@ function Invoke-AzureBlobUpload {
 		"x-ms-blob-type" = "BlockBlob"
 		"Content-Type" = "text/csv"
 	}
-
 	try {
 		Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $Content
 		Write-Log "Upload successful: $BlobName"
@@ -132,7 +135,7 @@ else {
 Write-Log "--------------------------------------------------------------"
 Write-Log "Script file: $($ScriptPath)\$($ScriptName)"
 If ([Environment]::UserInteractive) {
-    Write-Log "Running interactively" -ForegroundColor DarkBlue -BackgroundColor Green
+    Write-Log "Running interactively"
 }
 Else {
     Write-Log "Running non-interactively"
@@ -141,17 +144,27 @@ Write-Log "Log file: $($LogFile)"
 Write-Log "ADCredentialPath: $($ADCredentialPath)"
 Write-Log "Script start"
 
-
-
 $ADCredential = Import-Clixml -Path $ADCredentialPath
 
 #read UJVREZ AD users
+$GetADUserParams = @{
+	Filter = '*'
+	SearchBase = $ADUserSearchBase
+	Properties = $ADUserProperties
+	Credential = $ADCredential
+}
 $ADUsers = Get-ADUser @GetADUserParams | Select-Object $ADUserProperties
-Write-Log "AD users: $($ADUsers.count))"
+Write-Log "AD users: $($ADUsers.count)"
 
 #read UJVREZ AD groups
+$GetADGroupParams = @{
+	Filter = '*'
+	SearchBase = $ADGroupSearchBase
+	Properties = $ADGroupProperties
+	Credential = $ADCredential
+}
 $ADGroups = Get-ADGroup @GetADGroupParams | Select-Object $ADGroupProperties
-Write-Log "AD groups: $($ADGroups.count))"
+Write-Log "AD groups: $($ADGroups.count)"
 
 #process users
 foreach ($user in $ADUsers) {
@@ -170,7 +183,7 @@ foreach ($user in $ADUsers) {
 
 #process groups and group members
 foreach ($group in $ADGroups) {
-	write-host $group.SamAccountName
+	write-host "." -NoNewline
 	$groupObject = [PSCustomObject]@{
 		Name = $group.Name
 		SamAccountName = $group.SamAccountName
@@ -182,8 +195,12 @@ foreach ($group in $ADGroups) {
 	}
 	$ReportGrpLst += $groupObject
 
-	$GroupMembers = Get-ADGroupMember -Identity $group.SamAccountName -Credential $ADCredential -ErrorAction SilentlyContinue
-	
+	$adUserParams = @{
+		Filter     = "MemberOf -eq '$($group.DistinguishedName)'"
+		Properties = $ADUserProperties
+		Credential = $ADCredential
+	}
+	$GroupMembers = Get-ADUser @adUserParams
 	foreach ($member in $GroupMembers) {
 		$memberObject = [PSCustomObject]@{
 			GroupSamAccountName = $group.SamAccountName
@@ -194,6 +211,7 @@ foreach ($group in $ADGroups) {
 		$ReportGrpMem += $memberObject
 	}
 }
+write-host
 Write-Log "AD group memberships: $($ReportGrpMem.count)"
 
 #get MSAL access token from Entra ID
@@ -207,15 +225,17 @@ $csvStringGrpLst = $ReportGrpLst | ConvertTo-Csv -NoTypeInformation -Delimiter '
 $csvStringGrpMem = $ReportGrpMem | ConvertTo-Csv -NoTypeInformation -Delimiter ',' | Out-String
 
 #upload CSV content to Azure Blob Storage
-$UploadParams.BlobName = "ADUsr_$Today.csv"
+$Date = (Get-Date).ToString("yyMMdd")
+
+$UploadParams.BlobName = "ADUsr_$Date.csv"
 $UploadParams.Content = $csvStringUsr
 Invoke-AzureBlobUpload @UploadParams
 
-$UploadParams.BlobName = "ADGrpLst_$Today.csv"
+$UploadParams.BlobName = "ADGrpLst_$Date.csv"
 $UploadParams.Content = $csvStringGrpLst
 Invoke-AzureBlobUpload @UploadParams
 
-$UploadParams.BlobName = "ADGrpMem_$Today.csv"
+$UploadParams.BlobName = "ADGrpMem_$Date.csv"
 $UploadParams.Content = $csvStringGrpMem
 Invoke-AzureBlobUpload @UploadParams
 
