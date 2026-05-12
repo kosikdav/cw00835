@@ -18,7 +18,10 @@ $Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
 Create-SelfSignedCertificate.ps1 -CommonName $AppName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
 #>
 
-$interactiveRun = [Environment]::UserInteractive
+$ADCredentialPathUsr = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt_qskosikdav.cred"
+$ADCredentialPathSys = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt.cred"
+
+$LogFile = "d:\logs\$ScriptName.log"
 
 $AppName = "CEZ_UJV_T2T_MIGRATION_STORAGE"
 $StorageAccount = "cezt2tstore"
@@ -67,6 +70,13 @@ $UploadParams = @{
 	Container = $container
 }
 
+if ($InteractiveRun) {
+	$ADCredentialPath = $ADCredentialPathUsr
+}
+else {
+	$ADCredentialPath = $ADCredentialPathSys
+}
+
 #######################################################################################################################
 # function definitions
 #######################################################################################################################
@@ -101,15 +111,15 @@ function Invoke-AzureBlobUpload {
 		[string]$AccessToken
 	)
 	# main function body ##################################
-	$uri = "https://$StorageAccount.blob.core.windows.net/$Container/$BlobName"
-	$headers  = @{
+	$Uri = "https://$StorageAccount.blob.core.windows.net/$Container/$BlobName"
+	$Headers  = @{
 		Authorization = "Bearer $AccessToken"
 		"x-ms-version" = "2020-04-08"
 		"x-ms-blob-type" = "BlockBlob"
 		"Content-Type" = "text/csv"
 	}
 	try {
-		Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -Body $Content
+		Invoke-RestMethod -Uri $Uri -Method "PUT" -Headers $Headers -Body $Content
 		Write-Log "Upload successful: $BlobName"
 	}
 	catch {
@@ -120,16 +130,11 @@ function Invoke-AzureBlobUpload {
 #######################################################################################################################
 # main script logic
 #######################################################################################################################
-if ($InteractiveRun) {
-	$ADCredentialPath = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt_qskosikdav.cred"
-}
-else {
-	$ADCredentialPath = $aad_grp_mgmt_cred
-}
 
 Write-Log "--------------------------------------------------------------"
+Write-Log "Script start"
 Write-Log "Script file: $($ScriptPath)\$($ScriptName)"
-If ([Environment]::UserInteractive) {
+If ($InteractiveRun) {
     Write-Log "Running interactively"
 }
 Else {
@@ -137,7 +142,6 @@ Else {
 }
 Write-Log "Log file: $($LogFile)"
 Write-Log "ADCredentialPath: $($ADCredentialPath)"
-Write-Log "Script start"
 
 $ADCredential = Import-Clixml -Path $ADCredentialPath
 
