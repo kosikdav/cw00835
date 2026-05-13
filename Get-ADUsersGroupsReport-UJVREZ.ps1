@@ -267,13 +267,31 @@ foreach ($group in $ADGroups) {
 	}
 	$ReportGrpLst += $groupObject
 
+	#group members - users
 	$adUserParams = @{
 		Filter     = "MemberOf -eq '$($group.DistinguishedName)'"
 		Properties = $ADUserProperties
 		Credential = $ADCredential
 	}
-	$GroupMembers = Get-ADUser @adUserParams
-	foreach ($member in $GroupMembers) {
+	$GroupMembersUsr = Get-ADUser @adUserParams
+	foreach ($member in $GroupMembersUsr) {
+		$memberObject = [PSCustomObject]@{
+			GroupSamAccountName = $group.SamAccountName
+			GroupObjectGUID = $group.ObjectGUID
+			MemberSamAccountName = $member.SamAccountName
+			MemberObjectGUID = $member.objectGUID
+		}
+		$ReportGrpMem += $memberObject
+	}
+
+	#group members - groups
+	$adGroupParams = @{
+		Filter     = "MemberOf -eq '$($group.DistinguishedName)'"
+		Properties = $ADGroupProperties
+		Credential = $ADCredential
+	}
+	$GroupMembersGrp = Get-ADGroup @adGroupParams
+	foreach ($member in $GroupMembersGrp) {
 		$memberObject = [PSCustomObject]@{
 			GroupSamAccountName = $group.SamAccountName
 			GroupObjectGUID = $group.ObjectGUID
