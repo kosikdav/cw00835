@@ -280,6 +280,7 @@ foreach ($group in $ADGroups) {
 			GroupObjectGUID = $group.ObjectGUID
 			MemberSamAccountName = $member.SamAccountName
 			MemberObjectGUID = $member.objectGUID
+			type = "user"
 		}
 		$ReportGrpMem += $memberObject
 	}
@@ -297,6 +298,7 @@ foreach ($group in $ADGroups) {
 			GroupObjectGUID = $group.ObjectGUID
 			MemberSamAccountName = $member.SamAccountName
 			MemberObjectGUID = $member.objectGUID
+			type = "group"
 		}
 		$ReportGrpMem += $memberObject
 	}
