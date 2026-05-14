@@ -12,7 +12,7 @@ param(
 
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Init.ps1
 
 #######################################################################################################################
 
@@ -22,7 +22,7 @@ $LogFileFreq        = "YMD"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Suffix $LogFileSuffix -Ext "log"
 
@@ -78,8 +78,9 @@ Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 30
 if ($UpdateTransportRules -and $TransportRules) {
     write-log $String_divider
     $AllEntries = @()
-    $AllEntries = $PhishSimLandingDomains
-
+    $AllEntries = $PhishSimLandingDomains + $PhishSimSenderDomains
+    $AllEntries = $AllEntries | Sort-Object -Unique
+    
     foreach ($TransportRuleId in $TransportRules) {
         $TransportRule = Get-TransportRule -Identity $TransportRuleId
         write-log "Processing Exchange transport rule: $($TransportRule.Identity) ($TransportRuleId)"
