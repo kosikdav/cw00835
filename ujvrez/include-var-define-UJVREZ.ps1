@@ -55,6 +55,7 @@ $AppReg_SPO_REPORT_PnP      = "UJVREZ_SPO_REPORTS_PnP"
 $AppReg_SPO_MGMT            = "UJVREZ_SPO_MGMT"
 $AppReg_ROLE_MGMT           = "UJVREZ_ROLE_MGMT"
 $AppReg_ICTS_Fabric_Mgmt    = "UJVREZ_ICTS_Fabric_Mgmt"
+$AppReg_T2T_Migration_Storage = "UJVREZ_T2T_MIGRATION_STORAGE"
 
 $IncFile_AppReg_LOG_READER          = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_LOG_READER + ".ps1")
 $IncFile_AppReg_POWERPLAT_MGMT      = [System.IO.Path]::Combine($incFolderTenant,"include-appreg-" + $AppReg_POWERPLAT_MGMT + ".ps1")

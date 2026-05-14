@@ -23,7 +23,8 @@ $ScriptList = @(
     "Get-EXO-Mailboxes-Reports.ps1",
     "Get-EXO-Role-Assignments.ps1",
     "Get-SPO-Reports.ps1",
-    "Get-PwrPlat-Reports.ps1"
+    "Get-PwrPlat-Reports.ps1",
+    "Get-Reports-from-Azure-UJVREZ.ps1"
 )
 
 $LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-download-reports" -Ext "log"
