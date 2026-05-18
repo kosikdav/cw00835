@@ -73,7 +73,7 @@ ForEach ($Guest in $Guests) {
 	}
     if ($LastAuditTrace -and $LastAuditTrace -lt $CutoffDateGuests) {
         Request-MSALToken -AppRegName $AppReg_USR_MGMT -TTL 30
-        Remove-B2BUser -Identity $Guest.id -AccessToken $AuthDB[$AppReg_USR_MGMT].AccessToken -Silent:$true
+        #Remove-B2BUser -Identity $Guest.id -AccessToken $AuthDB[$AppReg_USR_MGMT].AccessToken -Silent:$true
         $counterGuests++
         Write-Log "$($Guest.userPrincipalName) ($($Guest.id)) guest removed - lastAuditTrace: $($LastAuditTrace) ($($DaysSinceLAT))" -ForegroundColor Yellow
     }
