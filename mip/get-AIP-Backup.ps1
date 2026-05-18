@@ -68,9 +68,11 @@ Import-PSSession $Session
 }
 #>
 
-. "D:\scripts-m365\cezdata\include-appreg-CEZDATA_EXO_MGMT.ps1"
+. "D:\scripts-m365\cezdata\include-appreg-CEZDATA_PURVIEW_MGMT.ps1"
+Connect-IPPSSession -AppId $ClientId -CertificateThumbprint $Thumbprint -Organization $TenantName
 
-Connect-IPPSSession
+Exit
+
 Connect-AipService
 
 <#################################################################################################
