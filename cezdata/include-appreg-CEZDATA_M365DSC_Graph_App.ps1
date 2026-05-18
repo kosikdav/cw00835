@@ -12,8 +12,12 @@ $CertficateThumbprint = $Thumbprint
 $ApplicationId = $ClientId
 
 <#
-$AppName    = "CEZ_M365DSC_Graph_App"
-$certYears = 2
-$certPassword = "eijuqehiquhxxx"
-Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
+$AppName = "CEZ_M365DSC_Graph_App"
+$CertYears = 10
+$CertPassword = "123456789"
+$Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
+$StartDate = (Get-Date).AddDays(-1)
+$EndDate = (Get-Date).AddYears($CertYears)
+Create-SelfSignedCertificate.ps1 -CommonName $AppName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
+Write-Host $env:computername.toupper() -ForegroundColor Green  
 #>

@@ -12,8 +12,12 @@ $CertficateThumbprint = $Thumbprint
 $ApplicationId = $ClientId
 
 <#
-$appName = "CEZ_AAD_APP_MGMT"
-$certYears = 5
-$certPassword = ""
-Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
+$AppName = "CEZ_AAD_APP_MGMT"
+$CertYears = 10
+$CertPassword = "123456789"
+$Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
+$StartDate = (Get-Date).AddDays(-1)
+$EndDate = (Get-Date).AddYears($CertYears)
+Create-SelfSignedCertificate.ps1 -CommonName $AppName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
+Write-Host $env:computername.toupper() -ForegroundColor Green  
 #>

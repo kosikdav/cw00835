@@ -12,7 +12,11 @@ $Certificate = $ClientCertificate
 
 <#
 $appName = "CEZ_SPO_FILEUPLOADER"
-$certYears = 1
-$certPassword = "xxx"
-Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
+$CertYears = 10
+$CertPassword = "123456789"
+$Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
+$StartDate = (Get-Date).AddDays(-1)
+$EndDate = (Get-Date).AddYears($CertYears)
+Create-SelfSignedCertificate.ps1 -CommonName $AppName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
+Write-Host $env:computername.toupper() -ForegroundColor Green  e (Get-Date).AddDays(-1) -EndDate (Get-Date).AddYears($certYears) -Password (ConvertTo-SecureString $certPassword -AsPlainText -Force) -Force
 #>

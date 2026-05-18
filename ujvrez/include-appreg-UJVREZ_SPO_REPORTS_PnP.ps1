@@ -33,5 +33,6 @@ $Props = @{
 }
 
 $Cert = New-PnPAzureCertificate @Props
+Write-Host $env:computername.ToUpper() -ForegroundColor Green  
 #>
 

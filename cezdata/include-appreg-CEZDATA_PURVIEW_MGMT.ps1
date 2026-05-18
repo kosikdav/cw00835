@@ -15,11 +15,11 @@ $ApplicationId = $ClientId
 
 <#
 $appName = "CEZ_PURVIEW_MGMT"
-$certYears = 10
-$certPassword = "587x43421651ef65(1"
-$Password = ConvertTo-SecureString $certPassword -AsPlainText -Force
+$CertYears = 10
+$CertPassword = "123456789"
+$Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
 $StartDate = (Get-Date).AddDays(-1)
-$EndDate = (Get-Date).AddYears($certYears)
-Create-SelfSignedCertificate.ps1 -CommonName $appName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
-write-host $env:computername.toupper() -foregroundcolor green
+$EndDate = (Get-Date).AddYears($CertYears)
+Create-SelfSignedCertificate.ps1 -CommonName $AppName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
+Write-Host $env:computername.toupper() -ForegroundColor Green
 #>
