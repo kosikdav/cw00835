@@ -684,42 +684,42 @@ function Connect-EXOService {
 			}
 		}
 	}
-if ($CredentialFile) {
-	if (-not(Test-Path -Path $CredentialFile)) {
-		Write-Log "Credential file $($CredentialFile) not found" -MessageType "ERR"
-		return
-	}
-	$CredFilename = [System.IO.Path]::GetFileNameWithoutExtension($CredentialFile)
-	Try {
-		$Credential = Import-Clixml -Path $CredentialFile
-	}
-	Catch {
-		Write-Log $_.Exception.Message -MessageType "ERR"
-	}
-	if ($script:AuthDB.ContainsKey($CredFilename)) {
-		$AuthRecord = $script:AuthDB[$CredFilename]
-		$MinutesElapsed = [math]::abs((New-TimeSpan -End $AuthRecord.CreatedDateTime).Minutes)
-		$Operation = "refreshed"
-	}
-	if ((-Not($AuthRecord)) -or ($MinutesElapsed -ge $TTL) -or ($ForceReconnect)) {
-		[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+	if ($CredentialFile) {
+		if (-not(Test-Path -Path $CredentialFile)) {
+			Write-Log "Credential file $($CredentialFile) not found" -MessageType "ERR"
+			return
+		}
+		$CredFilename = [System.IO.Path]::GetFileNameWithoutExtension($CredentialFile)
 		Try {
-			Write-Host "EXO PowerShell connection to $($TenantShortName) (user $($CredFilename)): " -NoNewline -ForegroundColor DarkGray
-			Connect-ExchangeOnline -Credential $Credential -ShowBanner:$false
-			Write-Host $Operation -ForegroundColor DarkGray
-			$AuthRecordNew = [pscustomobject]@{
-				CreatedDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-				AccessToken = "n/a"
-				AuthHeaders = "n/a"
-				ExpiresOn = "n/a"
-			}
-			$script:AuthDB[$CredFilename] = $AuthRecordNew
+			$Credential = Import-Clixml -Path $CredentialFile
 		}
 		Catch {
 			Write-Log $_.Exception.Message -MessageType "ERR"
 		}
+		if ($script:AuthDB.ContainsKey($CredFilename)) {
+			$AuthRecord = $script:AuthDB[$CredFilename]
+			$MinutesElapsed = [math]::abs((New-TimeSpan -End $AuthRecord.CreatedDateTime).Minutes)
+			$Operation = "refreshed"
+		}
+		if ((-Not($AuthRecord)) -or ($MinutesElapsed -ge $TTL) -or ($ForceReconnect)) {
+			[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+			Try {
+				Write-Host "EXO PowerShell connection to $($TenantShortName) (user $($CredFilename)): " -NoNewline -ForegroundColor DarkGray
+				Connect-ExchangeOnline -Credential $Credential -ShowBanner:$false
+				Write-Host $Operation -ForegroundColor DarkGray
+				$AuthRecordNew = [pscustomobject]@{
+					CreatedDateTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+					AccessToken = "n/a"
+					AuthHeaders = "n/a"
+					ExpiresOn = "n/a"
+				}
+				$script:AuthDB[$CredFilename] = $AuthRecordNew
+			}
+			Catch {
+				Write-Log $_.Exception.Message -MessageType "ERR"
+			}
+		}
 	}
-}
 
 }
 

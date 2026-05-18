@@ -34,17 +34,7 @@ $datum = get-date -Format yyyy-MM-dd_HH-mm
 # CESTA KDE JE SPUSTEN SKRIP
 $scriptpath = Split-Path -parent $MyInvocation.MyCommand.Definition
 
-
-
-$SecurePassword = Get-Content "$scriptpath\Password.txt" -Force -ErrorAction Ignore
-$UserName = "vlada@acinfraseclab.onmicrosoft.com"
 $backuppath = $scriptpath
-
-
-
-
-
-
 
 $backuppath = $backuppath + "\AIPBackup_$datum" 
 write-host "Umístění zálohy: " $backuppath -ForegroundColor Yellow
@@ -62,13 +52,12 @@ New-Item -ItemType "directory" -Path $backuppath -Force -ErrorAction Stop
  
 # 1 - ZAPISOVACI REZIM !!!
 
-
 $jsemzalogovan = Get-PSSession | select name | FT
 # Kontrola prihlašení do Azure
 
-
 $hesloje = get-content "$scriptpath\Password.txt" -ErrorAction SilentlyContinue
 
+<#
 if ($hesloje -eq $null -and $jsemzalogovan.count -eq 0 ) {
 # Read-Host "Enter Password" -AsSecureString | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString | Out-File "D:\Password.txt"
 
@@ -77,19 +66,12 @@ $credential = New-Object System.Management.Automation.PSCredential ('$Username',
 $Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://ps.compliance.protection.outlook.com/powershell-liveid/ -Credential $UserCredential -Authentication Basic -AllowRedirection
 Import-PSSession $Session 
 }
+#>
 
+. "D:\scripts-m365\cezdata\include-appreg-CEZDATA_EXO_MGMT.ps1"
 
-#  PROHLASENI DO AIP SERVICE
-$Credential = Get-Credential -UserName  $UserName -Message "Zadejte heslo do portalu AIP SERVICE"
-Connect-AipService -Credential $Credential
-
-
-
-
-
-
-
-
+Connect-IPPSSession
+Connect-AipService
 
 <#################################################################################################
 # 
