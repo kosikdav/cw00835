@@ -17,8 +17,8 @@ $LogFilePrefix				= "mip-backup"
 $OutputFolder 				= "mip-backup"
 $OutputFilePrefix			= "mip-backup"
 
-$OutputFileSuffixLabels	= "labels"
-$OutputFileSuffixPolicies = "policies"
+$OutputFileSuffixLabels	    = "labels"
+$OutputFileSuffixPolicies   = "policies"
 
 #######################################################################################################################
 
