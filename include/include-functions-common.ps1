@@ -98,7 +98,7 @@ function New-OutputFile {
 		[string][ValidateSet("Y","YM","YMD","YMDH","YMDHM","YMDHMS")]$Freq,
 		[switch]$NoDate,
 		[string]$SpecificDate,
-		[parameter(Mandatory = $true)][string][ValidateSet("LOG","CSV","SGUM")]$Ext,
+		[parameter(Mandatory = $true)][string][ValidateSet("LOG","CSV","SGUM","XML")]$Ext,
 		[switch]$FileDateYesterday,
 		[int]$FileDateDayOffset = 0
 	)
@@ -112,6 +112,7 @@ function New-OutputFile {
 			"LOG" {$RootFolder = $script:root_log_folder}
 			"CSV" {$RootFolder = $script:root_output_folder}
 			"SGUM" {$RootFolder = $script:root_output_folder}
+			"XML" {$RootFolder = $script:root_output_folder}
 		}
 	}
 	
@@ -120,6 +121,7 @@ function New-OutputFile {
 			"LOG" {$Freq = "Y"}
 			"CSV" {$Freq = "YMD"}
 			"SGUM" {$Freq = "YMDHMS"}
+			"XML" {$Freq = "YMD"}
 		}
 	}
 	
