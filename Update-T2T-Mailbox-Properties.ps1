@@ -36,7 +36,8 @@ function Get-TargetT2TUser {
     param (
         [Parameter(Mandatory)][string]$SrcIdentity,
         [Parameter(Mandatory)][string]$SrcAccessToken,
-		[Parameter(Mandatory)][string]$DstAccessToken
+		[Parameter(Mandatory)][string]$DstAccessToken,
+		[Parameter(Mandatory)][string]$DstADCredential
     )
 	# main function body ##################################
 	if ($SrcIdentity -eq "6c38bc03-f798-454d-9ef8-ee18cab92105") {

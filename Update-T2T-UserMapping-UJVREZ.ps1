@@ -410,11 +410,10 @@ foreach ($user in $SrcAADUsers) {
 	}
 }
 
-Write-Log "DST users mapped:   $($DSTUsersMapped.count)" -ForegroundColor Green
+
 
 if ($DSTUsersMapped.Count -gt 0) {
 	$DSTUsersToClear = $DstADUsers.samAccountName | Where-Object { $DSTUsersMapped -notcontains $_ }
-	Write-Log "DST users unmapped: $($DSTUsersToClear.count)" -ForegroundColor Yellow
 	foreach ($samAccountName in $DSTUsersToClear) {
 		$user = Get-ADUser -Identity $samAccountName -Properties extensionAttribute10 -Credential $ADCredential
 		if (($user.extensionAttribute10 -eq $null) -or ($user.extensionAttribute10 -eq "")) {
@@ -561,11 +560,13 @@ Write-Log "Total:       $countSRCTotal"
 Write-Log "Updated:     $($countSRCUpdated)" -foregroundcolor yellow
 Write-Log "UpdatedSec:  $($countSRCUpdatedSecondary)" -foregroundcolor yellow
 Write-Host
-Write-Log "OK:          $($countSRCOK) ($(($countSRCOK/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor green
+Write-Log "OK:          $($countSRCOK) ($(($countSRCOK/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor Green
 Write-Log "NotFound:    $($countSRCNotFound) ($(($countSRCNotFound/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor red
 Write-Log "NoMapping:   $($countSRCNoMapping) ($(($countSRCNoMapping/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor darkyellow
 Write-Log "MailErr:     $($countSRCMailErr) ($(($countSRCMailErr/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor darkcyan
 Write-Host
+Write-Log "DST users mapped:   $($DSTUsersMapped.count)" -ForegroundColor Green
+Write-Log "DST users unmapped: $($DSTUsersToClear.count)" -ForegroundColor Yellow
 
 Write-Log "DST mapping summary (by KIP):" -ForegroundColor Cyan
 Write-Log "----------------------------" -ForegroundColor Cyan
