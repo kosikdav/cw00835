@@ -320,10 +320,11 @@ do {
 		}
 	}
 	write-host "]" -ForegroundColor Cyan -NoNewline
+	
 	####################################################################
 	# Process non-interactive sign-ins
 	$UriResource = "auditLogs/signins"
-	$UriFilter = "createdDateTime+ge+$($strCurrentStart)+and+createdDateTime+le+$($strCurrentEnd)+and+userType+eq+'Guest'+and+signInEventTypes/any(t: t eq 'nonInteractiveUser')"
+	$UriFilter = "createdDateTime ge $($strCurrentStart) and createdDateTime le $($strCurrentEnd) and userType eq 'Guest' and signInEventTypes/any(t: t eq 'nonInteractiveUser')"
 	$Uri = New-GraphUri -Version "beta" -Resource $UriResource -Top 999 -Filter $UriFilter
 	[array]$SignInsNI = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 	write-host "[" -ForegroundColor Green -NoNewline

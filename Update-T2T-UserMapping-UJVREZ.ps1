@@ -19,6 +19,7 @@ $OutputFileSuffixDST 	= "dst"
 $MappingCSV_ALL_FilePath 		= "d:\data\t2t-ujvrez\userMapping.csv"
 $MappingCSV_ENGPRAHA_FilePath 	= "d:\data\t2t-ujvrez\userMapping-engpraha.csv"
 $MappingCSV_NQSAFE_FilePath 	= "d:\data\t2t-ujvrez\userMapping-nqsafe.csv"
+$MappingCSV_Manual_FilePath 	= "d:\data\t2t-ujvrez\userMapping-manual.csv"
 
 $MappingCSV_ignoredPNs_FilePath = "d:\data\t2t-ujvrez\userMapping-ignoredSrcPNs.csv"
 
@@ -73,6 +74,7 @@ $CommonEntraAttributes = "id,userPrincipalName,displayName,onPremisesSamAccountN
 
 [hashtable]$mapping_DB = @{}
 [hashtable]$Dst_UserDB_per_pn = @{}
+[array]$DSTUsersMapped = @()
 
 #######################################################################################################################
 
@@ -125,9 +127,10 @@ Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 [array]$userMappingALL = Import-CSVtoArray -Path $MappingCSV_ALL_FilePath
 #[array]$userMappingENGPRAHA = Import-CSVtoArray -Path $MappingCSV_ENGPRAHA_FilePath
 #[array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
+[array]$userMappingManual = Import-CSVtoArray -Path $MappingCSV_Manual_FilePath
 [array]$userMappingIgnoredPNs = Import-CSVtoArray -Path $MappingCSV_ignoredPNs_FilePath
 
-$userMapping = $userMappingALL + $userMappingENGPRAHA + $userMappingNQSAFE
+$userMapping = $userMappingALL + $userMappingENGPRAHA + $userMappingNQSAFE + $userMappingManual
 
 write-host "User mapping: $($userMapping.count)"
 $userMapping = $userMapping | Where-Object { $_.prio -eq 1 }
@@ -191,7 +194,7 @@ write-host "done"
 #######################################################################################################################
 
 #read CEZDATA AD users and filter only those with enabled account
-write-host "DST AD users - reading from AD (takes long)..." -NoNewline
+write-host "DST AD users - reading from AD (long running operation)..." -NoNewline
 $DstADUsers = Get-ADUser @DstGetADUserParams | Select-Object $DstADUserProperties
 write-host "done ($($DstADUsers.count))"
 
@@ -261,6 +264,9 @@ $countSRCNoMapping = 0
 $countSRCMailErr = 0
 $countSRCTotal = 0
 
+#######################################################################################################################
+# SRC mapping
+#######################################################################################################################
 foreach ($user in $SrcAADUsers) {
 	$ReportObject = $SGUMObject = $null
 	if ($userMappingIgnoredPNs.UJV_pn -contains $user.$Src_PN_attr) {
@@ -383,31 +389,60 @@ foreach ($user in $SrcAADUsers) {
 	}
 
 	if (($ReportObject.Result -eq "UPDATED") -or ($ReportObject.Result -eq "OK")) {
+		$DSTUsersMapped += $DstUser.samAccountName
 		$secondaryDstUsers = $DstADUsers | Where-Object { $_.employeeId -eq $DstUser.employeeId -and $_.samAccountName -ne $DstUser.samAccountName }
 		foreach ($secondaryUser in $secondaryDstUsers) {
 			if ($secondaryUser.extensionAttribute10 -ne "_"+$user.$Src_PN_attr) {
 				try {
 					Set-ADUser -Identity $secondaryUser.samAccountName -Replace @{extensionAttribute10 = "_"+$user.$Src_PN_attr} -Credential $ADCredential
 					$countSRCUpdatedSecondary++
+					$DSTUsersMapped += $secondaryUser.samAccountName
 					Write-Log "UPDATING SECONDARY:  $($secondaryUser.userPrincipalName) ($($secondaryUser.displayName)) PN:$($secondaryUser.$Src_PN_attr) - $($secondaryUser.userPrincipalName) $($secondaryUser.SamAccountName) ext10:$($currentExt10) -> _$($user.$Src_PN_attr)" -ForegroundColor Yellow
 				}								
 				catch {
 					Write-Log "Error updating secondary user: $($secondaryUser.userPrincipalName) ($($secondaryUser.displayName)) - $($_.Exception.Message)" -ForegroundColor Red -MessageType "ERR"
 				}
 			}
+			else {
+				$DSTUsersMapped += $secondaryUser.samAccountName
+			}
 		}
+	}
+}
+
+Write-Log "DST users mapped:   $($DSTUsersMapped.count)" -ForegroundColor Green
+
+if ($DSTUsersMapped.Count -gt 0) {
+	$DSTUsersToClear = $DstADUsers.samAccountName | Where-Object { $DSTUsersMapped -notcontains $_ }
+	Write-Log "DST users unmapped: $($DSTUsersToClear.count)" -ForegroundColor Yellow
+	foreach ($samAccountName in $DSTUsersToClear) {
+		$user = Get-ADUser -Identity $samAccountName -Properties extensionAttribute10 -Credential $ADCredential
+		if (($user.extensionAttribute10 -eq $null) -or ($user.extensionAttribute10 -eq "")) {
+			continue
+		}
+		else {
+			try {
+				Set-ADUser -Identity $samAccountName -Clear extensionAttribute10 -Credential $ADCredential
+				Write-Log "Clearing ext10:  $($samAccountName) - ext10: <empty>" -ForegroundColor Yellow
+			}
+			catch {
+				Write-Log "Error clearing ext10 for user: $($samAccountName) - $($_.Exception.Message)" -ForegroundColor Red -MessageType "ERR"
+			}
+		}
+
+
 	}
 }
 
 write-host $string_divider
 
 #######################################################################################################################
-# get DST AD users
+# DST mapping
 #######################################################################################################################
 write-log "DST MAPPING" -ForegroundColor Cyan
 
-if ($countSRCUpdated -gt 0) {
-	write-host "DST AD users - reading from AD (takes long)..." -NoNewline
+if (($countSRCUpdated -gt 0) -or ($countSRCUpdatedSecondary -gt 0)) {
+	write-host "DST AD users - reading from AD (long running operation)..." -NoNewline
 	$DstADUsers = Get-ADUser @DstGetADUserParams | Select-Object $DstADUserProperties
 	write-host "done ($($DstADUsers.count))"
 
@@ -487,6 +522,7 @@ foreach ($group in $UsersByKIP) {
 			Exit
 		}
 		else {
+			$CountDSTOK++
 			#write-host "$($mappedUsers.DisplayName) - $($mappedUsers.UserPrincipalName) - KIP: $($mappedUsers.employeeId) - PN: $($mappedUsers.extensionAttribute10)" -ForegroundColor Green
 		}
 		foreach ($user in $group.Group) {
@@ -510,7 +546,7 @@ foreach ($group in $UsersByKIP) {
 				$ReportObject.Result = "PRIMARY"
 				#write-host "Primary user: $($user.UserPrincipalName) ($($user.DisplayName)) KIP: $($user.employeeId) PN: $($user.extensionAttribute10) OU: $($user.OU)" -ForegroundColor Green
 			}
-			$CountDSTOK++
+			
 			$MappingReportDST += $ReportObject
 		}
 	}
@@ -521,22 +557,22 @@ foreach ($group in $UsersByKIP) {
 Write-Host
 Write-Log "SRC mapping summary:" -ForegroundColor Cyan
 Write-Log "----------------------------" -ForegroundColor Cyan
-Write-Log "Total:		$countSRCTotal"
+Write-Log "Total:       $countSRCTotal"
 Write-Log "Updated:     $($countSRCUpdated)" -foregroundcolor yellow
-Write-Log "UpdatedSec:	$($countSRCUpdatedSecondary)" -foregroundcolor yellow
+Write-Log "UpdatedSec:  $($countSRCUpdatedSecondary)" -foregroundcolor yellow
 Write-Host
 Write-Log "OK:          $($countSRCOK) ($(($countSRCOK/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor green
-Write-Log "NotFound:	$($countSRCNotFound) ($(($countSRCNotFound/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor red
-Write-Log "NoMapping:	$($countSRCNoMapping) ($(($countSRCNoMapping/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor darkyellow
-Write-Log "MailErr:   	$($countSRCMailErr) ($(($countSRCMailErr/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor darkcyan
+Write-Log "NotFound:    $($countSRCNotFound) ($(($countSRCNotFound/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor red
+Write-Log "NoMapping:   $($countSRCNoMapping) ($(($countSRCNoMapping/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor darkyellow
+Write-Log "MailErr:     $($countSRCMailErr) ($(($countSRCMailErr/$countSRCTotal*100).ToString("##.##"))%)" -foregroundcolor darkcyan
 Write-Host
 
 Write-Log "DST mapping summary (by KIP):" -ForegroundColor Cyan
 Write-Log "----------------------------" -ForegroundColor Cyan
-Write-Log "Total:     	$($UsersByKIP.count)"
+Write-Log "Total:       $($UsersByKIP.count)"
 Write-Host
-Write-Log "OK:        	$($CountDSTOK) ($(($CountDSTOK/$UsersByKIP.count*100).ToString("##.##"))%)" -foregroundcolor green
-Write-Log "NoMapping: 	$($CountDSTNoMapping) ($(($CountDSTNoMapping/$UsersByKIP.count*100).ToString("##.##"))%)" -foregroundcolor darkyellow
+Write-Log "OK:          $($CountDSTOK) ($(($CountDSTOK/$UsersByKIP.count*100).ToString("##.##"))%)" -foregroundcolor green
+Write-Log "NoMapping:   $($CountDSTNoMapping) ($(($CountDSTNoMapping/$UsersByKIP.count*100).ToString("##.##"))%)" -foregroundcolor darkyellow
 Write-Host
 
 Export-Report -Text "SRC - T2T user mapping report UJVREZ-CEZDATA" -Report $MappingReportSRC -Path $OutputFileSRC -SortProperty "UJV_UPN"

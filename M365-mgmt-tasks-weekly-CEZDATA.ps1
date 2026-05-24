@@ -10,7 +10,7 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-StdIncBlock.ps1
 
 $ScriptList = @(
-    
+    "Get-MIP-Backup.ps1"
 )
 
 $LogFile = New-OutputFile -RootFolder $RLF -Prefix "_M365-mgmt-tasks-weekly" -Ext "log"
