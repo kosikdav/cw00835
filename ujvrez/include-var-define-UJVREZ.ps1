@@ -36,6 +36,8 @@ $scriptsFolder      = "d:\scripts-m365"
 $incFolderCommon    = "d:\scripts-m365\include"
 $incFolderTenant    = "d:\scripts-m365\ujvrez"
 
+$AADGroupsReportResolveOnprem = $true
+
 $DBFolderName       = "db"
 
 $IncFile_Var_Init           = [System.IO.Path]::Combine($incFolderCommon,"include-var-init.ps1")

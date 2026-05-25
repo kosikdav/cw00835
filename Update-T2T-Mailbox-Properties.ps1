@@ -6,7 +6,7 @@ param(
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
-. $ScriptPath\include-Script-StdStartBlock.ps1
+. $ScriptPath\include-Script-Start-Generic.ps1
 
 #######################################################################################################################
 
@@ -16,42 +16,62 @@ $LogFileFreq		= "Y"
 
 #######################################################################################################################
 
-. $ScriptPath\include-Script-StdIncBlock.ps1
+. $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Freq $LogFileFreq -Ext "log"
 
 [datetime]$date = (get-date).AddDays(-$DaysBack)
 
-$MbxFilter1 = "(alias -like '*') "
-$MbxFilter2 = "-and ((RecipientTypeDetails -eq 'UserMailbox') -or (RecipientTypeDetails -eq 'SharedMailbox') -or (RecipientTypeDetails -eq 'RoomMailbox') -or (RecipientTypeDetails -eq 'EquipmentMailbox')) "
-$MbxFilter3 = "-and (WhenMailboxCreated -gt '$($date)')"
-$userMbxFilter = $MbxFilter1 + $MbxFilter2 + $MbxFilter3
+$Src_PN_attr = "extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
+$Dst_PN_attr = "employeeNumber"
+$Dst_Mapping_attr = "extensionAttribute10"
 
-[array]$userMbxSet = @()
-$DB_changed = $false
-$ToBeDeletedRecords = @()
+$MbxFilter1 = "(alias -like '*')"
+$MbxFilter2 = " -and ((RecipientTypeDetails -eq 'UserMailbox')"
+$MbxFilter3 = " -or (RecipientTypeDetails -eq 'SharedMailbox')"
+$MbxFilter4 = " -or (RecipientTypeDetails -eq 'RoomMailbox')"
+$MbxFilter5 = " -or (RecipientTypeDetails -eq 'EquipmentMailbox'))"
+$userMbxFilter = $MbxFilter1 + $MbxFilter2 + $MbxFilter3 + $MbxFilter4 + $MbxFilter5
 
+#######################################################################################################################
 function Get-TargetT2TUser {
 	[CmdletBinding()]
     param (
         [Parameter(Mandatory)][string]$SrcIdentity,
-        [Parameter(Mandatory)][string]$SrcAccessToken,
-		[Parameter(Mandatory)][string]$DstAccessToken,
-		[Parameter(Mandatory)][string]$DstADCredential
+        [string]$SrcAccessToken,
+		[string]$DstAccessToken,
+		[pscredential]$DstADCredential
     )
 	# main function body ##################################
-	if ($SrcIdentity -eq "6c38bc03-f798-454d-9ef8-ee18cab92105") {
-		$User = [pscustomobject]@{
-			id = "d352c2a8-eb08-4e57-b71d-4a107e080b4e"
-			userPrincipalName = "qxsvecrad2@cez.cz"
-			onpremisesSamAccountName = "qxsvecrad2"
+	$UriResource = "users/$SrcIdentity"
+	$UriSelect = "id,userPrincipalName,onpremisesSamAccountName,$($Src_PN_attr)"
+	$Uri = New-GraphUri -Resource $UriResource -Select $UriSelect -Version "v1.0"
+	$SrcUser = Get-GraphOutputREST -Uri $Uri -AccessToken $SrcAccessToken -ContentType $ContentTypeJSON
+	if ($SrcUser) {
+		$Filter = "$($Dst_Mapping_attr) -eq '$($SrcUser.$Src_PN_attr)'"
+		$DstUser = Get-ADUser -Filter $Filter -Properties $Dst_Mapping_attr -Credential $DstADCredential
+		if ($DstUser) {
+			return $DstUser
 		}
-		return $User
+		else {
+			return $null
+		}
+	}
+	else {
+		return $null
 	}
 }
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
+
+if ($InteractiveRun) {
+	$ADCredentialPath = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt_qskosikdav.cred"
+}
+else {
+	$ADCredentialPath = $aad_grp_mgmt_cred
+}
+$ADCredential = Import-Clixml -Path $ADCredentialPath
 
 $DstMailRoutingDomain = "cezdata.mail.onmicrosoft.com"
 
@@ -59,10 +79,10 @@ $Src_AppReg_LOG_READER 			= $AppReg_UJVREZ_LOG_READER
 $Src_AppReg_EXO_MGMT 			= $AppReg_UJVREZ_EXO_MGMT   
 $Src_T2T_EXO_MIGRATION_GROUP 	= $UJVREZ_T2T_EXO_MIGRATION_GROUP
 
-$Dst_AppReg_LOG_READER 			= $AppReg_CEZDATA_LOG_READER
-$Dst_AppReg_EXO_MGMT 			= $AppReg_CEZDATA_EXO_MGMT   
-
 Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
+Connect-EXOService -AppRegName $Src_AppReg_EXO_MGMT  -TTL 120
+$ExchangeSession = New-PSSession -Name "OnPremExchange" -ConfigurationName "Microsoft.Exchange" -ConnectionUri "http://cw00616exch3.cezdata.corp/PowerShell/" -Authentication Kerberos
+Import-PSSession $ExchangeSession -DisableNameChecking -AllowClobber
 
 #get source T2T migration group
 $T2TMigrationGroupName = Get-GroupNameFromGraphById -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -Id $Src_T2T_EXO_MIGRATION_GROUP
@@ -79,16 +99,16 @@ $Uri = New-GraphUri -Resource $UriResource -Version "v1.0"
 [array]$T2TMigrationGroupMembers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken
 write-host "SRC T2T migration group members: $($T2TMigrationGroupMembers.count)"
 
-Connect-EXOService -AppRegName $Src_AppReg_EXO_MGMT  -TTL 120
 write-host "SRC mailboxes total: " -NoNewline
 [array]$SrcMailboxesAll = Get-EXOMailbox -ResultSize Unlimited -PropertySets All
 write-host $SrcMailboxesAll.count
-[array]$SrcMailboxes = $SrcMailboxesAll | Where-Object { $_.id -in $T2TMigrationGroupMembers.id }
+[array]$SrcMailboxes = $SrcMailboxesAll | Where-Object { $_.ExternalDirectoryObjectId -in $T2TMigrationGroupMembers.id }
 write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
 Remove-Variable SrcMailboxesAll
-Get-PSSession | Remove-PSSession
 
+<#
 Request-MSALToken -AppRegName $Dst_AppReg_LOG_READER -TTL 30
+
 $UriResource = "users"
 $UriSelect = "id,userPrincipalName,onpremisesSamAccountName"
 $UriFilter = "userType eq 'Member' and onpremisesSyncEnabled eq true"
@@ -106,6 +126,7 @@ Import-PSSession $Session -DisableNameChecking -AllowClobber | Out-Null
 write-host "DST AD mailUsers: " -NoNewline
 $DstADMailUsers = Get-MailUser -ResultSize Unlimited
 write-host $DstADMailUsers.count
+#>
 
 foreach ($SrcMailbox in $SrcMailboxes) {
 	write-host "------------------------"
@@ -136,34 +157,33 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	write-host "LegacyExchangeDN: $($SrcMailbox.LegacyExchangeDN)"
 	write-host $SRCx500Addresses -ForegroundColor Cyan
 	write-host $SRCsmtpAddresses -ForegroundColor Green
-	$DstUser = Get-TargetT2TUser -SrcIdentity $SrcMailbox.id -SrcAccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -DstAccessToken $AuthDB[$Src_AppReg_EXO_MGMT].AccessToken
+	$DstUser = Get-TargetT2TUser -SrcIdentity $SrcMailbox.ExternalDirectoryObjectId -SrcAccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -DstADCredential $ADCredential
 	if ($DstUser) {
-		write-host "Target user: $($DstUser.userPrincipalName)"	
+		write-host "Target user: $($DstUser.userPrincipalName)"
 		Try {
-			$DstMailUser = Get-MailUser -Identity $DstUser.onpremisesSamAccountName -ErrorAction Stop
-			write-host "Target user $($DstUser.onpremisesSamAccountName) is type mailUser. Updating properties..."
-			write-host $DstMailuser
+			$DstMailUser = Get-MailUser -Identity $DstUser.samAccountName -ErrorAction Stop
+			write-host "Target user $($DstUser.samAccountName) is type mailUser. Updating properties..."
 			
 			write-host "Setting PrimarySmtpAddress to $($DstUser.userPrincipalName)"
-			Set-MailUser -Identity $DstUser.onpremisesSamAccountName -PrimarySmtpAddress $DstUser.userPrincipalName
+			Set-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName
 			
 			write-host "Setting ExternalEmailAddress to $($SrcMailbox.PrimarySmtpAddress)"
-			Set-MailUser -Identity $DstUser.onpremisesSamAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
+			Set-MailUser -Identity $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
 			
-			write-host "Adding smtp address $($DstUser.onpremisesSamAccountName)@$DstMailRoutingDomain"
-			Set-MailUser -Identity $DstUser.onpremisesSamAccountName -EmailAddresses @{add="smtp:$($DstUser.onpremisesSamAccountName)@$DstMailRoutingDomain"}
+			write-host "Adding smtp address $($DstUser.samAccountName)@$DstMailRoutingDomain"
+			Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="smtp:$($DstUser.samAccountName)@$DstMailRoutingDomain"}
 
 			write-host "Adding LegacyExchangeDN $($SrcMailbox.LegacyExchangeDN)"
-			Set-MailUser -Identity $DstUser.onpremisesSamAccountName -EmailAddresses @{add="x500:$($SrcMailbox.LegacyExchangeDN)"}
+			Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="x500:$($SrcMailbox.LegacyExchangeDN)"}
 
 			write-host "Adding x500 addresses $($SRCx500Addresses -join ",")"
 			foreach ($x500 in $SRCx500Addresses) {
-				Set-MailUser -Identity $DstUser.onpremisesSamAccountName -EmailAddresses @{add="$x500"}
+				Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="$x500"}
 			}
 		}
 		Catch {
-			write-host "Target user: $($DstUser.onpremisesSamAccountName) is not type mailUser"
-			Enable-MailUser -Identity $DstUser.onpremisesSamAccountName -PrimarySmtpAddress $DstUser.userPrincipalName -Alias $DstUser.onpremisesSamAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
+			write-host "Target user: $($DstUser.samAccountName) is not type mailUser"
+			Enable-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName -Alias $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
 		}
 	}
 	Else {
