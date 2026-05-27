@@ -2,7 +2,8 @@
 # Update-T2T-UserMapping-UJVREZ.ps1
 #######################################################################################################################
 param(
-    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile
+    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
+	[switch]$TestRun
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
@@ -25,7 +26,7 @@ $MappingCSV_ignoredPNs_FilePath = "d:\data\t2t-ujvrez\userMapping-ignoredSrcPNs.
 
 $SGUMFolder				= $OutputFolder+"\sgum"
 
-$MailErrIgnore = $false
+$MailErrIgnore = $true
 
 $Src_map_attr = "UJV_pn"
 $Dst_map_attr = "CEZ_pn"
@@ -115,7 +116,7 @@ Write-Log "Dst_map_attr: $Dst_map_attr"
 Write-Log "Src_PN_attr: $Src_PN_attr"
 Write-Log "Dst_PN_attr: $Dst_PN_attr"
 Write-Log "Dst_mailAD40: $Dst_mailAD40"
-
+Write-Log "MailErrIgnore: $MailErrIgnore"
 write-log $string_divider
 
 write-log "SRC MAPPING" -ForegroundColor Cyan
@@ -126,7 +127,7 @@ Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 #######################################################################################################################
 [array]$userMappingALL = Import-CSVtoArray -Path $MappingCSV_ALL_FilePath
 #[array]$userMappingENGPRAHA = Import-CSVtoArray -Path $MappingCSV_ENGPRAHA_FilePath
-#[array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
+[array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
 [array]$userMappingManual = Import-CSVtoArray -Path $MappingCSV_Manual_FilePath
 [array]$userMappingIgnoredPNs = Import-CSVtoArray -Path $MappingCSV_ignoredPNs_FilePath
 
@@ -334,7 +335,9 @@ foreach ($user in $SrcAADUsers) {
 							$currentExt10 = "<empty>"
 						}
 						try {
-							Set-ADUser -Identity $DstUser.samAccountName -Replace @{extensionAttribute10 = $user.$Src_PN_attr} -Credential $ADCredential
+							if (-not $TestRun) {
+								Set-ADUser -Identity $DstUser.samAccountName -Replace @{extensionAttribute10 = $user.$Src_PN_attr} -Credential $ADCredential
+							}
 							$countSRCUpdated++
 							Write-Log "UPDATING:  $($user.userPrincipalName) ($($user.displayName)) PN:$($user.$Src_PN_attr) - $($DstUser.userPrincipalName) $($DstUser.SamAccountName) ext10:$($currentExt10) -> $($user.$Src_PN_attr)" -ForegroundColor Yellow
 							$ReportObject.OldExt10 = $currentExt10
@@ -394,7 +397,9 @@ foreach ($user in $SrcAADUsers) {
 		foreach ($secondaryUser in $secondaryDstUsers) {
 			if ($secondaryUser.extensionAttribute10 -ne "_"+$user.$Src_PN_attr) {
 				try {
-					Set-ADUser -Identity $secondaryUser.samAccountName -Replace @{extensionAttribute10 = "_"+$user.$Src_PN_attr} -Credential $ADCredential
+					if (-not $TestRun) {
+						Set-ADUser -Identity $secondaryUser.samAccountName -Replace @{extensionAttribute10 = "_"+$user.$Src_PN_attr} -Credential $ADCredential
+					}
 					$countSRCUpdatedSecondary++
 					$DSTUsersMapped += $secondaryUser.samAccountName
 					Write-Log "UPDATING SECONDARY:  $($secondaryUser.userPrincipalName) ($($secondaryUser.displayName)) PN:$($secondaryUser.$Src_PN_attr) - $($secondaryUser.userPrincipalName) $($secondaryUser.SamAccountName) ext10:$($currentExt10) -> _$($user.$Src_PN_attr)" -ForegroundColor Yellow
@@ -421,7 +426,9 @@ if ($DSTUsersMapped.Count -gt 0) {
 		}
 		else {
 			try {
-				Set-ADUser -Identity $samAccountName -Clear extensionAttribute10 -Credential $ADCredential
+				if (-not $TestRun) {
+					Set-ADUser -Identity $samAccountName -Clear extensionAttribute10 -Credential $ADCredential
+				}
 				Write-Log "Clearing ext10:  $($samAccountName) - ext10: <empty>" -ForegroundColor Yellow
 			}
 			catch {

@@ -162,7 +162,15 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		write-host "Target user: $($DstUser.userPrincipalName)"
 		Try {
 			$DstMailUser = Get-MailUser -Identity $DstUser.samAccountName -ErrorAction Stop
-			write-host "Target user $($DstUser.samAccountName) is type mailUser. Updating properties..."
+			write-host "Target user $($DstUser.samAccountName) is type mailUser. Updating properties..." -ForegroundColor Green
+			
+			write-host "Setting ExchangeGUID to $($SrcMailbox.ExchangeGuid)"
+			Set-MailUser -Identity $DstUser.samAccountName -ExchangeGuid $SrcMailbox.ExchangeGuid
+			
+			if ($ArchiveGuid) {
+				write-host "Setting ArchiveGUID to $ArchiveGuid"
+				Set-MailUser -Identity $DstUser.samAccountName -ArchiveGuid $ArchiveGuid
+			}
 			
 			write-host "Setting PrimarySmtpAddress to $($DstUser.userPrincipalName)"
 			Set-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName
