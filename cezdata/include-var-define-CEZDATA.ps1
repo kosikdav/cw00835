@@ -196,6 +196,8 @@ $AuditAdminActionsAll = @("ApplyRecord","Copy","Create","FolderBind","HardDelete
 $AuditDelegateActionsAll = @("ApplyRecord","Create","FolderBind","HardDelete","MailItemsAccessed","Move","MoveToDeletedItems","RecordDelete","SendAs","SendOnBehalf","SoftDelete","Update","UpdateFolderPermissions","UpdateInboxRules")
 $AuditOwnerActionsAll = @("ApplyRecord","Create","HardDelete","MailboxLogin","MailItemsAccessed","Move","MoveToDeletedItems","RecordDelete","SearchQueryInitiated","Send","SoftDelete","Update","UpdateCalendarDelegation","UpdateFolderPermissions","UpdateInboxRules")
 
+$TenantId_UJVREZ = "56b31968-ca9e-4cc3-9257-477c3699b885"
+
 $T2TTenant_DB = @{
     "87bd4c77-46eb-4cdf-9c33-a5597730faa6" = "CAPEXUS"
     "65afc824-f110-42ab-8a83-247c89d0eed8" = "ENESA"

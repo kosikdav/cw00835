@@ -186,6 +186,43 @@ foreach ($Guest in $AllAADGuests) {
                     Write-Log $_.Exception.Message -MessageType Error
                 }
             }
+            if ($tenantId -eq $TenantId_UJVREZ) {
+                if ($Guest.userPrincipalName -eq "pavel.naroda_ujv.cz#EXT#@cezdata.onmicrosoft.com") {
+                    foreach ($proxyAddress in $Guest.proxyAddresses) {
+                        if (($proxyAddress.StartsWith("SMTP:")) -or ($proxyAddress -like "*@ujvgroup.cz")) {
+                            continue
+                        }
+                        else {
+                            Try {
+                                Set-MailUser $upn -EmailAddresses @{remove="$($proxyAddress)"} -ErrorAction Stop
+                                Start-SleepDots -Seconds $sleepShort
+                            }
+                            Catch {
+                                Write-Log $_.Exception.Message -MessageType Error
+                            }
+                        }
+                    }
+                    if ($Guest.otherMails) {
+                        $GraphBodyOther = @{
+                            otherMails = $null
+                        } | ConvertTo-Json
+                        $GraphBodyOther = [System.Text.Encoding]::UTF8.GetBytes($GraphBodyOther)
+                        Try {
+                            $ResultPATCH = Invoke-RestMethod -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBodyOther -Method "PATCH" -ContentType $ContentTypeJSON
+                            Write-Log "$($Guest.mail) SUCCESS deleting otherMails" -ForegroundColor "Cyan"
+                        }
+                        Catch {
+                            $ErrorMessagePATCH = $_.ErrorDetails.Message | Out-String
+                            Write-Log "$($Guest.mail) ERR PATCH otherMails" -MessageType Error
+                            Write-Log $ErrorMessagePATCH -MessageType Error
+                            write-host $_.Exception.Message
+                        }
+                    }
+                }
+            }
+
+
+
         }
         else {
             Write-Log "$($Guest.mail) ERR ext15 attribute set but T2TTenant_DB does not contain $($ExtTenant.tenantId)" -MessageType Error
