@@ -36,6 +36,8 @@ $AADUserReportTNR_ext_name = "ext_msDScloudExtensionAttribute1"
 $AADUserReportAuthMobile_attr_label = "ext_cEZIntuneMFAAuthMobile"
 $AADUserReportAuthMobile_ext_name = "ext_cEZIntuneMFAAuthMobile"
 
+$AADGroupsReportResolveOnprem = $false
+
 $AADUserReportGroupMemberCount = $true
 
 $string_divider = "-------------------------------------------------------------------------------"

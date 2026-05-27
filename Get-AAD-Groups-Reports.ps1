@@ -72,9 +72,12 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $Uri
 
 ForEach ($Group in $AADGroups) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
-	$MemberCount, $OwnerCount = "n/a"
-	$GroupIsDynamic, $GroupIsUnified, $GroupIsTeam = $false
+	$MemberCount = $OwnerCount = "n/a"
+	$DoNotEnumerate = $GroupIsDynamic = $GroupIsUnified = $GroupIsTeam = $OnPremGroupEnum = $false
 
+	if ($NoEnumerationGroups.Contains($Group.id)) {
+		$DoNotEnumerate = $true
+	}
 	if (($Group | Select-Object -ExpandProperty GroupTypes) -Contains "DynamicMembership") {
 		$GroupIsDynamic = $true
 	}
@@ -84,8 +87,11 @@ ForEach ($Group in $AADGroups) {
 	if (($Group | Select-Object -ExpandProperty ResourceProvisioningOptions) -Contains "Team") {
 		$GroupIsTeam = $true
 	}
+	if ($Group.onPremisesSyncEnabled -and $AADGroupsReportResolveOnprem) {
+		$OnPremGroupEnum = $true
+	}
 
-	if ($NoEnumerationGroups.Contains($Group.id) -or $Group.onPremisesSyncEnabled -or $GroupIsTeam -or $GroupIsDynamic) {
+	if ($DoNotEnumerate -or $GroupIsTeam -or $GroupIsDynamic -or (-not $OnPremGroupEnum) ) {
 		$UriResource = "groups/$($Group.id)/members/`$count"
 		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
 		$MemberCount = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual"
