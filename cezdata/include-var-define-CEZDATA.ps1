@@ -214,6 +214,10 @@ $T2TTenant_DB = @{
     "c6807474-993d-4891-994b-79c685818b9c" = "ELENG"
     "12437861-f55d-4e74-8b78-47996c60686a" = "SDAS"
 }
+$CustomDomainsUJVREZ =  @(
+    "exchange.ujv.cz",
+    "ujvgroup.cz"
+)
 
 $T2TCompanyName_DB = @{
     "ujv.cz"        = "UJV"

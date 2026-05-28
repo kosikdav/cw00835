@@ -110,6 +110,10 @@ foreach ($Guest in $AllAADGuests) {
     if ($Guest.Mail) {
         $MailDomain	= ($Guest.Mail.Split("@")[1]).ToLower()
         $ExtTenant = $AADExtTenant_DB[$MailDomain]
+        if ($CustomDomainsUJVREZ -contains $MailDomain) {
+            #write-host "$($Guest.mail) - custom domain match for UJVREZ: $($MailDomain)"
+            $ExtTenant = $AADExtTenant_DB["ujv.cz"]
+        }
         If ($ExtTenant) {
             $AADExtCompanyName = $ExtTenant.displayName.Trim()
             $AADExtCompanyName = $AADExtCompanyName.substring(0, [System.Math]::Min(63, $AADExtCompanyName.Length))
@@ -174,20 +178,34 @@ foreach ($Guest in $AllAADGuests) {
                     Write-Log $($ErrorMessagePATCH) -MessageType Error
                 }
             }
+            
             #if showInAddressList is not set, set it to true
-            $MailUser = Get-MailUser -Identity $Guest.Mail
-            if ($MailUser.HiddenFromAddressListsEnabled) {
-                Try {
-                    Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$false
-                    Write-Log "$($Guest.mail) SUCCESS showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -ForegroundColor "Cyan"
-                }
-                Catch {
-                    Write-Log "$($Guest.mail) ERR showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -MessageType Error
-                    Write-Log $_.Exception.Message -MessageType Error
+            <#
+            Try {
+                $MailUser = Get-MailUser -Identity $Guest.Mail
+                if ($MailUser.HiddenFromAddressListsEnabled) {
+                    Try {
+                        Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$false
+                        Write-Log "$($Guest.mail) SUCCESS showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -ForegroundColor "Cyan"
+                    }
+                    Catch {
+                        Write-Log "$($Guest.mail) ERR showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -MessageType Error
+                        Write-Log $_.Exception.Message -MessageType Error
+                    }
                 }
             }
+            Catch {
+                Write-Log "$($Guest.mail) ERR Get-MailUser" -MessageType Error
+                Write-Log $_.Exception.Message -MessageType Error
+            }
+            #>
+            
+            ######################################################################
+            ######################################################################
+            ######################################################################
+            #UJVREZ guests
             if ($tenantId -eq $TenantId_UJVREZ) {
-                if ($Guest.userPrincipalName -eq "pavel.naroda_ujv.cz#EXT#@cezdata.onmicrosoft.com") {
+                if ($Guest.proxyAddresses) {
                     foreach ($proxyAddress in $Guest.proxyAddresses) {
                         if (($proxyAddress.StartsWith("SMTP:")) -or ($proxyAddress -like "*@ujvgroup.cz")) {
                             continue
@@ -195,37 +213,52 @@ foreach ($Guest in $AllAADGuests) {
                         else {
                             Try {
                                 Set-MailUser $upn -EmailAddresses @{remove="$($proxyAddress)"} -ErrorAction Stop
-                                Start-SleepDots -Seconds $sleepShort
+                                write-log "$($Guest.mail) SUCCESS removing redundant proxyAddress $($proxyAddress)" -ForegroundColor "Yellow"
+                                #Start-SleepDots -Seconds $sleepShort
                             }
                             Catch {
                                 Write-Log $_.Exception.Message -MessageType Error
                             }
                         }
                     }
-                    if ($Guest.otherMails) {
-                        $GraphBodyOther = @{
-                            otherMails = $null
-                        } | ConvertTo-Json
-                        $GraphBodyOther = [System.Text.Encoding]::UTF8.GetBytes($GraphBodyOther)
-                        Try {
-                            $ResultPATCH = Invoke-RestMethod -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBodyOther -Method "PATCH" -ContentType $ContentTypeJSON
-                            Write-Log "$($Guest.mail) SUCCESS deleting otherMails" -ForegroundColor "Cyan"
-                        }
-                        Catch {
-                            $ErrorMessagePATCH = $_.ErrorDetails.Message | Out-String
-                            Write-Log "$($Guest.mail) ERR PATCH otherMails" -MessageType Error
-                            Write-Log $ErrorMessagePATCH -MessageType Error
-                            write-host $_.Exception.Message
-                        }
+                }
+
+                if ($Guest.otherMails) {
+                    $GraphBodyOther = @{
+                        otherMails = @()
+                    } | ConvertTo-Json
+                    $GraphBodyOther = [System.Text.Encoding]::UTF8.GetBytes($GraphBodyOther)
+                    Try {
+                        $ResultPATCH = Invoke-RestMethod -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $GraphBodyOther -Method "PATCH" -ContentType $ContentTypeJSON
+                        Write-Log "$($Guest.mail) SUCCESS deleting otherMails" -ForegroundColor "Cyan"
+                    }
+                    Catch {
+                        $ErrorMessagePATCH = $_.ErrorDetails.Message | Out-String
+                        Write-Log "$($Guest.mail) ERR PATCH otherMails" -MessageType Error
+                        Write-Log $ErrorMessagePATCH -MessageType Error
+                        write-host $_.Exception.Message
                     }
                 }
+
+                $MailUser = Get-MailUser -Identity $Guest.Mail
+                if ($MailUser.HiddenFromAddressListsEnabled -eq $false) {
+                    Try {
+                        Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$true
+                        Write-Log "$($Guest.mail) SUCCESS hideFromAddressList" -ForegroundColor "Cyan"
+                    }
+                    Catch {
+                        Write-Log "$($Guest.mail) ERR hideFromAddressList" -MessageType Error
+                        Write-Log $_.Exception.Message -MessageType Error
+                    }
+                }   
             }
-
-
-
+            #UJVREZ guests
+            ######################################################################
+            ######################################################################
+            ######################################################################
         }
         else {
-            Write-Log "$($Guest.mail) ERR ext15 attribute set but T2TTenant_DB does not contain $($ExtTenant.tenantId)" -MessageType Error
+            Write-Log "$($Guest.mail) ERR ext15 attribute set but T2TTenant_DB does not contain id `"$($ExtTenant.tenantId)`"" -MessageType Error
         }
     }
     else {
