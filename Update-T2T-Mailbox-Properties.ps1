@@ -188,6 +188,10 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 			foreach ($x500 in $SRCx500Addresses) {
 				Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="$x500"}
 			}
+			
+			write-host "HiddenFromAddressListsEnabled false"
+			Set-MailUser -Identity $DstUser.samAccountName -HiddenFromAddressListsEnabled $false
+
 		}
 		Catch {
 			write-host "Target user: $($DstUser.samAccountName) is not type mailUser"
