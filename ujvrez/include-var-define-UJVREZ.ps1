@@ -21,6 +21,8 @@ $LHDuration = $LitigationHoldDuration
 $MaxReceiveSize = "150MB"
 $MaxSendSize 	= "150MB"
 
+$SkipCSOnlineUsersReport = $true
+
 $EXOMbxReportPermissions = $true
 $AADUserReportGroupMemberCount = $true
 

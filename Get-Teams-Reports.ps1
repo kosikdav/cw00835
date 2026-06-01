@@ -113,40 +113,86 @@ write-Log "OutputFileStatUsr: $($OutputFileStatUsr)"
 # CSOnlineUsers report 
 #######################################################################################################################
 
-Connect-Teams -AppRegName $AppReg_TMS_MGMT -TTL 60
-$CsOnlineUsers = Get-CsOnlineUser
-write-log "CsOnlineUsers: $($CsOnlineUsers.Count)" -ForegroundColor Yellow
-foreach ($CsOnlineUser in $CsOnlineUsers) {
-	$PhoneNumberAssignment = $null
-	if ($CsOnlineUser.LineURI) {
-		$result = Get-CsPhoneNumberAssignment -AssignedPstnTargetId $CsOnlineUser.Identity
-		$PhoneNumberAssignment = [PSCustomObject]@{
-			TelephoneNumber 	= $result.TelephoneNumber;
-			OperatorId 			= $result.OperatorId;
-			NumberType 			= $result.NumberType;
-			ActivationState 	= $result.ActivationState;
-			AssignmentCategory 	= $result.AssignmentCategory;
-			Capability 			= $result.Capability;
-			LocationUpdateSupported = $result.LocationUpdateSupported;
-			PstnAssignmentStatus = $result.PstnAssignmentStatus;
-			NumberSource 		= $result.NumberSource
+if (-not $SkipCSOnlineUsersReport) {
+	Connect-Teams -AppRegName $AppReg_TMS_MGMT -TTL 60
+	$CsOnlineUsers = Get-CsOnlineUser
+	write-log "CsOnlineUsers: $($CsOnlineUsers.Count)" -ForegroundColor Yellow
+	foreach ($CsOnlineUser in $CsOnlineUsers) {
+		$PhoneNumberAssignment = $null
+		if ($CsOnlineUser.LineURI) {
+			$result = Get-CsPhoneNumberAssignment -AssignedPstnTargetId $CsOnlineUser.Identity
+			$PhoneNumberAssignment = [PSCustomObject]@{
+				TelephoneNumber 	= $result.TelephoneNumber;
+				OperatorId 			= $result.OperatorId;
+				NumberType 			= $result.NumberType;
+				ActivationState 	= $result.ActivationState;
+				AssignmentCategory 	= $result.AssignmentCategory;
+				Capability 			= $result.Capability;
+				LocationUpdateSupported = $result.LocationUpdateSupported;
+				PstnAssignmentStatus = $result.PstnAssignmentStatus;
+				NumberSource 		= $result.NumberSource
+			}
+			$userObjectMin = [pscustomobject]@{
+				UserId 					= $CsOnlineUser.Identity;
+				UserPrincipalName 		= $CsOnlineUser.UserPrincipalName;
+				Alias 					= $CsOnlineUser.Alias;
+				DisplayName 			= $CsOnlineUser.DisplayName;
+				Department 				= $CsOnlineUser.Department;
+				CompanyName 			= $CsOnlineUser.Company;
+				TenantId 				= $CsOnlineUser.TenantId;
+				LineUri 				= $CsOnlineUser.LineUri;
+				SipAddress 				= $CsOnlineUser.SipAddress;
+				FeatureTypes 			= $CsOnlineUser.FeatureTypes -join ";";
+				ProvisionedPlan 		= $CsOnlineUser.ProvisionedPlan -join ";";
+				EnterpriseVoiceEnabled 	= $CsOnlineUser.EnterpriseVoiceEnabled;
+				ExternalAccessPolicy 	= $CsOnlineUser.ExternalAccessPolicy;
+		
+				TelephoneNumber 		= $PhoneNumberAssignment.TelephoneNumber;
+				NumberType 				= $PhoneNumberAssignment.NumberType;
+				ActivationState 		= $PhoneNumberAssignment.ActivationState;
+				AssignmentCategory 		= $PhoneNumberAssignment.AssignmentCategory;
+				Capability 				= $PhoneNumberAssignment.Capability -join ";";
+				LocationUpdateSupported = $PhoneNumberAssignment.LocationUpdateSupported;
+				PstnAssignmentStatus 	= $PhoneNumberAssignment.PstnAssignmentStatus;
+				NumberSource 			= $PhoneNumberAssignment.NumberSource;
+			}
+			$ReportPSTNUsers += $userObjectMin
 		}
-		$userObjectMin = [pscustomobject]@{
+		$userObject	= [pscustomobject]@{
+			AccountEnabled 			= $CsOnlineUser.AccountEnabled;
+			AccountType 			= $CsOnlineUser.AccountType;
 			UserId 					= $CsOnlineUser.Identity;
 			UserPrincipalName 		= $CsOnlineUser.UserPrincipalName;
 			Alias 					= $CsOnlineUser.Alias;
+			FirstName 				= $CsOnlineUser.GivenName;
+			LastName 				= $CsOnlineUser.LastName;
 			DisplayName 			= $CsOnlineUser.DisplayName;
-			Department 				= $CsOnlineUser.Department;
-			CompanyName 			= $CsOnlineUser.Company;
+			UserDirSyncEnabled 		= $CsOnlineUser.UserDirSyncEnabled;
+			Title 					= $CsOnlineUser.Title;
+			CompanyName				= $CsOnlineUser.Company;
 			TenantId 				= $CsOnlineUser.TenantId;
-			LineUri 				= $CsOnlineUser.LineUri;
-			SipAddress 				= $CsOnlineUser.SipAddress;
-			FeatureTypes 			= $CsOnlineUser.FeatureTypes -join ";";
-			ProvisionedPlan 		= $CsOnlineUser.ProvisionedPlan -join ";";
+			Department 				= $CsOnlineUser.Department;
+			HideFromAddressLists 	= $CsOnlineUser.HideFromAddressLists;
+			AdmUnitReference 		= $CsOnlineUser.AdministrativeUnitReference -join ";";
+			ApplicationAccessPolicy = $CsOnlineUser.ApplicationAccessPolicy;
+			CallingLineIdentity 	= $CsOnlineUser.CallingLineIdentity;
+			City 					= $CsOnlineUser.City;
+			Street 					= $CsOnlineUser.Street;
+			StateOrProvince 		= $CsOnlineUser.StateOrProvince;
+			PostalCode				= $CsOnlineUser.PostalCode;
+			Country 				= $CsOnlineUser.Country;
+			CountryAbbreviation 	= $CsOnlineUser.CountryAbbreviation;
+			DialPlan 				= $CsOnlineUser.DialPlan;
 			EnterpriseVoiceEnabled 	= $CsOnlineUser.EnterpriseVoiceEnabled;
 			ExternalAccessPolicy 	= $CsOnlineUser.ExternalAccessPolicy;
-	
+			FeatureTypes 			= $CsOnlineUser.FeatureTypes -join ";";
+			ProvisionedPlan 		= $CsOnlineUser.ProvisionedPlan -join ";";
+			HostingProvider 		= $CsOnlineUser.HostingProvider;
+			InterpretedUserType 	= $CsOnlineUser.InterpretedUserType;
+			IsSipEnabled 			= $CsOnlineUser.IsSipEnabled;
+			LineUri 				= $CsOnlineUser.LineUri;
 			TelephoneNumber 		= $PhoneNumberAssignment.TelephoneNumber;
+			OperatorId 				= $PhoneNumberAssignment.OperatorId;
 			NumberType 				= $PhoneNumberAssignment.NumberType;
 			ActivationState 		= $PhoneNumberAssignment.ActivationState;
 			AssignmentCategory 		= $PhoneNumberAssignment.AssignmentCategory;
@@ -154,126 +200,82 @@ foreach ($CsOnlineUser in $CsOnlineUsers) {
 			LocationUpdateSupported = $PhoneNumberAssignment.LocationUpdateSupported;
 			PstnAssignmentStatus 	= $PhoneNumberAssignment.PstnAssignmentStatus;
 			NumberSource 			= $PhoneNumberAssignment.NumberSource;
-		}
-		$ReportPSTNUsers += $userObjectMin
-	}
-	$userObject	= [pscustomobject]@{
-		AccountEnabled 			= $CsOnlineUser.AccountEnabled;
-		AccountType 			= $CsOnlineUser.AccountType;
-		UserId 					= $CsOnlineUser.Identity;
-		UserPrincipalName 		= $CsOnlineUser.UserPrincipalName;
-		Alias 					= $CsOnlineUser.Alias;
-		FirstName 				= $CsOnlineUser.GivenName;
-		LastName 				= $CsOnlineUser.LastName;
-		DisplayName 			= $CsOnlineUser.DisplayName;
-		UserDirSyncEnabled 		= $CsOnlineUser.UserDirSyncEnabled;
-		Title 					= $CsOnlineUser.Title;
-		CompanyName				= $CsOnlineUser.Company;
-		TenantId 				= $CsOnlineUser.TenantId;
-		Department 				= $CsOnlineUser.Department;
-		HideFromAddressLists 	= $CsOnlineUser.HideFromAddressLists;
-		AdmUnitReference 		= $CsOnlineUser.AdministrativeUnitReference -join ";";
-		ApplicationAccessPolicy = $CsOnlineUser.ApplicationAccessPolicy;
-		CallingLineIdentity 	= $CsOnlineUser.CallingLineIdentity;
-		City 					= $CsOnlineUser.City;
-		Street 					= $CsOnlineUser.Street;
-		StateOrProvince 		= $CsOnlineUser.StateOrProvince;
-		PostalCode				= $CsOnlineUser.PostalCode;
-		Country 				= $CsOnlineUser.Country;
-		CountryAbbreviation 	= $CsOnlineUser.CountryAbbreviation;
-		DialPlan 				= $CsOnlineUser.DialPlan;
-		EnterpriseVoiceEnabled 	= $CsOnlineUser.EnterpriseVoiceEnabled;
-		ExternalAccessPolicy 	= $CsOnlineUser.ExternalAccessPolicy;
-		FeatureTypes 			= $CsOnlineUser.FeatureTypes -join ";";
-		ProvisionedPlan 		= $CsOnlineUser.ProvisionedPlan -join ";";
-		HostingProvider 		= $CsOnlineUser.HostingProvider;
-		InterpretedUserType 	= $CsOnlineUser.InterpretedUserType;
-		IsSipEnabled 			= $CsOnlineUser.IsSipEnabled;
-		LineUri 				= $CsOnlineUser.LineUri;
-		TelephoneNumber 		= $PhoneNumberAssignment.TelephoneNumber;
-		OperatorId 				= $PhoneNumberAssignment.OperatorId;
-		NumberType 				= $PhoneNumberAssignment.NumberType;
-		ActivationState 		= $PhoneNumberAssignment.ActivationState;
-		AssignmentCategory 		= $PhoneNumberAssignment.AssignmentCategory;
-		Capability 				= $PhoneNumberAssignment.Capability -join ";";
-		LocationUpdateSupported = $PhoneNumberAssignment.LocationUpdateSupported;
-		PstnAssignmentStatus 	= $PhoneNumberAssignment.PstnAssignmentStatus;
-		NumberSource 			= $PhoneNumberAssignment.NumberSource;
 
-		OnPremEnterpriseVoiceEnabled = $CsOnlineUser.OnPremEnterpriseVoiceEnabled;
-		OnPremHostingProvider 	= $CsOnlineUser.OnPremHostingProvider;
-		OnPremLineUri 			= $CsOnlineUser.OnPremLineUri;
-		OnPremOptionFlags 		= $CsOnlineUser.OnPremOptionFlags;
-		OnPremSIPEnabled 		= $CsOnlineUser.OnPremSIPEnabled;
-		OnPremSipAddress 		= $CsOnlineUser.OnPremSipAddress;
-		OnlineAudioConferencingRoutingPolicy = $CsOnlineUser.OnlineAudioConferencingRoutingPolicy;
-		OnlineDialOutPolicy 	= $CsOnlineUser.OnlineDialOutPolicy;
-		OnlineVoiceRoutingPolicy = $CsOnlineUser.OnlineVoiceRoutingPolicy;
-		OnlineVoicemailPolicy 	= $CsOnlineUser.OnlineVoicemailPolicy;
-		OwnerUrn 				= $CsOnlineUser.OwnerUrn;
-		PreferredDataLocation 	= $CsOnlineUser.PreferredDataLocation;
-		PreferredLanguage 		= $CsOnlineUser.PreferredLanguage;
-		UsageLocation 			= $CsOnlineUser.UsageLocation; 
-		ProxyAddresses 			= $CsOnlineUser.ProxyAddresses -join ";";
-		ShadowProxyAddresses 	= $CsOnlineUser.ShadowProxyAddresses -join ";";
-		SipAddress 				= $CsOnlineUser.SipAddress;
-		SipProxyAddress 		= $CsOnlineUser.SipProxyAddress; 
-		SoftDeletionTimestamp 	= $CsOnlineUser.SoftDeletionTimestamp; 
-		
-		TeamsAppPermissionPolicy = $CsOnlineUser.TeamsAppPermissionPolicy;
-		TeamsAppSetupPolicy 	= $CsOnlineUser.TeamsAppSetupPolicy;
-		TeamsAudioConferencingPolicy = $CsOnlineUser.TeamsAudioConferencingPolicy;
-		TeamsCallHoldPolicy 	= $CsOnlineUser.TeamsCallHoldPolicy;
-		TeamsCallParkPolicy 	= $CsOnlineUser.TeamsCallParkPolicy;
-		TeamsCallingPolicy 		= $CsOnlineUser.TeamsCallingPolicy;
-		TeamsCarrierEmergencyCallRoutingPolicy = $CsOnlineUser.TeamsCarrierEmergencyCallRoutingPolicy;
-		TeamsChannelsPolicy 	= $CsOnlineUser.TeamsChannelsPolicy;
-		TeamsComplianceRecordingPolicy = $CsOnlineUser.TeamsComplianceRecordingPolicy;
-		TeamsCortanaPolicy 		= $CsOnlineUser.TeamsCortanaPolicy;
-		TeamsEducationAssignmentsAppPolicy = $CsOnlineUser.TeamsEducationAssignmentsAppPolicy;
-		TeamsEmergencyCallRoutingPolicy = $CsOnlineUser.TeamsEmergencyCallRoutingPolicy;
-		TeamsEmergencyCallingPolicy = $CsOnlineUser.TeamsEmergencyCallingPolicy;
-		TeamsEnhancedEncryptionPolicy = $CsOnlineUser.TeamsEnhancedEncryptionPolicy;
-		TeamsEventsPolicy 		= $CsOnlineUser.TeamsEventsPolicy;
-		TeamsFeedbackPolicy 	= $CsOnlineUser.TeamsFeedbackPolicy;
-		TeamsFilesPolicy 		= $CsOnlineUser.TeamsFilesPolicy;
-		TeamsIPPhonePolicy 		= $CsOnlineUser.TeamsIPPhonePolicy;
-		TeamsMediaLoggingPolicy = $CsOnlineUser.TeamsMediaLoggingPolicy;
-		TeamsMeetingBrandingPolicy = $CsOnlineUser.TeamsMeetingBrandingPolicy;
-		TeamsMeetingBroadcastPolicy = $CsOnlineUser.TeamsMeetingBroadcastPolicy;
-		TeamsMeetingPolicy 		= $CsOnlineUser.TeamsMeetingPolicy;
-		TeamsMessagingPolicy 	= $CsOnlineUser.TeamsMessagingPolicy;
-		TeamsMobilityPolicy 	= $CsOnlineUser.TeamsMobilityPolicy;
-		TeamsNetworkRoamingPolicy = $CsOnlineUser.TeamsNetworkRoamingPolicy;
-		TeamsNotificationAndFeedsPolicy = $CsOnlineUser.TeamsNotificationAndFeedsPolicy;
-		TeamsOwnersPolicy 		= $CsOnlineUser.TeamsOwnersPolicy;
-		TeamsRoomVideoTeleConferencingPolicy = $CsOnlineUser.TeamsRoomVideoTeleConferencingPolicy;
-		TeamsSharedCallingRoutingPolicy	= $CsOnlineUser.TeamsSharedCallingRoutingPolicy;
-		TeamsShiftsAppPolicy	= $CsOnlineUser.TeamsShiftsAppPolicy;
-		TeamsShiftsPolicy 		= $CsOnlineUser.TeamsShiftsPolicy;
-		TeamsSurvivableBranchAppliancePolicy = $CsOnlineUser.TeamsSurvivableBranchAppliancePolicy;
-		TeamsSyntheticAutomatedCallPolicy = $CsOnlineUser.TeamsSyntheticAutomatedCallPolicy;
-		TeamsTargetingPolicy 	= $CsOnlineUser.TeamsTargetingPolicy;
-		TeamsTasksPolicy 		= $CsOnlineUser.TeamsTasksPolicy;
-		TeamsTemplatePermissionPolicy = $CsOnlineUser.TeamsTemplatePermissionPolicy;
-		TeamsUpdateManagementPolicy = $CsOnlineUser.TeamsUpdateManagementPolicy;
-		TeamsUpgradeEffectiveMode = $CsOnlineUser.TeamsUpgradeEffectiveMode;
-		TeamsUpgradeNotificationsEnabled = $CsOnlineUser.TeamsUpgradeNotificationsEnabled;
-		TeamsUpgradeOverridePolicy = $CsOnlineUser.TeamsUpgradeOverridePolicy;
-		TeamsUpgradePolicy 	= $CsOnlineUser.TeamsUpgradePolicy;
-		TeamsUpgradePolicyIsReadOnly = $CsOnlineUser.TeamsUpgradePolicyIsReadOnly;
-		TeamsVdiPolicy 		= $CsOnlineUser.TeamsVdiPolicy;
-		TeamsVerticalPackagePolicy = $CsOnlineUser.TeamsVerticalPackagePolicy;
-		TeamsVideoInteropServicePolicy = $CsOnlineUser.TeamsVideoInteropServicePolicy;
-		TeamsVoiceApplicationsPolicy  = $CsOnlineUser.TeamsVoiceApplicationsPolicy;
-		TenantDialPlan 		= $CsOnlineUser.TenantDialPlan;
+			OnPremEnterpriseVoiceEnabled = $CsOnlineUser.OnPremEnterpriseVoiceEnabled;
+			OnPremHostingProvider 	= $CsOnlineUser.OnPremHostingProvider;
+			OnPremLineUri 			= $CsOnlineUser.OnPremLineUri;
+			OnPremOptionFlags 		= $CsOnlineUser.OnPremOptionFlags;
+			OnPremSIPEnabled 		= $CsOnlineUser.OnPremSIPEnabled;
+			OnPremSipAddress 		= $CsOnlineUser.OnPremSipAddress;
+			OnlineAudioConferencingRoutingPolicy = $CsOnlineUser.OnlineAudioConferencingRoutingPolicy;
+			OnlineDialOutPolicy 	= $CsOnlineUser.OnlineDialOutPolicy;
+			OnlineVoiceRoutingPolicy = $CsOnlineUser.OnlineVoiceRoutingPolicy;
+			OnlineVoicemailPolicy 	= $CsOnlineUser.OnlineVoicemailPolicy;
+			OwnerUrn 				= $CsOnlineUser.OwnerUrn;
+			PreferredDataLocation 	= $CsOnlineUser.PreferredDataLocation;
+			PreferredLanguage 		= $CsOnlineUser.PreferredLanguage;
+			UsageLocation 			= $CsOnlineUser.UsageLocation; 
+			ProxyAddresses 			= $CsOnlineUser.ProxyAddresses -join ";";
+			ShadowProxyAddresses 	= $CsOnlineUser.ShadowProxyAddresses -join ";";
+			SipAddress 				= $CsOnlineUser.SipAddress;
+			SipProxyAddress 		= $CsOnlineUser.SipProxyAddress; 
+			SoftDeletionTimestamp 	= $CsOnlineUser.SoftDeletionTimestamp; 
+			
+			TeamsAppPermissionPolicy = $CsOnlineUser.TeamsAppPermissionPolicy;
+			TeamsAppSetupPolicy 	= $CsOnlineUser.TeamsAppSetupPolicy;
+			TeamsAudioConferencingPolicy = $CsOnlineUser.TeamsAudioConferencingPolicy;
+			TeamsCallHoldPolicy 	= $CsOnlineUser.TeamsCallHoldPolicy;
+			TeamsCallParkPolicy 	= $CsOnlineUser.TeamsCallParkPolicy;
+			TeamsCallingPolicy 		= $CsOnlineUser.TeamsCallingPolicy;
+			TeamsCarrierEmergencyCallRoutingPolicy = $CsOnlineUser.TeamsCarrierEmergencyCallRoutingPolicy;
+			TeamsChannelsPolicy 	= $CsOnlineUser.TeamsChannelsPolicy;
+			TeamsComplianceRecordingPolicy = $CsOnlineUser.TeamsComplianceRecordingPolicy;
+			TeamsCortanaPolicy 		= $CsOnlineUser.TeamsCortanaPolicy;
+			TeamsEducationAssignmentsAppPolicy = $CsOnlineUser.TeamsEducationAssignmentsAppPolicy;
+			TeamsEmergencyCallRoutingPolicy = $CsOnlineUser.TeamsEmergencyCallRoutingPolicy;
+			TeamsEmergencyCallingPolicy = $CsOnlineUser.TeamsEmergencyCallingPolicy;
+			TeamsEnhancedEncryptionPolicy = $CsOnlineUser.TeamsEnhancedEncryptionPolicy;
+			TeamsEventsPolicy 		= $CsOnlineUser.TeamsEventsPolicy;
+			TeamsFeedbackPolicy 	= $CsOnlineUser.TeamsFeedbackPolicy;
+			TeamsFilesPolicy 		= $CsOnlineUser.TeamsFilesPolicy;
+			TeamsIPPhonePolicy 		= $CsOnlineUser.TeamsIPPhonePolicy;
+			TeamsMediaLoggingPolicy = $CsOnlineUser.TeamsMediaLoggingPolicy;
+			TeamsMeetingBrandingPolicy = $CsOnlineUser.TeamsMeetingBrandingPolicy;
+			TeamsMeetingBroadcastPolicy = $CsOnlineUser.TeamsMeetingBroadcastPolicy;
+			TeamsMeetingPolicy 		= $CsOnlineUser.TeamsMeetingPolicy;
+			TeamsMessagingPolicy 	= $CsOnlineUser.TeamsMessagingPolicy;
+			TeamsMobilityPolicy 	= $CsOnlineUser.TeamsMobilityPolicy;
+			TeamsNetworkRoamingPolicy = $CsOnlineUser.TeamsNetworkRoamingPolicy;
+			TeamsNotificationAndFeedsPolicy = $CsOnlineUser.TeamsNotificationAndFeedsPolicy;
+			TeamsOwnersPolicy 		= $CsOnlineUser.TeamsOwnersPolicy;
+			TeamsRoomVideoTeleConferencingPolicy = $CsOnlineUser.TeamsRoomVideoTeleConferencingPolicy;
+			TeamsSharedCallingRoutingPolicy	= $CsOnlineUser.TeamsSharedCallingRoutingPolicy;
+			TeamsShiftsAppPolicy	= $CsOnlineUser.TeamsShiftsAppPolicy;
+			TeamsShiftsPolicy 		= $CsOnlineUser.TeamsShiftsPolicy;
+			TeamsSurvivableBranchAppliancePolicy = $CsOnlineUser.TeamsSurvivableBranchAppliancePolicy;
+			TeamsSyntheticAutomatedCallPolicy = $CsOnlineUser.TeamsSyntheticAutomatedCallPolicy;
+			TeamsTargetingPolicy 	= $CsOnlineUser.TeamsTargetingPolicy;
+			TeamsTasksPolicy 		= $CsOnlineUser.TeamsTasksPolicy;
+			TeamsTemplatePermissionPolicy = $CsOnlineUser.TeamsTemplatePermissionPolicy;
+			TeamsUpdateManagementPolicy = $CsOnlineUser.TeamsUpdateManagementPolicy;
+			TeamsUpgradeEffectiveMode = $CsOnlineUser.TeamsUpgradeEffectiveMode;
+			TeamsUpgradeNotificationsEnabled = $CsOnlineUser.TeamsUpgradeNotificationsEnabled;
+			TeamsUpgradeOverridePolicy = $CsOnlineUser.TeamsUpgradeOverridePolicy;
+			TeamsUpgradePolicy 	= $CsOnlineUser.TeamsUpgradePolicy;
+			TeamsUpgradePolicyIsReadOnly = $CsOnlineUser.TeamsUpgradePolicyIsReadOnly;
+			TeamsVdiPolicy 		= $CsOnlineUser.TeamsVdiPolicy;
+			TeamsVerticalPackagePolicy = $CsOnlineUser.TeamsVerticalPackagePolicy;
+			TeamsVideoInteropServicePolicy = $CsOnlineUser.TeamsVideoInteropServicePolicy;
+			TeamsVoiceApplicationsPolicy  = $CsOnlineUser.TeamsVoiceApplicationsPolicy;
+			TenantDialPlan 		= $CsOnlineUser.TenantDialPlan;
+		}
+		$ReportCSUsers += $userObject
 	}
-	$ReportCSUsers += $userObject
+	Export-Report "CSOnlineUsers" -Report $ReportCSUsers -Path $OutputFileCSUsers
+	Export-Report "PSTNUsers" -Report $ReportPSTNUsers -Path $OutputFilePSTNUsers
+	Remove-Variable ReportCSUsers
+	Remove-Variable ReportPSTNUsers
 }
-Export-Report "CSOnlineUsers" -Report $ReportCSUsers -Path $OutputFileCSUsers
-Export-Report "PSTNUsers" -Report $ReportPSTNUsers -Path $OutputFilePSTNUsers
-Remove-Variable ReportCSUsers
-Remove-Variable ReportPSTNUsers
 
 #######################################################################################################################
 # TEAMS MEMBERSHIP REPORT + O365Group_DB 
