@@ -15,7 +15,6 @@ $ScriptList = @(
     "Update-AD-Groups.ps1",
     "Sync-AAD-Groups.ps1",
     "Update-Teams-Channels-Membership.ps1",
-    "Set-AAD-Guests-Attributes.ps1",
     "Update-AAD-Devices.ps1"
 )
 

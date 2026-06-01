@@ -58,7 +58,9 @@ $UriResource = "users"
 $UriFilter = "UserType eq 'Guest'"
 $UriSelect = "id,userPrincipalName,userType,displayName,createdDateTime,mail,companyName,employeeType,employeeHireDate,otherMails,proxyAddresses,showInAddressList,onPremisesExtensionAttributes"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Filter $UriFilter -Select $UriSelect
+
 [array]$AllAADGuests = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ProgressDots -Text "AAD guest users"
+write-host $GraphError
 
 foreach ($AuditLogEvent in $RecentAuditLogEventsInvite) {
     $ownerUpn = $AuditLogEvent.initiatedBy.user.userPrincipalName
@@ -180,25 +182,25 @@ foreach ($Guest in $AllAADGuests) {
             }
             
             #if showInAddressList is not set, set it to true
-            <#
-            Try {
-                $MailUser = Get-MailUser -Identity $Guest.Mail
-                if ($MailUser.HiddenFromAddressListsEnabled) {
-                    Try {
-                        Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$false
-                        Write-Log "$($Guest.mail) SUCCESS showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -ForegroundColor "Cyan"
-                    }
-                    Catch {
-                        Write-Log "$($Guest.mail) ERR showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -MessageType Error
-                        Write-Log $_.Exception.Message -MessageType Error
+            if (-not ($tenantId -eq $TenantId_UJVREZ)) {
+                Try {
+                    $MailUser = Get-MailUser -Identity $Guest.Mail -ErrorAction Stop
+                    if ($MailUser.HiddenFromAddressListsEnabled) {
+                        Try {
+                            Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$false
+                            Write-Log "$($Guest.mail) SUCCESS showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -ForegroundColor "Cyan"
+                        }
+                        Catch {
+                            Write-Log "$($Guest.mail) ERR showInAddressList: (mail domain: $($MailDomain) user object age: $($GuestAge.Days))" -MessageType Error
+                            Write-Log $_.Exception.Message -MessageType Error
+                        }
                     }
                 }
+                Catch {
+                    Write-Log "$($Guest.mail) ERR Get-MailUser" -MessageType Error
+                    Write-Log $_.Exception.Message -MessageType Error
+                }
             }
-            Catch {
-                Write-Log "$($Guest.mail) ERR Get-MailUser" -MessageType Error
-                Write-Log $_.Exception.Message -MessageType Error
-            }
-            #>
             
             ######################################################################
             ######################################################################

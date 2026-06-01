@@ -11,7 +11,7 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 #######################################################################################################################
 
 $LogFolder			= "t2t"
-$LogFilePrefix		= "mbx-properties"
+$LogFilePrefix		= "update-mbx-properties"
 $LogFileFreq		= "Y"
 
 #######################################################################################################################
@@ -25,6 +25,8 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 $Src_PN_attr = "extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
 $Dst_PN_attr = "employeeNumber"
 $Dst_Mapping_attr = "extensionAttribute10"
+
+$b2bmailusers = "D:\data\t2t-ujvrez\ujvrez-guests-mailusers.csv"
 
 $MbxFilter1 = "(alias -like '*')"
 $MbxFilter2 = " -and ((RecipientTypeDetails -eq 'UserMailbox')"
@@ -65,6 +67,9 @@ function Get-TargetT2TUser {
 
 . $IncFile_StdLogStartBlock
 
+
+$B2BMailUsers_DB = Import-CSVtoHashDB -Path $b2bmailusers -KeyName "PrimarySmtpAddress"
+
 if ($InteractiveRun) {
 	$ADCredentialPath = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt_qskosikdav.cred"
 }
@@ -88,7 +93,7 @@ Import-PSSession $ExchangeSession -DisableNameChecking -AllowClobber
 $T2TMigrationGroupName = Get-GroupNameFromGraphById -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -Id $Src_T2T_EXO_MIGRATION_GROUP
 
 if ($T2TMigrationGroupName) {
-	Write-Host "Source T2T migration group found: $T2TMigrationGroupName " -NoNewline
+	Write-Host "Source T2T migration group found: $T2TMigrationGroupName"
 } else {
 	Write-Host "Source T2T migration group with ID $Src_T2T_EXO_MIGRATION_GROUP not found."
 	Exit
@@ -129,7 +134,7 @@ write-host $DstADMailUsers.count
 #>
 
 foreach ($SrcMailbox in $SrcMailboxes) {
-	write-host "------------------------"
+	write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
 	[array]$SRCsmtpAddresses = [array]$SRCx500Addresses = [array]$SRCproxyAddresses = @()
 	$ArchiveGuid = $null
 	
@@ -148,58 +153,92 @@ foreach ($SrcMailbox in $SrcMailboxes) {
         $ArchiveGuid = $SrcMailbox.ArchiveGuid
     }
 
-	Write-Host "Processing mailbox: $($SrcMailbox.UserPrincipalName)"
-	write-host "PrimarySmtpAddress: $($SrcMailbox.PrimarySmtpAddress)"
-	write-host "ExchangeObjectId: $($SrcMailbox.ExchangeObjectId)"
-	write-host "ExchangeGuid: $($SrcMailbox.ExchangeGuid)"
-	write-host "ArchiveStatus: $($SrcMailbox.ArchiveStatus)"
-	write-host "ArchiveGuid: $($SrcMailbox.ArchiveGuid)"
-	write-host "LegacyExchangeDN: $($SrcMailbox.LegacyExchangeDN)"
-	write-host $SRCx500Addresses -ForegroundColor Cyan
-	write-host $SRCsmtpAddresses -ForegroundColor Green
+	#Write-Host "Processing mailbox: $($SrcMailbox.UserPrincipalName)"
+	
+	#write-host "ExchangeObjectId: $($SrcMailbox.ExchangeObjectId)"
+	#write-host "ExchangeGuid: $($SrcMailbox.ExchangeGuid)"
+	#write-host "ArchiveStatus: $($SrcMailbox.ArchiveStatus)"
+	#write-host "ArchiveGuid: $($SrcMailbox.ArchiveGuid)"
+	#write-host "LegacyExchangeDN: $($SrcMailbox.LegacyExchangeDN)"
+	#write-host $SRCx500Addresses -ForegroundColor Cyan
+	#write-host $SRCsmtpAddresses -ForegroundColor Green
 	$DstUser = Get-TargetT2TUser -SrcIdentity $SrcMailbox.ExternalDirectoryObjectId -SrcAccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -DstADCredential $ADCredential
-	if ($DstUser) {
-		write-host "Target user: $($DstUser.userPrincipalName)"
+	if (-not $DstUser) {
+		Write-Log "No target user found for source mailbox $($SrcMailbox.UserPrincipalName) with id $($SrcMailbox.id). Skipping..." -MessageType "ERR"
+		Continue
+	}
+	#write-host "Target user: $($DstUser.userPrincipalName)"
+	<#
+	if ($B2BMailUsers_DB.ContainsKey($SrcMailbox.primarysmtpaddress)) {
+		$B2BMailUser = $B2BMailUsers_DB[$SrcMailbox.primarysmtpaddress]
+	}
+	#>
+	Try {
+		$DstMailUser = Get-MailUser -Identity $DstUser.samAccountName -ErrorAction Stop
+	}
+	Catch {
 		Try {
-			$DstMailUser = Get-MailUser -Identity $DstUser.samAccountName -ErrorAction Stop
-			write-host "Target user $($DstUser.samAccountName) is type mailUser. Updating properties..." -ForegroundColor Green
-			
-			write-host "Setting ExchangeGUID to $($SrcMailbox.ExchangeGuid)"
-			Set-MailUser -Identity $DstUser.samAccountName -ExchangeGuid $SrcMailbox.ExchangeGuid
-			
-			if ($ArchiveGuid) {
-				write-host "Setting ArchiveGUID to $ArchiveGuid"
-				Set-MailUser -Identity $DstUser.samAccountName -ArchiveGuid $ArchiveGuid
-			}
-			
-			write-host "Setting PrimarySmtpAddress to $($DstUser.userPrincipalName)"
-			Set-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName
-			
-			write-host "Setting ExternalEmailAddress to $($SrcMailbox.PrimarySmtpAddress)"
-			Set-MailUser -Identity $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
-			
-			write-host "Adding smtp address $($DstUser.samAccountName)@$DstMailRoutingDomain"
-			Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="smtp:$($DstUser.samAccountName)@$DstMailRoutingDomain"}
-
-			write-host "Adding LegacyExchangeDN $($SrcMailbox.LegacyExchangeDN)"
-			Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="x500:$($SrcMailbox.LegacyExchangeDN)"}
-
-			write-host "Adding x500 addresses $($SRCx500Addresses -join ",")"
-			foreach ($x500 in $SRCx500Addresses) {
-				Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="$x500"}
-			}
-			
-			write-host "HiddenFromAddressListsEnabled false"
-			Set-MailUser -Identity $DstUser.samAccountName -HiddenFromAddressListsEnabled $false
-
+			$DstRemoteMailbox = Get-RemoteMailbox -Identity $DstUser.samAccountName -ErrorAction Stop
+			Write-Log "User $($DstUser.samAccountName) is type RemoteMailbox" -MessageType "ERR"
+			Continue
 		}
 		Catch {
-			write-host "Target user: $($DstUser.samAccountName) is not type mailUser"
-			Enable-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName -Alias $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
+			Try {
+				Enable-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName -Alias $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
+				Write-Log "Enabled mailUser for $($DstUser.samAccountName) with PrimarySmtpAddress $($DstUser.userPrincipalName) and ExternalEmailAddress $($SrcMailbox.PrimarySmtpAddress)"
+				Start-Sleep -Seconds 30
+			}
+			Catch {
+				Write-Log "Failed to enable mailUser for $($DstUser.samAccountName). Error: $_" -messageType "ERR"
+				Continue
+			}
 		}
 	}
-	Else {
-		write-host "No target user found for source mailbox $($SrcMailbox.UserPrincipalName) with id $($SrcMailbox.id). Skipping..." -ForegroundColor Yellow
+	If ($DstMailUser) {
+		if ($DstMailUser.ExchangeGuid -ne $SrcMailbox.ExchangeGuid) {
+			write-host " setting ExchangeGUID to $($SrcMailbox.ExchangeGuid)"
+			Set-MailUser -Identity $DstUser.samAccountName -ExchangeGuid $SrcMailbox.ExchangeGuid
+		}
+		
+		if ($ArchiveGuid -and $DstMailUser.ArchiveGuid -ne $ArchiveGuid) {
+			write-host " setting ArchiveGuid to $($ArchiveGuid)"
+			Set-MailUser -Identity $DstUser.samAccountName -ArchiveGuid $ArchiveGuid
+		}
+		
+		if ($DstMailUser.PrimarySmtpAddress -ne $DstUser.userPrincipalName) {
+			write-host " setting PrimarySmtpAddress to $($DstUser.userPrincipalName)"
+			Set-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName
+		}
+		
+		
+		if ($DstMailUser.ExternalEmailAddress -ne "SMTP:$($SrcMailbox.PrimarySmtpAddress)") {
+			write-host " setting ExternalEmailAddress to $($SrcMailbox.PrimarySmtpAddress)"
+			Set-MailUser -Identity $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
+		}
+		
+		
+		if ($DstMailUser.EmailAddresses -notcontains "smtp:$($DstUser.samAccountName)@$DstMailRoutingDomain") {
+			write-host " adding smtp address $($DstUser.samAccountName)@$DstMailRoutingDomain"
+			Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="smtp:$($DstUser.samAccountName)@$DstMailRoutingDomain"}
+		}
+		
+
+		if ($DstMailUser.EmailAddresses -notcontains "x500:$($SrcMailbox.LegacyExchangeDN)") {
+			write-host " adding LegacyExchangeDN $($SrcMailbox.LegacyExchangeDN)"
+			Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="x500:$($SrcMailbox.LegacyExchangeDN)"}
+		}
+		
+		foreach ($x500 in $SRCx500Addresses) {
+			if ($DstMailUser.EmailAddresses -notcontains $x500) {
+				write-host " adding x500 addresses $x500"
+				Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="$x500"}
+			}
+		}
+		
+		if ($DstMailUser.HiddenFromAddressListsEnabled) {
+			write-host "HiddenFromAddressListsEnabled false"
+			Set-MailUser -Identity $DstUser.samAccountName -HiddenFromAddressListsEnabled $false
+		}
 	}
 }
 
