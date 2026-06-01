@@ -116,7 +116,7 @@ write-Log "OutputFileStatUsr: $($OutputFileStatUsr)"
 if (-not $SkipCSOnlineUsersReport) {
 	Connect-Teams -AppRegName $AppReg_TMS_MGMT -TTL 60
 	$CsOnlineUsers = Get-CsOnlineUser
-	write-log "CsOnlineUsers: $($CsOnlineUsers.Count)" -ForegroundColor Yellow
+	Write-Log "CsOnlineUsers: $($CsOnlineUsers.Count)" -ForegroundColor Yellow
 	foreach ($CsOnlineUser in $CsOnlineUsers) {
 		$PhoneNumberAssignment = $null
 		if ($CsOnlineUser.LineURI) {
@@ -743,74 +743,78 @@ $ReportTeamsChannelsOwners = Import-CSVtoArray -Path $DBFileTeamsChannelsOwners
 Export-Report "Teams-Channels-Owners" -Report $ReportTeamsChannelsOwners -Path $OutputFileTmsChnl
 
 #CEZ Teplarenska - report teams owned by CEZ Teplarenska users
-$Teams = $ReportTeamsChannelsOwners | Where-Object { $_.Level -eq "Team"}
-foreach ($Team in $Teams) {
-	if ($Team.Owners) {
-		$GroupStat = $Group = $null
-		if ($M365GroupStat_DB.ContainsKey($Team.TeamId)) {
-			$GroupStat = $M365GroupStat_DB.Item($Team.TeamId)
-		}
-		if ($M365Group_DB.ContainsKey($Team.TeamId)) {
-			$Group = $M365Group_DB.Item($Team.TeamId)
-		}
-		$Owners = $Team.Owners.Split(";")
-		foreach ($Owner in $Owners) {
-			$OwnerRecord = $null
-			$Owner = $Owner.Trim()
-			if ($AADUsers_DB.ContainsKey($Owner)) {
-				$OwnerRecord = $AADUsers_DB.Item($Owner)
-				if ($OwnerRecord.Department -like "14_*") {
-					$TeamObject = [pscustomobject]@{
-						TeamId 			= $Team.TeamId;
-						TeamName 		= $Team.TeamName;
+if ($TMSTASReports) {
+	$Teams = $ReportTeamsChannelsOwners | Where-Object { $_.Level -eq "Team"}
+	foreach ($Team in $Teams) {
+		if ($Team.Owners) {
+			$GroupStat = $Group = $null
+			if ($M365GroupStat_DB.ContainsKey($Team.TeamId)) {
+				$GroupStat = $M365GroupStat_DB.Item($Team.TeamId)
+			}
+			if ($M365Group_DB.ContainsKey($Team.TeamId)) {
+				$Group = $M365Group_DB.Item($Team.TeamId)
+			}
+			$Owners = $Team.Owners.Split(";")
+			foreach ($Owner in $Owners) {
+				$OwnerRecord = $null
+				$Owner = $Owner.Trim()
+				if ($AADUsers_DB.ContainsKey($Owner)) {
+					$OwnerRecord = $AADUsers_DB.Item($Owner)
+					if ($OwnerRecord.Department -like "14_*") {
+						$TeamObject = [pscustomobject]@{
+							TeamId 			= $Team.TeamId;
+							TeamName 		= $Team.TeamName;
 
-						Description 	= $Group.Description;
-						Mail 			= $Team.Mail;
+							Description 	= $Group.Description;
+							Mail 			= $Team.Mail;
 
-						OwnerUPN			= $OwnerRecord.UserPrincipalName;
-						OwnerName			= $OwnerRecord.DisplayName;
-						OwnerEmail			= $OwnerRecord.Mail;
-						CompanyName			= $OwnerRecord.CompanyName;
-						Department			= $OwnerRecord.Department;
+							OwnerUPN			= $OwnerRecord.UserPrincipalName;
+							OwnerName			= $OwnerRecord.DisplayName;
+							OwnerEmail			= $OwnerRecord.Mail;
+							CompanyName			= $OwnerRecord.CompanyName;
+							Department			= $OwnerRecord.Department;
 
-						FilesFolderUrl 	= $Team.FilesFolderUrl;
-						CreatedDateTime = $Team.CreatedDateTime;
-						Sensitivity 	= $Team.Sensitivity;
-						Dynamic			= $Team.DynamicMembership;
-						Visibility 		= $Team.TeamVisibility;
-						isArchived 		= $Team.isArchived;
-						AllowExtSenders = $Team.AllowExtSenders;
-						AutoSubscribe 	= $Team.AutoSubscribe;
-						#Owners 			= $Team.Owners;
-						#TeamOwnerCount 	= $Team.TeamOwnerCount;
-						TeamOwners 		= $Team.TeamOwners;
-						TeamMembers 	= $Team.TeamMembers;
-						TeamGuests 		= $Team.TeamGuests;
-						LastActivityDate                	= $GroupStat.LastActivityDate;
-						ExchangeReceivedEmailCount      	= $GroupStat.ExchangeReceivedEmailCount;
-						SharePointActiveFileCount       	= $GroupStat.SharePointActiveFileCount;
-						ExchangeMailboxTotalItemCount   	= $GroupStat.ExchangeMailboxTotalItemCount;
-						ExchangeMailboxStorageUsedBytes 	= $GroupStat.ExchangeMailboxStorageUsedBytes;
-						SharePointTotalFileCount        	= $GroupStat.SharePointTotalFileCount;
-						SharePointSiteStorageUsedBytes  	= $GroupStat.SharePointSiteStorageUsedBytes;
-						StatDataReportPeriod               	= $GroupStat.ReportPeriod
+							FilesFolderUrl 	= $Team.FilesFolderUrl;
+							CreatedDateTime = $Team.CreatedDateTime;
+							Sensitivity 	= $Team.Sensitivity;
+							Dynamic			= $Team.DynamicMembership;
+							Visibility 		= $Team.TeamVisibility;
+							isArchived 		= $Team.isArchived;
+							AllowExtSenders = $Team.AllowExtSenders;
+							AutoSubscribe 	= $Team.AutoSubscribe;
+							#Owners 			= $Team.Owners;
+							#TeamOwnerCount 	= $Team.TeamOwnerCount;
+							TeamOwners 		= $Team.TeamOwners;
+							TeamMembers 	= $Team.TeamMembers;
+							TeamGuests 		= $Team.TeamGuests;
+							LastActivityDate                	= $GroupStat.LastActivityDate;
+							ExchangeReceivedEmailCount      	= $GroupStat.ExchangeReceivedEmailCount;
+							SharePointActiveFileCount       	= $GroupStat.SharePointActiveFileCount;
+							ExchangeMailboxTotalItemCount   	= $GroupStat.ExchangeMailboxTotalItemCount;
+							ExchangeMailboxStorageUsedBytes 	= $GroupStat.ExchangeMailboxStorageUsedBytes;
+							SharePointTotalFileCount        	= $GroupStat.SharePointTotalFileCount;
+							SharePointSiteStorageUsedBytes  	= $GroupStat.SharePointSiteStorageUsedBytes;
+							StatDataReportPeriod               	= $GroupStat.ReportPeriod
+						}
+						$ReportTeamsCEZTpl += $TeamObject
 					}
-					$ReportTeamsCEZTpl += $TeamObject
 				}
 			}
 		}
 	}
+
+	$CEZTplTeams = $ReportTeamsCEZTpl.TeamId | Sort-Object -Unique
+	$ReportTeamsCEZTplMem = $ReportTeamsMembers | Where-Object {$_.TeamId -in $CEZTplTeams}
+
+	Export-Report "Teams-CEZ-Teplarenska" -Report $ReportTeamsCEZTpl -Path $OutputFileTmsCEZTpl
+	Export-Report "Teams-CEZ-Teplarenska-members" -Report $ReportTeamsCEZTplMem -Path $OutputFileTmsCEZTplMem
+	Remove-Variable ReportTeamsCEZTpl
+	Remove-Variable ReportTeamsCEZTplMem
 }
 
-$CEZTplTeams = $ReportTeamsCEZTpl.TeamId | Sort-Object -Unique
-$ReportTeamsCEZTplMem = $ReportTeamsMembers | Where-Object {$_.TeamId -in $CEZTplTeams}
-
-Export-Report "Teams-CEZ-Teplarenska" -Report $ReportTeamsCEZTpl -Path $OutputFileTmsCEZTpl
-Export-Report "Teams-CEZ-Teplarenska-members" -Report $ReportTeamsCEZTplMem -Path $OutputFileTmsCEZTplMem
 
 Remove-Variable ReportTeamsChannelsOwners
-Remove-Variable ReportTeamsCEZTpl
-Remove-Variable ReportTeamsCEZTplMem
+
 
 ##################################################################################################
 

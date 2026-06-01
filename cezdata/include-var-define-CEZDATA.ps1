@@ -29,6 +29,7 @@ $StaleEASDeviceLimit = 90
 
 $EXOMbxReportPermissions = $false
 $EXOMbxReportTNR = $true
+$TMSTASReports = $true
 
 $AADUserReportTNR = $true
 $AADUserReportTNR_attr_label = "DepartmentTNR"
