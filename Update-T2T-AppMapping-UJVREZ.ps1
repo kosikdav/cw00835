@@ -1,5 +1,5 @@
 #######################################################################################################################
-# Update-T2T-UserMapping-UJVREZ.ps1
+# Update-T2T-AppMapping-UJVREZ.ps1
 #######################################################################################################################
 param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
@@ -11,42 +11,19 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-Start-Include.ps1
 
 $LogFolder				= "t2t-ujvrez"
-$LogFilePrefix			= "user-mapping"
+$LogFilePrefix			= "app-mapping"
 $OutputFolder			= "t2t-ujvrez"
-$OutputFilePrefix		= "user-mapping"
+$OutputFilePrefix		= "app-mapping"
 $OutputFileSuffixSRC 	= "src"
 $OutputFileSuffixDST 	= "dst"
 
-$MappingCSV_ALL_FilePath 		= "d:\data\t2t-ujvrez\userMapping.csv"
-$MappingCSV_ENGPRAHA_FilePath 	= "d:\data\t2t-ujvrez\userMapping-engpraha.csv"
-$MappingCSV_NQSAFE_FilePath 	= "d:\data\t2t-ujvrez\userMapping-nqsafe.csv"
-$MappingCSV_Manual_FilePath 	= "d:\data\t2t-ujvrez\userMapping-manual.csv"
+$MappingCSV_Apps_FilePath 		= "d:\data\t2t-ujvrez\appMapping.csv"
 
-$MappingCSV_Apps_FilePath 		= "d:\data\t2t-ujvrez\userMapping-apps.csv"
-
-
-$MappingCSV_ignoredPNs_FilePath = "d:\data\t2t-ujvrez\userMapping-ignoredSrcPNs.csv"
-
-$SGUMFolder				= $OutputFolder+"\sgum"
-
-$MailErrIgnore = $true
-
-$Src_map_attr = "UJV_pn"
-$Dst_map_attr = "CEZ_pn"
+$Src_mapfile_attr = "UJV_sam"
+$Dst_mapfile_attr = "CEZ_sam"
 $Src_PN_attr = "extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
 $Dst_PN_attr = "employeeNumber"
 $Dst_mailAD40 = "msExchExtensionAttribute40"
-
-$Dst_AD_OU_list = @(
-	"OU=CVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=RadioMedic,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=EGP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=EngineeringPraha,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=iCVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",	
-	"OU=NQ-Safe,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=UJVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=VZUP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp"
-)
 
 $DstADUserProperties = @(
 	'displayName',
@@ -54,14 +31,11 @@ $DstADUserProperties = @(
 	'distinguishedName',
 	'samAccountName',
 	'userPrincipalName',
-	'extensionAttribute10',
-	'employeeId',
-	$Dst_PN_attr,
-	$Dst_mailAD40
+	'extensionAttribute10'
 )
 
 $DstADSearchBaseAll  = "OU=uzivatele,DC=cezdata,DC=corp"
-$DstADSearchBaseSKC  = "OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp"
+$DstADSearchBaseSKC  = "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
 
 $Src_AppReg_LOG_READER 			= $AppReg_UJVREZ_LOG_READER
 $Src_AppReg_EXO_MGMT 			= $AppReg_UJVREZ_EXO_MGMT   
@@ -86,8 +60,6 @@ $LogFile 	= New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFileP
 $OutputFileSRC	= New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixSRC -Ext "csv" -Freq "YMDHMS"
 $OutputFileDST	= New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffixDST -Ext "csv" -Freq "YMDHMS"
 
-$SGUMFile	= New-OutputFile -RootFolder $ROF -Folder $SGUMFolder -Prefix $OutputFilePrefix -Ext "sgum" -Freq "YMDHMS"
-
 #######################################################################################################################
 
 if ($InteractiveRun) {
@@ -100,8 +72,8 @@ else {
 $ADCredential = Import-Clixml -Path $ADCredentialPath
 
 $DstGetADUserParams = @{
-	Filter = "Enabled -eq `$true -and ObjectClass -eq 'user'"
-	SearchBase = $DstADSearchBaseAll
+	Filter = "ObjectClass -eq 'user'"
+	SearchBase = $DstADSearchBaseSKC
 	Properties = $DstADUserProperties
 	Credential = $ADCredential
 }
@@ -110,16 +82,10 @@ $DstGetADUserParams = @{
 
 . $IncFile_StdLogStartBlock
 
-Write-Log "SGUMFolder: $SGUMFolder"
-Write-Log "MailErrIgnore: $MailErrIgnore"
 Write-Log "DstADSearchBaseAll: $DstADSearchBaseAll"
 Write-Log "DstADSearchBaseSKC: $DstADSearchBaseSKC"
-Write-Log "Src_map_attr: $Src_map_attr"
-Write-Log "Dst_map_attr: $Dst_map_attr"
-Write-Log "Src_PN_attr: $Src_PN_attr"
-Write-Log "Dst_PN_attr: $Dst_PN_attr"
-Write-Log "Dst_mailAD40: $Dst_mailAD40"
-Write-Log "MailErrIgnore: $MailErrIgnore"
+Write-Log "Src_mapfile_attr: $Src_mapfile_attr"
+Write-Log "Dst_mapfile_attr: $Dst_mapfile_attr"
 write-log $string_divider
 
 write-log "SRC MAPPING" -ForegroundColor Cyan
@@ -128,53 +94,16 @@ Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 #######################################################################################################################
 # mapping file
 #######################################################################################################################
-[array]$userMappingALL = Import-CSVtoArray -Path $MappingCSV_ALL_FilePath
-#[array]$userMappingENGPRAHA = Import-CSVtoArray -Path $MappingCSV_ENGPRAHA_FilePath
-[array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
-[array]$userMappingManual = Import-CSVtoArray -Path $MappingCSV_Manual_FilePath
-[array]$userMappingIgnoredPNs = Import-CSVtoArray -Path $MappingCSV_ignoredPNs_FilePath
-
-$userMapping = $userMappingALL + $userMappingENGPRAHA + $userMappingNQSAFE + $userMappingManual
-
-write-host "User mapping: $($userMapping.count)"
-$userMapping = $userMapping | Where-Object { $_.prio -eq 1 }
-write-host "User mapping (prio 1): $($userMapping.count)"
-
-write-host "Checking duplicate $($Src_map_attr) in mapping file..." -NoNewline
-$duplicateSrcMappings = $userMapping | Group-Object -Property $Src_map_attr | Where-Object { $_.Count -gt 1 }
-foreach ($group in $duplicateSrcMappings) {
-	write-host "Duplicate $($Src_map_attr): $($group.Name) - Count: $($group.Count)"
-	foreach ($mapping in $group.Group) {
-		write-host $mapping
-	}
-	exit
-}
-write-host "done"
-
-write-host "Checking duplicate $($Dst_map_attr) in mapping file..." -NoNewline
-$duplicateDstMappings = $userMapping | Group-Object -Property $Dst_map_attr | Where-Object { $_.Count -gt 1 }
-foreach ($group in $duplicateDstMappings) {
-	write-host "Duplicate $($Dst_map_attr): $($group.Name) - Count: $($group.Count)"
-	foreach ($mapping in $group.Group) {
-		write-host $mapping
-	}
-	exit
-}
-write-host "done"
-
-foreach ($mapping in $userMapping) {
-	$mapping_DB.add($mapping.$Src_map_attr, $mapping.$Dst_map_attr)
-}
-write-host "User mailbox mapping DB: $($mapping_DB.count)"
 
 ############################
 #apps
 [array]$appMapping = Import-CSVtoArray -Path $MappingCSV_Apps_FilePath
 write-host "App mailbox mapping: $($appMapping.count)"
-write-host "Checking duplicate UJV_sam in mapping file..." -NoNewline
-$duplicateSrcMappings = $appMapping | Group-Object -Property "UJV_sam" | Where-Object { $_.Count -gt 1 }
+
+write-host "Checking duplicate $($Src_mapfile_attr) in mapping file..." -NoNewline
+$duplicateSrcMappings = $appMapping | Group-Object -Property $Src_mapfile_attr | Where-Object { $_.Count -gt 1 }
 foreach ($group in $duplicateSrcMappings) {
-	write-host "Duplicate UJV_sam: $($group.Name) - Count: $($group.Count)"
+	write-host "Duplicate $($Src_mapfile_attr): $($group.Name) - Count: $($group.Count)"
 	foreach ($mapping in $group.Group) {
 		write-host $mapping
 	}
@@ -182,46 +111,34 @@ foreach ($group in $duplicateSrcMappings) {
 }
 write-host "done"
 
-write-host "Checking duplicate CEZ_sam in mapping file..." -NoNewline
-$duplicateDstMappings = $appMapping | Group-Object -Property "CEZ_sam" | Where-Object { $_.Count -gt 1 }
+write-host "Checking duplicate $($Dst_mapfile_attr) in mapping file..." -NoNewline
+$duplicateDstMappings = $appMapping | Group-Object -Property $Dst_mapfile_attr | Where-Object { $_.Count -gt 1 }
 foreach ($group in $duplicateDstMappings) {
-	write-host "Duplicate CEZ_sam: $($group.Name) - Count: $($group.Count)"
+	write-host "Duplicate $($Dst_mapfile_attr): $($group.Name) - Count: $($group.Count)"
 	foreach ($mapping in $group.Group) {
 		write-host $mapping
 	}
 	exit
 }
 write-host "done"
+
+$SrcAppUsersWithMapping = $appMapping.$Src_mapfile_attr
 
 foreach ($mapping in $appMapping) {
-	$mapping_DB.add($mapping."UJV_sam", $mapping."CEZ_sam")
+	$mapping_DB.add($mapping.$Src_mapfile_attr, $mapping.$Dst_mapfile_attr)
 }
 
 #######################################################################################################################
 # get SRC AAD users
 #######################################################################################################################
 $UriResource = "users"
-$UriSelect = "$CommonEntraAttributes,$Src_PN_attr,assignedLicenses"
-$UriFilter = "userType eq 'Member' and onpremisesSyncEnabled eq true"
+$UriSelect = "$CommonEntraAttributes,assignedLicenses"
+$UriFilter = "userType eq 'Member'"
 $Uri = New-GraphUri -Resource $UriResource -Version "v1.0" -Select $UriSelect -Filter $UriFilter -Top 999
 [array]$SrcAADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -ProgressDots -Text "SRC AAD users"
 
-$SrcAADUsers = $SrcAADUsers | Where-Object { $_.$Src_PN_attr -ne $null -and $_.$Src_PN_attr -ne "" }
-write-host "SRC AAD users - filtered users without $($Src_PN_attr): $($SrcAADUsers.count)"
-
-$SrcAADUsers = $SrcAADUsers | Where-Object { $_.userPrincipalName -notlike "ks.*" }
-write-host "SRC AAD users - filtered users with UPN starting 'ks.*': $($SrcAADUsers.count)"
-
-write-host "SRC AAD users - checking duplicate $($Src_PN_attr)..." -NoNewline
-$duplicateSrcUsers = $SrcAADUsers | Group-Object -Property $Src_PN_attr | Where-Object { $_.Count -gt 1 }
-foreach ($group in $duplicateSrcUsers) {
-	write-host "Duplicate $($Src_PN_attr): $($group.Name) - Count: $($group.Count)"
-	foreach ($mapping in $group.Group) {
-		write-host $mapping
-	}
-	exit
-}
-write-host "done"
+$SrcAADUsers = $SrcAADUsers | Where-Object { $_.onpremisesSamAccountName -in $SrcAppUsersWithMapping }
+write-host "SRC AAD users - filtered users without mapping: $($SrcAADUsers.count)"
 
 #######################################################################################################################
 # get DST AD users
@@ -261,10 +178,10 @@ $DstADUsers = $DstADUsers | Where-Object { $_.OU -in $Dst_AD_OU_list }
 write-host "DST AD users - filtered by OU: $($DstADUsers.count)"
 
 #check if we have duplicate employeeNumber in DST AD users, if yes, we cannot proceed as the mapping is based on employeeNumber and it must be unique
-write-host "DST AD users - checking duplicate employeeNumber..." -NoNewline
+write-host "DST AD users - checking duplicate $($Dst_PN_attr)..." -NoNewline
 $duplicateUsers = $DstADUsers | Group-Object -Property $Dst_PN_attr | Where-Object { $_.Count -gt 1 }
 foreach ($group in $duplicateUsers) {
-	write-host "Duplicate CEZ_pn: $($group.Name) - Count: $($group.Count)"
+	write-host "Duplicate $($Dst_PN_attr): $($group.Name) - Count: $($group.Count)"
 	foreach ($user in $group.Group) {
 		write-host "  User: $($user.DisplayName) - UPN: $($user.UserPrincipalName) - OU: $($user.OU)"
 	}
