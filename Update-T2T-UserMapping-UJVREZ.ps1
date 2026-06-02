@@ -17,13 +17,10 @@ $OutputFilePrefix		= "user-mapping"
 $OutputFileSuffixSRC 	= "src"
 $OutputFileSuffixDST 	= "dst"
 
-$MappingCSV_ALL_FilePath 		= "d:\data\t2t-ujvrez\userMapping.csv"
+$MappingCSV_ALL_FilePath 		= "d:\data\t2t-ujvrez\userMapping-260601.csv"
 $MappingCSV_ENGPRAHA_FilePath 	= "d:\data\t2t-ujvrez\userMapping-engpraha.csv"
 $MappingCSV_NQSAFE_FilePath 	= "d:\data\t2t-ujvrez\userMapping-nqsafe.csv"
 $MappingCSV_Manual_FilePath 	= "d:\data\t2t-ujvrez\userMapping-manual.csv"
-
-$MappingCSV_Apps_FilePath 		= "d:\data\t2t-ujvrez\userMapping-apps.csv"
-
 
 $MappingCSV_ignoredPNs_FilePath = "d:\data\t2t-ujvrez\userMapping-ignoredSrcPNs.csv"
 
@@ -130,7 +127,7 @@ Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 #######################################################################################################################
 [array]$userMappingALL = Import-CSVtoArray -Path $MappingCSV_ALL_FilePath
 #[array]$userMappingENGPRAHA = Import-CSVtoArray -Path $MappingCSV_ENGPRAHA_FilePath
-[array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
+#[array]$userMappingNQSAFE = Import-CSVtoArray -Path $MappingCSV_NQSAFE_FilePath
 [array]$userMappingManual = Import-CSVtoArray -Path $MappingCSV_Manual_FilePath
 [array]$userMappingIgnoredPNs = Import-CSVtoArray -Path $MappingCSV_ignoredPNs_FilePath
 
@@ -167,35 +164,6 @@ foreach ($mapping in $userMapping) {
 }
 write-host "User mailbox mapping DB: $($mapping_DB.count)"
 
-############################
-#apps
-[array]$appMapping = Import-CSVtoArray -Path $MappingCSV_Apps_FilePath
-write-host "App mailbox mapping: $($appMapping.count)"
-write-host "Checking duplicate UJV_sam in mapping file..." -NoNewline
-$duplicateSrcMappings = $appMapping | Group-Object -Property "UJV_sam" | Where-Object { $_.Count -gt 1 }
-foreach ($group in $duplicateSrcMappings) {
-	write-host "Duplicate UJV_sam: $($group.Name) - Count: $($group.Count)"
-	foreach ($mapping in $group.Group) {
-		write-host $mapping
-	}
-	exit
-}
-write-host "done"
-
-write-host "Checking duplicate CEZ_sam in mapping file..." -NoNewline
-$duplicateDstMappings = $appMapping | Group-Object -Property "CEZ_sam" | Where-Object { $_.Count -gt 1 }
-foreach ($group in $duplicateDstMappings) {
-	write-host "Duplicate CEZ_sam: $($group.Name) - Count: $($group.Count)"
-	foreach ($mapping in $group.Group) {
-		write-host $mapping
-	}
-	exit
-}
-write-host "done"
-
-foreach ($mapping in $appMapping) {
-	$mapping_DB.add($mapping."UJV_sam", $mapping."CEZ_sam")
-}
 
 #######################################################################################################################
 # get SRC AAD users
@@ -462,7 +430,7 @@ if ($DSTUsersMapped.Count -gt 0) {
 				if (-not $TestRun) {
 					Set-ADUser -Identity $samAccountName -Clear extensionAttribute10 -Credential $ADCredential
 				}
-				Write-Log "Clearing ext10:  $($samAccountName) - ext10: <empty>" -ForegroundColor Yellow
+				Write-Log "Clearing ext10:  $($samAccountName) - previous value: $($user.extensionAttribute10)" -ForegroundColor Yellow
 			}
 			catch {
 				Write-Log "Error clearing ext10 for user: $($samAccountName) - $($_.Exception.Message)" -ForegroundColor Red -MessageType "ERR"

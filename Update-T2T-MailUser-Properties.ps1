@@ -210,18 +210,15 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 			Set-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName
 		}
 		
-		
 		if ($DstMailUser.ExternalEmailAddress -ne "SMTP:$($SrcMailbox.PrimarySmtpAddress)") {
 			write-host " setting ExternalEmailAddress to $($SrcMailbox.PrimarySmtpAddress)"
 			Set-MailUser -Identity $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
 		}
 		
-		
 		if ($DstMailUser.EmailAddresses -notcontains "smtp:$($DstUser.samAccountName)@$DstMailRoutingDomain") {
 			write-host " adding smtp address $($DstUser.samAccountName)@$DstMailRoutingDomain"
 			Set-MailUser -Identity $DstUser.samAccountName -EmailAddresses @{add="smtp:$($DstUser.samAccountName)@$DstMailRoutingDomain"}
 		}
-		
 
 		if ($DstMailUser.EmailAddresses -notcontains "x500:$($SrcMailbox.LegacyExchangeDN)") {
 			write-host " adding LegacyExchangeDN $($SrcMailbox.LegacyExchangeDN)"
