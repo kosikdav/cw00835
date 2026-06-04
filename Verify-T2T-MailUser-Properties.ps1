@@ -125,7 +125,7 @@ write-host $SrcMailboxesAll.count
 write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
 Remove-Variable SrcMailboxesAll
 
-Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 120 -ForceReconnect
+Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60 -ForceReconnect
 
 foreach ($SrcMailbox in $SrcMailboxes) {
 
@@ -137,7 +137,8 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	$DstMailUser = $null
 
 	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
-	Request-MSALToken -AppRegName $Dst_AppReg_LOG_READER -TTL 30
+	Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60
+	#Request-MSALToken -AppRegName $Dst_AppReg_LOG_READER -TTL 30
 
 	write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
 	
@@ -181,8 +182,15 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 			$DstMailUser = Get-MailUser -Identity $SrcMailbox.PrimarySmtpAddress -ErrorAction Stop
 		}
 		Catch {
-			Write-Host "Failed to get MailUser for $($SrcMailbox.PrimarySmtpAddress): $($_.Exception.Message)"
-			$ReportObject.VERIFY_RESULT = "ERR_NO_MEU"
+			Try {
+				$DstMailbox = Get-MailBox -Identity $DstUser.userPrincipalName -ErrorAction Stop
+				Write-Host "$($DstUser.userPrincipalName) is type Mailbox" -ForegroundColor Cyan
+				$ReportObject.VERIFY_RESULT = "ERR_IS_MBX"
+			}
+			catch {
+				Write-Host "Failed to get MailUser for $($SrcMailbox.PrimarySmtpAddress): $($_.Exception.Message)"
+				$ReportObject.VERIFY_RESULT = "ERR_NO_MEU"
+			}
 		}
 	}
 	else {

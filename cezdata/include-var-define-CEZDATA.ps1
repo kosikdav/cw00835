@@ -358,9 +358,17 @@ $E5SecLicenseGroupId = "650c05fd-a74a-49fa-81ac-c0c2cba2b18e"
 $M365F3SharedLicenseGroup = "CEZ_Lic_M365_BasSrd_F3"
 
 $OUResourcesADGroup = "CEZ_AADSync_OU_Resources"
-$OUResourcesDN = "OU=Resources,OU=Groupware,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
 $OUSyncToAzureADGroup = "CEZ_AADSync_OU_SyncToAzure"
+$OUSyncToAADGroup = "CEZ_AADSync_OU_App_SyncToAAD"
+
+$OUResourcesDN = "OU=Resources,OU=Groupware,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
 $OUSyncToAzureDN = "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
+
+$SyncToAAD_App_OUs = @(
+    "OU=Resources,OU=Groupware,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
+    "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
+    "OU=UJV,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
+)
 
 $phoneNumberRemoveChars = (" ","-","(",")","#","+")
 

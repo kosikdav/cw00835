@@ -371,6 +371,17 @@ Write-Log "OU SyncToAzure"
 Update-ADGroupMembersByOU -TargetGroupName $OUSyncToAzureADGroup -ASISUsers $ASISOUSyncToAzureUsers -TOBEUsers $TOBEOUSyncToAzureUsers -Credential $ADCredential
 
 #######################################################################################################################
+# OU SyncToAAD ########################################################################################################
+#######################################################################################################################
+Write-Log "OU SyncToAAD"
+foreach ($OU in $SyncToAAD_App_OUs) {
+	$members = Get-ADUser -Credential $ADCredential -SearchBase $OU -SearchScope Subtree -Filter * -Properties *
+	$TOBEOUSyncToAADUsers += $members
+}
+[array]$ASISOUSyncToAADUsers = Get-ADGroupMember -Credential $ADCredential -Identity $OUSyncToAADADGroup -ErrorAction Stop
+Update-ADGroupMembersByOU -TargetGroupName $OUSyncToAADGroup -ASISUsers $ASISOUSyncToAADUsers -TOBEUsers $TOBEOUSyncToAADUsers -Credential $ADCredential
+
+#######################################################################################################################
 # CEZ_Lic_M365_BasSrd_F3 ##############################################################################################
 #######################################################################################################################
 

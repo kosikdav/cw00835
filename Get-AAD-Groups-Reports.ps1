@@ -1,4 +1,4 @@
-#######################################################################################################################
+######################################################################################################################
 # Get-AAD-Groups-Reports
 #######################################################################################################################
 param(
@@ -132,6 +132,13 @@ ForEach ($Group in $AADGroups) {
 		
 		if ($GroupMembers.Count -gt 0) {
 			ForEach ($Member in $GroupMembers) {
+				$MemberType = "other"
+				If ($Member."@odata.type" -eq "#microsoft.graph.user") {
+					$MemberType = "user"
+				}
+				if ($Member."@odata.type" -eq "#microsoft.graph.group") {
+					$MemberType = "group"
+				}
 				Initialize-TempVars
 				Set-TempVars -UserId $Member.Id
 				if ($Member.UserPrincipalName -in $OwnersUPN) {
@@ -154,6 +161,7 @@ ForEach ($Group in $AADGroups) {
 					UserId				= $Member.id
 					UserPrincipalName	= $Member.userPrincipalName
 					UserDisplayName		= $Member.displayName
+					MemberType			= $MemberType
 					UserMail			= $Mail
 					MailDomain			= $MailDomain
 					CompanyName			= $CompanyName

@@ -134,7 +134,7 @@ write-host $DstADMailUsers.count
 #>
 
 foreach ($SrcMailbox in $SrcMailboxes) {
-	write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
+	#write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
 	[array]$SRCsmtpAddresses = [array]$SRCx500Addresses = [array]$SRCproxyAddresses = @()
 	$ArchiveGuid = $null
 	
