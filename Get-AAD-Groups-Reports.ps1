@@ -30,32 +30,6 @@ $OutputFileGrpMem = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefi
 [System.Collections.ArrayList]$ReportGrpLst = @()
 [System.Collections.ArrayList]$ReportGrpMem = @()
 
-
-function Initialize-TempVars {
-	$script:UPN = [string]::Empty
-	$script:Department = [string]::Empty
-	$script:CompanyName = [string]::Empty
-	$script:Mail = [string]::Empty
-	$script:MailDomain = [string]::Empty
-}
-
-function Set-TempVars {
-	param (
-		[parameter(Mandatory = $true)]$UserId
-	)
-	# main function body ##################################
-	$script:CurrentUser = $script:AADUsers_DB.Item($UserId)
-	If ($script:CurrentUser.mail) {
-		$script:Mail = $script:CurrentUser.mail
-		$script:MailDomain = $script:Mail.Split("@")[1]
-	} 
-	If ($script:CurrentUser.userPrincipalName) {
-		$script:UPN = $script:CurrentUser.userPrincipalName
-		$script:Department = $script:CurrentUser.department
-		$script:CompanyName = $script:CurrentUser.companyName
-	}
-}
-
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
@@ -68,14 +42,17 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "groups"
 $Uriselect = "id,displayName,createdDateTime,mailEnabled,securityEnabled,mail,onPremisesSyncEnabled,onPremisesSamAccountName,onPremisesSecurityIdentifier,groupTypes,resourceProvisioningOptions,isAssignableToRole"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $Uriselect
-[array]$AADGroups = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "Getting AAD groups" -ProgressDots
+[array]$AADGroups = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "AAD groups" -ProgressDots
 
 ForEach ($Group in $AADGroups) {
 	Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 	$MemberCount = $OwnerCount = "n/a"
-	$DoNotEnumerate = $GroupIsDynamic = $GroupIsUnified = $GroupIsTeam = $OnPremGroupEnum = $false
+	$DoNotEnumerate = $GroupIsDynamic = $GroupIsUnified = $GroupIsTeam = $false
 
 	if ($NoEnumerationGroups.Contains($Group.id)) {
+		$DoNotEnumerate = $true
+	}
+	if ($Group.onPremisesSyncEnabled -and ($AADGroupsReportResolveOnprem -eq $False)) {
 		$DoNotEnumerate = $true
 	}
 	if (($Group | Select-Object -ExpandProperty GroupTypes) -Contains "DynamicMembership") {
@@ -87,34 +64,34 @@ ForEach ($Group in $AADGroups) {
 	if (($Group | Select-Object -ExpandProperty ResourceProvisioningOptions) -Contains "Team") {
 		$GroupIsTeam = $true
 	}
-	if ($Group.onPremisesSyncEnabled -and $AADGroupsReportResolveOnprem) {
-		$OnPremGroupEnum = $true
+
+	$RecordObjectGroup = [pscustomobject]@{
+		GroupId				= $Group.id
+		GroupName			= $Group.displayName
+		Mail 				= $Group.mail
+		MailEnabled			= $Group.mailEnabled
+		SecurityEnabled		= $Group.securityEnabled
+		Dynamic				= $GroupIsDynamic
+		Unified				= $GroupIsUnified
+		Team 				= $GroupIsTeam
+		SyncedFromAD		= $Group.onPremisesSyncEnabled
+
+		MemberId			= "n/a"
+		MemberUPN			= "n/a"
+		MemberDisplayName	= "n/a"
+		MemberType			= "n/a"
+		MemberMail			= "n/a"
+		MailDomain			= "n/a"
+		CompanyName			= "n/a"
+		Department			= "n/a"
+		Role				= "n/a"
 	}
 
-	if ($DoNotEnumerate -or $GroupIsTeam -or $GroupIsDynamic -or (-not $OnPremGroupEnum) ) {
+	if ($DoNotEnumerate -or $GroupIsDynamic -or $GroupIsUnified -or $GroupIsTeam) {
 		$UriResource = "groups/$($Group.id)/members/`$count"
 		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
 		$MemberCount = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -ConsistencyLevel "eventual"
-		$ReportGrpMem += [pscustomobject]@{
-			GroupId				= $Group.id
-			GroupName			= $Group.displayName
-			Mail 				= $Group.mail
-			MailEnabled			= $Group.mailEnabled
-			SecurityEnabled		= $Group.securityEnabled
-			Dynamic				= $GroupIsDynamic
-			Unified				= $GroupIsUnified
-			Team 				= $GroupIsTeam
-			SyncedFromAD		= $Group.onPremisesSyncEnabled
-
-			UserId				= "n/a"
-			UserPrincipalName	= "n/a"
-			UserDisplayName		= "n/a"
-			UserMail			= "n/a"
-			MailDomain			= "n/a"
-			CompanyName			= "n/a"
-			Department			= "n/a"
-			Role				= "n/a"
-		}
+		$ReportGrpMem += $RecordObjectGroup
 	}
 	else {
 		$UriResource = "groups/$($Group.id)/members"
@@ -128,26 +105,13 @@ ForEach ($Group in $AADGroups) {
 		$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Top 999 -Select $UriSelect
 		[array]$GroupOwners = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
 		$OwnerCount = $GroupOwners.Count
-		$OwnersUPN = $GroupOwners.userPrincipalName
-		
+
 		if ($GroupMembers.Count -gt 0) {
 			ForEach ($Member in $GroupMembers) {
-				$MemberType = "other"
-				If ($Member."@odata.type" -eq "#microsoft.graph.user") {
-					$MemberType = "user"
+				if (-not $Member.id) {
+					continue
 				}
-				if ($Member."@odata.type" -eq "#microsoft.graph.group") {
-					$MemberType = "group"
-				}
-				Initialize-TempVars
-				Set-TempVars -UserId $Member.Id
-				if ($Member.UserPrincipalName -in $OwnersUPN) {
-					$Role = "owner"
-				}
-				else {
-					$Role = "member"
-				}
-				$RecordObject = [pscustomobject]@{
+				$MemberObject = [pscustomobject]@{
 					GroupId				= $Group.id
 					GroupName			= $Group.displayName
 					Mail 				= $Group.mail
@@ -157,18 +121,36 @@ ForEach ($Group in $AADGroups) {
 					Unified				= $GroupIsUnified
 					Team 				= $GroupIsTeam
 					SyncedFromAD		= $Group.onPremisesSyncEnabled
-
-					UserId				= $Member.id
-					UserPrincipalName	= $Member.userPrincipalName
-					UserDisplayName		= $Member.displayName
-					MemberType			= $MemberType
-					UserMail			= $Mail
-					MailDomain			= $MailDomain
-					CompanyName			= $CompanyName
-					Department			= $Department
-					Role				= $Role
+					MemberId			= $Member.id
+					MemberUPN			= "n/a"
+					MemberDisplayName	= $Member.displayName
+					MemberType			= "n/a"
+					MemberMail			= "n/a"
+					MailDomain			= "n/a"
+					CompanyName			= "n/a"
+					Department			= "n/a"
+					Role				= "member"
 				}
-				$ReportGrpMem += $RecordObject
+
+				if ($AADUsers_DB.ContainsKey($Member.id)) {
+					$CurrentUser = $AADUsers_DB.Item($Member.id)
+					If ($CurrentUser.mail) {
+						$MemberObject.MemberMail = $CurrentUser.mail
+						$MemberObject.MailDomain = $CurrentUser.mail.Split("@")[1]
+						} 
+					If ($CurrentUser.userPrincipalName) {
+						$MemberObject.MemberUPN	= $CurrentUser.userPrincipalName
+						$MemberObject.CompanyName = $CurrentUser.companyName
+						$MemberObject.Department = $CurrentUser.department
+					}
+				}
+
+				$MemberObject.MemberType = $Member."@odata.type".Replace("#microsoft.graph.","")
+		
+				if ($Member.id -in $GroupOwners.id) {
+					$MemberObject.Role = "owner"
+				}
+				$ReportGrpMem += $MemberObject
 			}
 		}
 	}
