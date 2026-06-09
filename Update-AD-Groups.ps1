@@ -352,13 +352,13 @@ if ($extraUsersOnprem) {
 
 Write-Log $String_Divider
 Write-Log "Processing OU based groups"
+<#
 #######################################################################################################################
 # OU Resources ########################################################################################################
 #######################################################################################################################
 Write-Log "OU Resources"
 [array]$TOBEOUResourcesUsers = Get-ADUser -Credential $ADCredential -SearchBase $OUResourcesDN -SearchScope Subtree -Filter * -Properties *
 [array]$ASISOUResourcesUsers = Get-ADGroupMember -Credential $ADCredential -Identity $OUResourcesADGroup -ErrorAction Stop
-
 Update-ADGroupMembersByOU -TargetGroupName $OUResourcesADGroup -ASISUsers $ASISOUResourcesUsers -TOBEUsers $TOBEOUResourcesUsers -Credential $ADCredential
 
 #######################################################################################################################
@@ -367,14 +367,15 @@ Update-ADGroupMembersByOU -TargetGroupName $OUResourcesADGroup -ASISUsers $ASISO
 Write-Log "OU SyncToAzure"
 [array]$TOBEOUSyncToAzureUsers = Get-ADUser -Credential $ADCredential -SearchBase $OUSyncToAzureDN -SearchScope Subtree -Filter * -Properties *
 [array]$ASISOUSyncToAzureUsers = Get-ADGroupMember -Credential $ADCredential -Identity $OUSyncToAzureADGroup -ErrorAction Stop
-
 Update-ADGroupMembersByOU -TargetGroupName $OUSyncToAzureADGroup -ASISUsers $ASISOUSyncToAzureUsers -TOBEUsers $TOBEOUSyncToAzureUsers -Credential $ADCredential
+#>
 
 #######################################################################################################################
 # OU SyncToAAD ########################################################################################################
 #######################################################################################################################
 Write-Log "OU SyncToAAD"
 foreach ($OU in $SyncToAAD_App_OUs) {
+	write-host $OU -ForegroundColor Cyan
 	$members = Get-ADUser -Credential $ADCredential -SearchBase $OU -SearchScope Subtree -Filter * -Properties *
 	$TOBEOUSyncToAADUsers += $members
 }

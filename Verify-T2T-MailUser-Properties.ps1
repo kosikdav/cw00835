@@ -7,6 +7,7 @@ param(
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-Start-Generic.ps1
+. $ScriptPath\include\include-functions-T2T.ps1
 
 #######################################################################################################################
 
@@ -40,34 +41,6 @@ $MbxFilter4 = " -or (RecipientTypeDetails -eq 'RoomMailbox')"
 $MbxFilter5 = " -or (RecipientTypeDetails -eq 'EquipmentMailbox'))"
 $userMbxFilter = $MbxFilter1 + $MbxFilter2 + $MbxFilter3 + $MbxFilter4 + $MbxFilter5
 
-#######################################################################################################################
-function Get-TargetT2TUser {
-	[CmdletBinding()]
-    param (
-        [Parameter(Mandatory)][string]$SrcIdentity,
-        [string]$SrcAccessToken,
-		[string]$DstAccessToken,
-		[pscredential]$DstADCredential
-    )
-	# main function body ##################################
-	$UriResource = "users/$SrcIdentity"
-	$UriSelect = "id,userPrincipalName,onpremisesSamAccountName,$($Src_PN_attr)"
-	$Uri = New-GraphUri -Resource $UriResource -Select $UriSelect -Version "v1.0"
-	$SrcUser = Get-GraphOutputREST -Uri $Uri -AccessToken $SrcAccessToken -ContentType $ContentTypeJSON
-	if ($SrcUser) {
-		$Filter = "$($Dst_Mapping_attr) -eq '$($SrcUser.$Src_PN_attr)'"
-		$DstUser = Get-ADUser -Filter $Filter -Properties $Dst_Mapping_attr -Credential $DstADCredential
-		if ($DstUser) {
-			return $DstUser
-		}
-		else {
-			return $null
-		}
-	}
-	else {
-		return $null
-	}
-}
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
@@ -125,6 +98,18 @@ write-host $SrcMailboxesAll.count
 write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
 Remove-Variable SrcMailboxesAll
 
+Request-MSALToken -AppRegName $Dst_AppReg_LOG_READER -TTL 30
+$UriResource = "users"
+$UriSelect = "id,userPrincipalName,onpremisesSamAccountName"
+$UriFilter = "userType eq 'Member'"
+$Uri = New-GraphUri -Resource $UriResource -Select $UriSelect -Filter $UriFilter -Top 999 -Version "v1.0"
+[array]$DstAADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Dst_AppReg_LOG_READER].AccessToken
+$DstAADUsers_DB = @{}
+foreach ($User in $DstAADUsers) {
+	$DstAADUsers_DB.Add($User.userPrincipalName, $User)
+}
+Remove-Variable DstAADUsers
+
 Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60 -ForceReconnect
 
 foreach ($SrcMailbox in $SrcMailboxes) {
@@ -133,8 +118,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 
 	$SrcArchiveGuid = $null
 	$ErrorFound = $false
-	$DstUser = $null
-	$DstMailUser = $null
+	$DstUser = $DstMailUser = $DstAADUser = $null
 
 	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 	Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60
@@ -167,6 +151,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		SRC_LegacyExchangeDN = $SrcMailbox.LegacyExchangeDN
 		SRC_AADUserId = $SrcMailbox.ExternalDirectoryObjectId
 		DST_UPN = $null
+		DST_SAM = $null
 		DST_PrimarySmtpAddress = $null
 		DST_ExternalEmailAddress = $null
 		DST_ArchiveGuid = $null
@@ -199,9 +184,11 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	}
 
 	if ($DstMailUser) {
+		#$DstAADUser = $DstAADUsers_DB[$DstMailUser.UserPrincipalName]
 		[string]$DstProxyAddresses = $DstMailUser.EmailAddresses -join ";"
 
 		$ReportObject.DST_UPN = $DstMailUser.userPrincipalName
+		$ReportObject.DST_SAM = $DstUser.samAccountName
 		$ReportObject.DST_PrimarySmtpAddress = $DstMailUser.PrimarySmtpAddress
 		$ReportObject.DST_ExternalEmailAddress = $DstMailUser.ExternalEmailAddress
 		$ReportObject.DST_ArchiveGuid = $DstMailUser.ArchiveGuid
@@ -222,7 +209,6 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): PrimarySmtpAddress mismatch. Expected: $($DstUser.userPrincipalName), Actual: $($DstMailUser.PrimarySmtpAddress)" -MessageType "ERR"
 			$ErrorFound = $true
 		}
-		
 		
 		if ($DstMailUser.ExternalEmailAddress -ne "SMTP:$($SrcMailbox.PrimarySmtpAddress)") {
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): ExternalEmailAddress mismatch. Expected: SMTP:$($SrcMailbox.PrimarySmtpAddress), Actual: $($DstMailUser.ExternalEmailAddress)" -MessageType "ERR"
@@ -256,7 +242,8 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		}
 	}
 	
-	#$Result = Test-MigrationServerAvailability -EndPoint $MigrationEndpoint -TestMailbox $Mailbox.mail
+	$Result = Test-MigrationServerAvailability -EndPoint $MigrationEndpoint -TestMailbox $SrcMailbox.PrimarySmtpAddress
+	write-host "Migration endpoint test result: $Result"
 	$Report += $ReportObject
 }
 

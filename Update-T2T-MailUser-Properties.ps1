@@ -7,6 +7,7 @@ param(
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-Start-Generic.ps1
+. $ScriptPath\include\include-functions-T2T.ps1
 
 #######################################################################################################################
 
@@ -35,34 +36,6 @@ $MbxFilter4 = " -or (RecipientTypeDetails -eq 'RoomMailbox')"
 $MbxFilter5 = " -or (RecipientTypeDetails -eq 'EquipmentMailbox'))"
 $userMbxFilter = $MbxFilter1 + $MbxFilter2 + $MbxFilter3 + $MbxFilter4 + $MbxFilter5
 
-#######################################################################################################################
-function Get-TargetT2TUser {
-	[CmdletBinding()]
-    param (
-        [Parameter(Mandatory)][string]$SrcIdentity,
-        [string]$SrcAccessToken,
-		[string]$DstAccessToken,
-		[pscredential]$DstADCredential
-    )
-	# main function body ##################################
-	$UriResource = "users/$SrcIdentity"
-	$UriSelect = "id,userPrincipalName,onpremisesSamAccountName,$($Src_PN_attr)"
-	$Uri = New-GraphUri -Resource $UriResource -Select $UriSelect -Version "v1.0"
-	$SrcUser = Get-GraphOutputREST -Uri $Uri -AccessToken $SrcAccessToken -ContentType $ContentTypeJSON
-	if ($SrcUser) {
-		$Filter = "$($Dst_Mapping_attr) -eq '$($SrcUser.$Src_PN_attr)'"
-		$DstUser = Get-ADUser -Filter $Filter -Properties $Dst_Mapping_attr -Credential $DstADCredential
-		if ($DstUser) {
-			return $DstUser
-		}
-		else {
-			return $null
-		}
-	}
-	else {
-		return $null
-	}
-}
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
@@ -111,30 +84,8 @@ write-host $SrcMailboxesAll.count
 write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
 Remove-Variable SrcMailboxesAll
 
-<#
-Request-MSALToken -AppRegName $Dst_AppReg_LOG_READER -TTL 30
-
-$UriResource = "users"
-$UriSelect = "id,userPrincipalName,onpremisesSamAccountName"
-$UriFilter = "userType eq 'Member' and onpremisesSyncEnabled eq true"
-$Uri = New-GraphUri -Resource $UriResource -Version "v1.0" -Select $UriSelect -Filter $UriFilter -Top 999
-[array]$DstAADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Dst_AppReg_LOG_READER].AccessToken -ProgressDots -Text "AAD users"
-write-host "DST AAD users: $($DstAADUsers.count)"
-
-Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT -TTL 120
-$DstEXOMailUsers = Get-EXORecipient -ResultSize Unlimited -PropertySets "Minimum, MailboxMove" -RecipientType MailUser
-write-host "DST EXO mailUsers: $($DstEXOMailUsers.count)"
-Get-PSSession | Remove-PSSession
-
-$Session = New-PSSession -Name "OnPremExchange" -ConfigurationName "Microsoft.Exchange" -ConnectionUri "http://cw00616exch3.cezdata.corp/PowerShell/" -Authentication Kerberos
-Import-PSSession $Session -DisableNameChecking -AllowClobber | Out-Null
-write-host "DST AD mailUsers: " -NoNewline
-$DstADMailUsers = Get-MailUser -ResultSize Unlimited
-write-host $DstADMailUsers.count
-#>
-
 foreach ($SrcMailbox in $SrcMailboxes) {
-	#write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
+	write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
 	[array]$SRCsmtpAddresses = [array]$SRCx500Addresses = [array]$SRCproxyAddresses = @()
 	$ArchiveGuid = $null
 	
@@ -167,12 +118,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		Write-Log "No target user found for source mailbox $($SrcMailbox.UserPrincipalName) with id $($SrcMailbox.id). Skipping..." -MessageType "ERR"
 		Continue
 	}
-	#write-host "Target user: $($DstUser.userPrincipalName)"
-	<#
-	if ($B2BMailUsers_DB.ContainsKey($SrcMailbox.primarysmtpaddress)) {
-		$B2BMailUser = $B2BMailUsers_DB[$SrcMailbox.primarysmtpaddress]
-	}
-	#>
+
 	Try {
 		$DstMailUser = Get-MailUser -Identity $DstUser.samAccountName -ErrorAction Stop
 	}
