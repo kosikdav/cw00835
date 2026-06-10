@@ -146,6 +146,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		SRC_UPN = $SrcMailbox.UserPrincipalName
 		SRC_PrimarySmtpAddress = $SrcMailbox.PrimarySmtpAddress
 		SRC_ExchangeGuid = $SrcMailbox.ExchangeGuid
+		SRC_RecipientTypeDetails = $SrcMailbox.RecipientTypeDetails
 		SRC_ArchiveGuid = $SrcArchiveGuid
 		SRC_ProxyAddresses = $SRCproxyAddresses
 		SRC_LegacyExchangeDN = $SrcMailbox.LegacyExchangeDN
@@ -242,8 +243,8 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		}
 	}
 	
-	$Result = Test-MigrationServerAvailability -EndPoint $MigrationEndpoint -TestMailbox $SrcMailbox.PrimarySmtpAddress
-	write-host "Migration endpoint test result: $Result"
+	#$Result = Test-MigrationServerAvailability -EndPoint $MigrationEndpoint -TestMailbox $SrcMailbox.PrimarySmtpAddress
+	#write-host "Migration endpoint test result: $Result"
 	$Report += $ReportObject
 }
 

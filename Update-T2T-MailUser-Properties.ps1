@@ -85,7 +85,14 @@ write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
 Remove-Variable SrcMailboxesAll
 
 foreach ($SrcMailbox in $SrcMailboxes) {
-	write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
+	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
+	if ($SrcMailbox.RecipientTypeDetails -eq "UserMailbox") {
+		$Color = "Green"
+	}
+	else {
+		$Color = "Cyan"
+	}
+	write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor $Color
 	[array]$SRCsmtpAddresses = [array]$SRCx500Addresses = [array]$SRCproxyAddresses = @()
 	$ArchiveGuid = $null
 	
@@ -115,7 +122,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	#write-host $SRCsmtpAddresses -ForegroundColor Green
 	$DstUser = Get-TargetT2TUser -SrcIdentity $SrcMailbox.ExternalDirectoryObjectId -SrcAccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -DstADCredential $ADCredential
 	if (-not $DstUser) {
-		Write-Log "No target user found for source mailbox $($SrcMailbox.UserPrincipalName) with id $($SrcMailbox.id). Skipping..." -MessageType "ERR"
+		Write-Log " No target user found for source mailbox $($SrcMailbox.UserPrincipalName) with id $($SrcMailbox.id). Skipping..." -MessageType "ERR"
 		Continue
 	}
 
@@ -125,7 +132,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	Catch {
 		Try {
 			$DstRemoteMailbox = Get-RemoteMailbox -Identity $DstUser.samAccountName -ErrorAction Stop
-			Write-Log "User $($DstUser.samAccountName) is type RemoteMailbox" -MessageType "ERR"
+			Write-Log " User $($DstUser.samAccountName) is type RemoteMailbox" -MessageType "ERR"
 			Continue
 		}
 		Catch {
