@@ -12,7 +12,7 @@ $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 
 $LogFolder				= "t2t-ujvrez"
 $LogFilePrefix			= "user-mapping"
-$OutputFolder			= "t2t-ujvrez"
+$OutputFolder			= "t2t-ujvrez\user-mapping"
 $OutputFilePrefix		= "user-mapping"
 $OutputFileSuffixSRC 	= "src"
 $OutputFileSuffixDST 	= "dst"
@@ -42,7 +42,11 @@ $Dst_AD_OU_list = @(
 	"OU=iCVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",	
 	"OU=NQ-Safe,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
 	"OU=UJVREZ,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
-	"OU=VZUP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp"
+	"OU=VZUP,OU=skupinaCEZ,OU=uzivatele,DC=cezdata,DC=corp",
+	"OU=UJV,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
+)
+$Dst_AD_OU_list_App = @(
+	"OU=UJV,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
 )
 
 $DstADUserProperties = @(
@@ -50,6 +54,7 @@ $DstADUserProperties = @(
 	'mail',
 	'distinguishedName',
 	'samAccountName',
+	'SID',
 	'userPrincipalName',
 	'extensionAttribute10',
 	'employeeId',
@@ -67,7 +72,7 @@ $Src_T2T_EXO_MIGRATION_GROUP 	= $UJVREZ_T2T_EXO_MIGRATION_GROUP
 $Dst_AppReg_LOG_READER 			= $AppReg_CEZDATA_LOG_READER
 $Dst_AppReg_EXO_MGMT 			= $AppReg_CEZDATA_EXO_MGMT   
 
-$CommonEntraAttributes = "id,userPrincipalName,displayName,onPremisesSamAccountName,mail"
+$CommonEntraAttributes = "id,userPrincipalName,mail,displayName,onPremisesSamAccountName,onPremisesSecurityIdentifier"
 
 [array]$MappingReportSRC = @()
 [array]$MappingReportDST = @()
@@ -213,9 +218,13 @@ foreach ($group in $duplicateUsers) {
 }
 write-host "done"
 
-#filter out users with samAccountName starting with Q
-$DstADUsers = $DstADUsers | Where-Object { $_.samAccountName -notlike 'Q*' }
-write-host "DST AD users - (filtered out Q?): $($DstADUsers.count)"
+#filter out users with samAccountName starting with QT
+$DstADUsers = $DstADUsers | Where-Object { $_.samAccountName -notlike 'QT*' }
+write-host "DST AD users - (filtered out QT): $($DstADUsers.count)"
+
+#filter out users with samAccountName starting with QK
+$DstADUsers = $DstADUsers | Where-Object { $_.samAccountName -notlike 'QK*' }
+write-host "DST AD users - (filtered out QK): $($DstADUsers.count)"
 
 #OU property to each user object by parsing it from DistinguishedName, we will need it for filtering users by OU and for reporting
 write-host "DST AD users - adding OU property..." -NoNewline
@@ -230,7 +239,8 @@ write-host "DST AD users - filtered by OU: $($DstADUsers.count)"
 
 #check if we have duplicate employeeNumber in DST AD users, if yes, we cannot proceed as the mapping is based on employeeNumber and it must be unique
 write-host "DST AD users - checking duplicate employeeNumber..." -NoNewline
-$duplicateUsers = $DstADUsers | Group-Object -Property $Dst_PN_attr | Where-Object { $_.Count -gt 1 }
+$DstADUsersWithPN = $DstADUsers | Where-Object { $_.$Dst_PN_attr -ne $null -and $_.$Dst_PN_attr -ne "" }
+$duplicateUsers = $DstADUsersWithPN | Group-Object -Property $Dst_PN_attr | Where-Object { $_.Count -gt 1 }
 foreach ($group in $duplicateUsers) {
 	write-host "Duplicate CEZ_pn: $($group.Name) - Count: $($group.Count)"
 	foreach ($user in $group.Group) {
@@ -240,11 +250,12 @@ foreach ($group in $duplicateUsers) {
 }
 write-host "done"
 
-foreach ($user in $DstADUsers) {
+foreach ($user in $DstADUsersWithPN) {
 	$userObject = [PSCustomObject]@{
 		userPrincipalName = $user.userPrincipalName
 		displayName = $user.displayName
 		samAccountName = $user.samAccountName
+		SID = $user.SID
 		ext10 = $user.extensionAttribute10
 		employeeNumber = $user.$Dst_PN_attr
 		employeeId = $user.employeeId
@@ -296,12 +307,14 @@ foreach ($user in $SrcAADUsers) {
 			UJV_mail = $user.mail
 			UJV_mailDomain = $UJV_mailDomain
 			UJV_samAccountName = $user.onpremisesSamAccountName
+			UJV_SID = $user.onPremisesSecurityIdentifier
 			UJV_PN = $user.$Src_PN_attr
 			Mapped_PN = $null
 			CEZ_UPN = $null
 			CEZ_DisplayName = $null
 			CEZ_mail = $null
 			CEZ_samAccountName = $null
+			CEZ_SID = $null
 			CEZ_PN = $null
 			CEZ_KIP = $null
 			OldExt10 = $null
@@ -321,6 +334,7 @@ foreach ($user in $SrcAADUsers) {
 				$ReportObject.CEZ_PN = $DstUser.$Dst_PN_attr
 				$ReportObject.CEZ_KIP = $DstUser.employeeId
 				$ReportObject.CEZ_mailAD40 = $DstUser.mailAD40
+				$ReportObject.CEZ_SID = $DstUser.SID
 				if ($DstUser.mailAD40 -and ($DstUser.mailAD40 -eq $user.mail)) {
 					$ReportObject.mailAD40match = "YES"
 				}
@@ -419,16 +433,16 @@ foreach ($user in $SrcAADUsers) {
 
 
 if ($DSTUsersMapped.Count -gt 0) {
-	$DSTUsersToClear = $DstADUsers.samAccountName | Where-Object { $DSTUsersMapped -notcontains $_ }
+	$DSTUsersToClear = $DstADUsers.samAccountName | Where-Object { $DSTUsersMapped -notcontains $_ -and $_ -notlike 'QP*' }
 	foreach ($samAccountName in $DSTUsersToClear) {
 		$user = Get-ADUser -Identity $samAccountName -Properties extensionAttribute10 -Credential $ADCredential
-		if (($user.extensionAttribute10 -eq $null) -or ($user.extensionAttribute10 -eq "")) {
+		if (($user.samAccountName -like 'QP*') -or ($user.extensionAttribute10 -eq $null) -or ($user.extensionAttribute10 -eq "")) {
 			continue
 		}
 		else {
 			try {
 				if (-not $TestRun) {
-					Set-ADUser -Identity $samAccountName -Clear extensionAttribute10 -Credential $ADCredential
+					#Set-ADUser -Identity $samAccountName -Clear extensionAttribute10 -Credential $ADCredential
 				}
 				Write-Log "Clearing ext10:  $($samAccountName) - previous value: $($user.extensionAttribute10)" -ForegroundColor Yellow
 			}
@@ -466,8 +480,11 @@ if (($countSRCUpdated -gt 0) -or ($countSRCUpdatedSecondary -gt 0)) {
 	write-host "done"
 
 	#filter out users with samAccountName starting with Q
-	$DstADUsers = $DstADUsers | Where-Object { $_.SamAccountName -notlike 'Q*' }
-	write-host "DST AD users - (filtered out Q?): $($DstADUsers.count)"
+	$DstADUsers = $DstADUsers | Where-Object { $_.SamAccountName -notlike 'QT' }
+	write-host "DST AD users - (filtered out QT): $($DstADUsers.count)"
+
+	$DstADUsers = $DstADUsers | Where-Object { $_.SamAccountName -notlike 'QK' }
+	write-host "DST AD users - (filtered out QK): $($DstADUsers.count)"
 
 	#OU property to each user object by parsing it from DistinguishedName, we will need it for filtering users by OU and for reporting
 	write-host "DST AD users - adding OU property..." -NoNewline
@@ -498,7 +515,10 @@ else {
 
 $CountDSTNoMapping = 0
 $CountDSTOK = 0
-$UsersByKIP = $DstADUsers | Group-Object -Property "employeeId"
+$DstADUsersWithKIP = $DstADUsers | Where-Object { $_.employeeId -ne $null -and $_.employeeId -ne "" }
+$DstADUsersApp = $DstADUsers | Where-Object { $_.employeeId -eq $null -or $_.employeeId -eq "" }
+$UsersByKIP = $DstADUsersWithKIP | Group-Object -Property "employeeId"
+
 foreach ($group in $UsersByKIP) {
 	$mappedUsers = $group.Group | Where-Object { $_.extensionAttribute10 -ne $null -and $_.extensionAttribute10 -ne "" -and $_.extensionAttribute10 -notlike "_*" }
 	if ($mappedUsers.count -eq 0) {
@@ -510,6 +530,7 @@ foreach ($group in $UsersByKIP) {
 				PN = $user.$Dst_PN_attr
 				displayName = $user.DisplayName
 				samAccountName = $user.SamAccountName
+				SID = $user.SID
 				userPrincipalName = $user.UserPrincipalName
 				mail = $user.mail
 				mailAD40 = $user.$Dst_mailAD40
@@ -539,6 +560,7 @@ foreach ($group in $UsersByKIP) {
 				PN = $user.$Dst_PN_attr
 				displayName = $user.DisplayName
 				samAccountName = $user.SamAccountName
+				SID = $user.SID
 				userPrincipalName = $user.UserPrincipalName
 				mail = $user.mail
 				mailAD40 = $user.$Dst_mailAD40
@@ -557,6 +579,24 @@ foreach ($group in $UsersByKIP) {
 			$MappingReportDST += $ReportObject
 		}
 	}
+}
+
+foreach ($user in $DstADUsersApp) {
+	#write-host "APP: $($user.UserPrincipalName) ($($user.DisplayName)) OU: $($user.OU)"
+	$ReportObject = [PSCustomObject]@{
+		Result = "APP"
+		KIP = $user.employeeId
+		PN = $user.$Dst_PN_attr
+		displayName = $user.DisplayName
+		samAccountName = $user.SamAccountName
+		SID = $user.SID
+		userPrincipalName = $user.UserPrincipalName
+		mail = $user.mail
+		mailAD40 = $user.$Dst_mailAD40
+		OU = $user.OU
+		ext10 = $user.extensionAttribute10
+	}
+	$MappingReportDST += $ReportObject
 }
 
 #######################################################################################################################
