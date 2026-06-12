@@ -102,7 +102,7 @@ else {
 $ADCredential = Import-Clixml -Path $ADCredentialPath
 
 $DstGetADUserParams = @{
-	Filter = "Enabled -eq `$true -and ObjectClass -eq 'user'"
+	Filter = "ObjectClass -eq 'user'"
 	SearchBase = $DstADSearchBaseAll
 	Properties = $DstADUserProperties
 	Credential = $ADCredential

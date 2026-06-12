@@ -2,7 +2,8 @@
 # Set-MaiboxT2T-Properties
 #######################################################################################################################
 param(
-    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile
+    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
+	[string]$SourceMailbox
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
@@ -83,6 +84,21 @@ write-host $SrcMailboxesAll.count
 [array]$SrcMailboxes = $SrcMailboxesAll | Where-Object { $_.ExternalDirectoryObjectId -in $T2TMigrationGroupMembers.id }
 write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
 Remove-Variable SrcMailboxesAll
+
+if ($SourceMailbox) {
+	$SrcMailboxes = $SrcMailboxes | Where-Object { $_.PrimarySmtpAddress -eq $SourceMailbox }
+	write-host "SRC mailboxes after filtering by PrimarySmtpAddress $($SourceMailbox): $($SrcMailboxes.count)"
+	if ($SrcMailboxes.count -eq 0) {
+		Write-Host "No source mailbox found with PrimarySmtpAddress $($SourceMailbox). Exiting."
+		Exit
+	}
+	else {
+		if ($SrcMailboxes.count -gt 1) {
+			Write-Host "Multiple source mailboxes found with PrimarySmtpAddress $($SourceMailbox). Please check the input and try again. Exiting."
+			Exit
+		}
+	}
+}
 
 foreach ($SrcMailbox in $SrcMailboxes) {
 	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
