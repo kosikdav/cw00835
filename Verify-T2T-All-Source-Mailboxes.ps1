@@ -29,7 +29,6 @@ $OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $Out
 [array]$Report = @()
 [hashtable]$MigrationUsers_DB = @{}
 [hashtable]$MailUsers_DB_per_mail = @{}
-[hashtable]$MailUsers_DB_per_UPN = @{}
 
 $BatchPrefix = "UJV"
 
@@ -208,14 +207,12 @@ $MigrationBatches = $MigrationBatches | Where-Object { $_.Identity -like "$Batch
 Write-host "Found $($MigrationBatches.Count) migration batches with prefix '$BatchPrefix'"
 
 foreach ($Batch in $MigrationBatches) {
-	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline
+	write-host ($Batch.Identity.ToString()).PadRight(25) -NoNewline
 	$Result = Get-MigrationUser -BatchId $Batch.Identity
 	write-host ": $($Result.Count)"
 	$MigrationUsers += $Result
 }
-
 write-host "Found $($MigrationUsers.Count) migration users in batches with prefix '$BatchPrefix'"
-
 write-host "Creating migration users DB..." -NoNewline
 foreach ($MigrationUser in $MigrationUsers) {
 	$MigrationUsers_DB.Add($MigrationUser.Identity, $MigrationUser)
@@ -238,14 +235,9 @@ write-host "done ($($MailUsers_DB_per_mail.count))"
 #######################################################################################################################
 # main loop - iterate through source mailboxes in T2T migration group and verify properties of corresponding mailuser in target tenant
 #######################################################################################################################
-$debugCount = 0
 foreach ($SrcMailbox in $SrcMailboxes) {
-	#$debugCount++
-	if ($debugCount -gt 100) {
-		Write-Host "Debug limit reached. Exiting loop."
-		break
-	}
-	if ($SrcMailbox.PrimarySmtpAddress -like "DiscoverySearchMailbox") {
+
+	if ($SrcMailbox.PrimarySmtpAddress -like "DiscoverySearchMailbox*") {
 		continue
 	}
 
@@ -283,6 +275,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		T2T_LIC = $null
 		SRC_UPN = $SrcMailbox.UserPrincipalName
 		SRC_PrimarySmtpAddress = $SrcMailbox.PrimarySmtpAddress
+		SRC_DisplayName = $SrcMailbox.DisplayName
 		SRC_ExchangeGuid = $SrcMailbox.ExchangeGuid
 		SRC_RecipientTypeDetails = $SrcMailbox.RecipientTypeDetails
 		SRC_ArchiveGuid = $SrcArchiveGuid
@@ -291,6 +284,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		SRC_AADUserId = $SrcMailbox.ExternalDirectoryObjectId
 		DST_UPN = $null
 		DST_SAM = $null
+		DST_DisplayName = $null
 		DST_ext10 = $null
 		DST_PrimarySmtpAddress = $null
 		DST_ExternalEmailAddress = $null
@@ -319,8 +313,10 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		$ReportObject.DST_SAM = $DstADUser.samAccountName
 		$ReportObject.DST_UPN = $DstADUser.userPrincipalName
 		$ReportObject.DST_ext10 = $DstADUser.extensionAttribute10
+		$ReportObject.DST_DisplayName = $DstADUser.DisplayName
 	}
 	else {
+		Write-Host
 		Write-Log "No target user found for source mailbox $($SrcMailbox.UserPrincipalName) with id $($SrcMailbox.id)" -MessageType "ERR"
 		$ReportObject.MEU_VERIFY = "ERR_NO_TARGET_USER"
 	}
@@ -392,7 +388,8 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		}
 		
 		if ($DstMailUser.PrimarySmtpAddress -ne $DstADUser.userPrincipalName) {
-			Write-HostWrite-Log "$($SrcMailbox.PrimarySmtpAddress): PrimarySmtpAddress mismatch. Expected: $($DstADUser.userPrincipalName), Actual: $($DstMailUser.PrimarySmtpAddress)" -MessageType "ERR"
+			Write-Host
+			Write-Log "$($SrcMailbox.PrimarySmtpAddress): PrimarySmtpAddress mismatch. Expected: $($DstADUser.userPrincipalName), Actual: $($DstMailUser.PrimarySmtpAddress)" -MessageType "ERR"
 			$ErrorFound = $true
 		}
 		
@@ -408,7 +405,6 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): Missing proxy address. Expected: smtp:$($DstADUser.samAccountName)@$DstMailRoutingDomain" -MessageType "ERR"
 			$ErrorFound = $true
 		}
-
 
 		if ($DstMailUser.EmailAddresses -notcontains "x500:$($SrcMailbox.LegacyExchangeDN)") {
 			Write-Host

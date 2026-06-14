@@ -16,7 +16,7 @@ function Get-TargetT2TUser {
     )
 	# main function body ##################################
 	$UriResource = "users/$SrcIdentity"
-	$UriSelect = "id,userPrincipalName,onpremisesSamAccountName,$($Src_PN_attr)"
+	$UriSelect = "id,userPrincipalName,mail,onpremisesSamAccountName,$($Src_PN_attr)"
 	$Uri = New-GraphUri -Resource $UriResource -Select $UriSelect -Version "v1.0"
 	$SrcUser = Get-GraphOutputREST -Uri $Uri -AccessToken $SrcAccessToken -ContentType $ContentTypeJSON
 	if ($SrcUser) {
@@ -27,19 +27,24 @@ function Get-TargetT2TUser {
 			if ($DstUser) {
 				return $DstUser
 			}
-			else {
-				return $null
-			}
 		}
-		else {
-			#try app user with mapping via UPN
-			$Filter = "$($Dst_Mapping_attr) -eq '$($SrcUser.userPrincipalName)'"
+		if (-not $DstUser) {
+			#try app user with mapping via mail
+			$Filter = "$($Dst_Mapping_attr) -eq '$($SrcUser.mail)'"
 			$DstUser = Get-ADUser -Filter $Filter -Properties $Dst_Mapping_attr -Credential $DstADCredential -ErrorAction Stop
 			if ($DstUser) {
 				return $DstUser
 			}
 			else {
-				return $null
+				#try app user with mapping via userPrincipalName
+				$Filter = "$($Dst_Mapping_attr) -eq '$($SrcUser.userPrincipalName)'"
+				$DstUser = Get-ADUser -Filter $Filter -Properties $Dst_Mapping_attr -Credential $DstADCredential -ErrorAction Stop
+				if ($DstUser) {
+					return $DstUser
+				}
+				else {
+					return $null
+				}
 			}
 		}
 	}
