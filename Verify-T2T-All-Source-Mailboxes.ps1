@@ -244,7 +244,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	$DstProxyAddresses = $SRCsmtpAddresses = $SRCx500Addresses = $SRCproxyAddresses = @()
 
 	$SrcArchiveGuid = $null
-	$ErrorFound = $false
+	$ErrorFound = $ValErrorFound = $false
 	$MigrationUser = $DstMailUser = $DstMailbox = $DstADUser = $null
 
 	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
@@ -270,6 +270,8 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	
 	$ReportObject = [PSCustomObject]@{
 		MEU_VERIFY = $null
+		MEU_VALUES = $null
+		MEU_DUP = $null
 		MIGRATION_STATUS = $null
 		T2T_SCOPE = $null
 		T2T_LIC = $null
@@ -324,7 +326,16 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	Try {
 		$DstMailUser = Get-MailUser -Identity $SrcMailbox.PrimarySmtpAddress -ErrorAction Stop
 		if ($DstMailUser.RecipientTypeDetails -eq "GuestMailUser") {
+			$ErrorFound = $true
 			$ReportObject.MEU_VERIFY = "ERR_IS_GUEST"
+		}
+		if ($DstMailUser.Count -gt 1) {
+			$ErrorFound = $true
+			$ReportObject.MEU_DUP = $true
+			Write-Host "Multiple target mailUsers found for $($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Red
+		}
+		else {
+			$ReportObject.MEU_DUP = $false
 		}
 	}
 	Catch {
@@ -378,62 +389,60 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		if ($DstMailUser.ExchangeGuid -ne $SrcMailbox.ExchangeGuid) {
 			Write-Host
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): ExchangeGuid mismatch. Expected: $($SrcMailbox.ExchangeGuid), Actual: $($DstMailUser.ExchangeGuid)" -MessageType "ERR"
-			$ErrorFound = $true
+			$ValErrorFound = $true
 		}
 		
 		if ($SrcArchiveGuid -and ($DstMailUser.ArchiveGuid -ne $SrcArchiveGuid)) {
 			Write-Host
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): ArchiveGuid mismatch. Expected: $SrcArchiveGuid, Actual: $($DstMailUser.ArchiveGuid)" -MessageType "ERR"
-			$ErrorFound = $true			
+			$ValErrorFound = $true			
 		}
 		
 		if ($DstMailUser.PrimarySmtpAddress -ne $DstADUser.userPrincipalName) {
 			Write-Host
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): PrimarySmtpAddress mismatch. Expected: $($DstADUser.userPrincipalName), Actual: $($DstMailUser.PrimarySmtpAddress)" -MessageType "ERR"
-			$ErrorFound = $true
+			$ValErrorFound = $true
 		}
 		
 		if ($DstMailUser.ExternalEmailAddress -ne "SMTP:$($SrcMailbox.PrimarySmtpAddress)") {
 			Write-Host
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): ExternalEmailAddress mismatch. Expected: SMTP:$($SrcMailbox.PrimarySmtpAddress), Actual: $($DstMailUser.ExternalEmailAddress)" -MessageType "ERR"
-			$ErrorFound = $true
+			$ValErrorFound = $true
 		}
 		
 		
 		if ($DstMailUser.EmailAddresses -notcontains "smtp:$($DstADUser.samAccountName)@$DstMailRoutingDomain") {
 			Write-Host
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): Missing proxy address. Expected: smtp:$($DstADUser.samAccountName)@$DstMailRoutingDomain" -MessageType "ERR"
-			$ErrorFound = $true
+			$ValErrorFound = $true
 		}
 
 		if ($DstMailUser.EmailAddresses -notcontains "x500:$($SrcMailbox.LegacyExchangeDN)") {
 			Write-Host
 			Write-Log "$($SrcMailbox.PrimarySmtpAddress): Missing LegacyExchangeDN in proxyAddresses. Expected: x500:$($SrcMailbox.LegacyExchangeDN)" -MessageType "ERR"
-			$ErrorFound = $true
+			$ValErrorFound = $true
 		}
 		
 		foreach ($x500 in $SRCx500Addresses) {
 			if ($DstMailUser.EmailAddresses -notcontains $x500) {
 				Write-Host
 				Write-Log "$($SrcMailbox.PrimarySmtpAddress): Missing x500 address. Expected: $x500" -MessageType "ERR"
-				$ErrorFound = $true
+				$ValErrorFound = $true
 			}
 		}
 
-		if (-not $ErrorFound) {
-			$ReportObject.MEU_VERIFY = "OK"
+		if (-not $ValErrorFound) {
+			$ReportObject.MEU_VALUES = "OK"
 			Write-Host " - OK ($($ReportObject.MIGRATION_STATUS))" -ForegroundColor Green
 		}
 		else {
-			$ReportObject.MEU_VERIFY = "ERR_VAL"
+			$ReportObject.MEU_VALUES = "ERR"
 		}
 	}
 	$Report += $ReportObject
 }
 
 Export-Report -Report $Report -Path $OutputFile -SortProperty "SRC_PrimarySmtpAddress"
-
-
 
 #######################################################################################################################
 

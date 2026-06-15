@@ -46,7 +46,7 @@ $userMbxFilter = $MbxFilter1 + $MbxFilter2 + $MbxFilter3 + $MbxFilter4 + $MbxFil
 . $IncFile_StdLogStartBlock
 
 
-$B2BMailUsers_DB = Import-CSVtoHashDB -Path $b2bmailusers -KeyName "PrimarySmtpAddress"
+#$B2BMailUsers_DB = Import-CSVtoHashDB -Path $b2bmailusers -KeyName "PrimarySmtpAddress"
 
 if ($InteractiveRun) {
 	$ADCredentialPath = "c:\cred\qp_aad_grp_mgmt\qp_aad_grp_mgmt_qskosikdav.cred"
@@ -92,17 +92,13 @@ if (-not $SourceMailbox) {
 }
 else {
 	$SrcMailboxes = Get-EXOMailbox -Identity $SourceMailbox -PropertySets All
-	write-host "SRC mailboxes after filtering by PrimarySmtpAddress $($SourceMailbox): $($SrcMailboxes.count)"
-	if ($SrcMailboxes.count -eq 0) {
-		Write-Host "No source mailbox found with PrimarySmtpAddress $($SourceMailbox). Exiting."
-		Exit
+	if ($SrcMailboxes) {
+		Write-Host "Found $($SrcMailboxes.PrimarySmtpAddress)" -foregroundcolor Green
 	}
 	else {
-		if ($SrcMailboxes.count -gt 1) {
-			Write-Host "Multiple source mailboxes found with PrimarySmtpAddress $($SourceMailbox). Please check the input and try again. Exiting."
-			Exit
-		}
-	}
+		Write-Host "Multiple SRC mailbox found with PrimarySmtpAddress $($SourceMailbox)"
+		Exit
+	}	
 }
 
 
