@@ -19,8 +19,15 @@
 # ============================================================
 
 $domains = @(
-    "testhere.cz",
-    "contoso.com"
+    "ujv.cz",
+    "egp.cz",
+    "cvrez.cz",
+    "icvr.cz",
+    "radiomedic.cz",
+    "engineeringpraha.cz",
+    "skodapraha.cz",
+    "vzuplzen.cz",
+    "nqsafe.cz"
 )
 
 $searchBases = @(
@@ -41,7 +48,7 @@ $domainController = $null   # Set to specific DC hostname to target one DC, or l
 
 $domainFilters = foreach ($domain in $domains) {
     $escaped = [regex]::Escape($domain)
-    "(proxyAddresses=*$domain*)(mail=*$domain*)(targetAddress=*$domain*)(userPrincipalName=*$domain*)"
+    "(proxyAddresses=*$escaped*)(mail=*$escaped*)(targetAddress=*$escaped*)(userPrincipalName=*$escaped*)"
 }
 
 $classFilters  = ($objectClasses | ForEach-Object { "(objectClass=$_)" }) -join ""
