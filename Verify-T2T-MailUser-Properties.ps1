@@ -87,18 +87,7 @@ if ($T2TMigrationGroupName) {
 	Exit
 }
 
-$UriResource = "groups/$($Src_T2T_EXO_MIGRATION_GROUP)/members"
-$Uri = New-GraphUri -Resource $UriResource -Version "v1.0"
-[array]$T2TMigrationGroupMembers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken
-write-host "SRC T2T migration group members: $($T2TMigrationGroupMembers.count)"
-
-write-host "SRC mailboxes total: " -NoNewline
-[array]$SrcMailboxesAll = Get-EXOMailbox -ResultSize Unlimited -PropertySets All
-write-host $SrcMailboxesAll.count
-[array]$SrcMailboxes = $SrcMailboxesAll | Where-Object { $_.ExternalDirectoryObjectId -in $T2TMigrationGroupMembers.id }
-write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
-Remove-Variable SrcMailboxesAll
-
+<#
 Request-MSALToken -AppRegName $Dst_AppReg_LOG_READER -TTL 30
 $UriResource = "users"
 $UriSelect = "id,userPrincipalName,onpremisesSamAccountName"
@@ -110,23 +99,34 @@ foreach ($User in $DstAADUsers) {
 	$DstAADUsers_DB.Add($User.userPrincipalName, $User)
 }
 Remove-Variable DstAADUsers
+#>
 
-Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60 -ForceReconnect
 
-if ($SourceMailbox) {
-	$SrcMailboxes = $SrcMailboxes | Where-Object { $_.PrimarySmtpAddress -eq $SourceMailbox }
-	write-host "SRC mailboxes after filtering by PrimarySmtpAddress $($SourceMailbox): $($SrcMailboxes.count)"
-	if ($SrcMailboxes.count -eq 0) {
-		Write-Host "No source mailbox found with PrimarySmtpAddress $($SourceMailbox). Exiting."
-		Exit
+if (-not $SourceMailbox) {
+	$UriResource = "groups/$($Src_T2T_EXO_MIGRATION_GROUP)/members"
+	$Uri = New-GraphUri -Resource $UriResource -Version "v1.0"
+	[array]$T2TMigrationGroupMembers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken
+	write-host "SRC T2T migration group members: $($T2TMigrationGroupMembers.count)"
+
+	write-host "SRC mailboxes total: " -NoNewline
+	[array]$SrcMailboxesAll = Get-EXOMailbox -ResultSize Unlimited -PropertySets All
+	write-host $SrcMailboxesAll.count
+	[array]$SrcMailboxes = $SrcMailboxesAll | Where-Object { $_.ExternalDirectoryObjectId -in $T2TMigrationGroupMembers.id }
+	write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
+	Remove-Variable SrcMailboxesAll
+}
+else{
+	$SrcMailboxes = Get-EXOMailbox -Identity $SourceMailbox -PropertySets All
+	if ($SrcMailboxes) {
+		Write-Host "Found $($SrcMailboxes.PrimarySmtpAddress)" -foregroundcolor Green
 	}
 	else {
-		if ($SrcMailboxes.count -gt 1) {
-			Write-Host "Multiple source mailboxes found with PrimarySmtpAddress $($SourceMailbox). Please check the input and try again. Exiting."
-			Exit
-		}
-	}
+		Write-Host "Multiple SRC mailbox found with PrimarySmtpAddress $($SourceMailbox)"
+		Exit
+	}	
 }
+
+Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60 -ForceReconnect
 
 foreach ($SrcMailbox in $SrcMailboxes) {
 
@@ -180,8 +180,17 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 	$DstUser = Get-TargetT2TUser -SrcIdentity $SrcMailbox.ExternalDirectoryObjectId -SrcAccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -DstADCredential $ADCredential
 	
 	if ($DstUser) {
+		write-Host "Found target user for source mailbox $($SrcMailbox.UserPrincipalName): $($DstUser.userPrincipalName) $($DstUser.samAccountName)" -ForegroundColor Green
 		Try {
 			$DstMailUser = Get-MailUser -Identity $SrcMailbox.PrimarySmtpAddress -ErrorAction Stop
+			if ($DstMailUser.Count -gt 1) {
+				$ErrorFound = $true
+				$ReportObject.VERIFY_RESULT = "ERR_DUP_MEU"
+				Write-Host "Multiple target mailUsers found for $($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Red
+			} 
+			else {
+				write-Host "Found target mailUser for $($SrcMailbox.UserPrincipalName): $($DstMailUser.ExternalEmailAddress)" -ForegroundColor Cyan
+			}
 		}
 		Catch {
 			Try {
