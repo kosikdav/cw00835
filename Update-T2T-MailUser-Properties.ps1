@@ -24,6 +24,8 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 [datetime]$date = (get-date).AddDays(-$DaysBack)
 
+$BatchPrefix = "UJV"
+
 $Src_PN_attr = "extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
 $Dst_PN_attr = "employeeNumber"
 $Dst_Mapping_attr = "extensionAttribute10"
@@ -36,6 +38,8 @@ $MbxFilter3 = " -or (RecipientTypeDetails -eq 'SharedMailbox')"
 $MbxFilter4 = " -or (RecipientTypeDetails -eq 'RoomMailbox')"
 $MbxFilter5 = " -or (RecipientTypeDetails -eq 'EquipmentMailbox'))"
 $userMbxFilter = $MbxFilter1 + $MbxFilter2 + $MbxFilter3 + $MbxFilter4 + $MbxFilter5
+
+[hashtable]$MigrationUsers_DB = @{}
 
 #######################################################################################################################
 
@@ -73,20 +77,21 @@ if ($T2TMigrationGroupName) {
 	Exit
 }
 
-$UriResource = "groups/$($Src_T2T_EXO_MIGRATION_GROUP)/members"
-$Uri = New-GraphUri -Resource $UriResource -Version "v1.0"
-[array]$T2TMigrationGroupMembers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken
-write-host "SRC T2T migration group members: $($T2TMigrationGroupMembers.count)"
+if (-not $SourceMailbox) {
+	$UriResource = "groups/$($Src_T2T_EXO_MIGRATION_GROUP)/members"
+	$Uri = New-GraphUri -Resource $UriResource -Version "v1.0"
+	[array]$T2TMigrationGroupMembers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken
+	write-host "SRC T2T migration group members: $($T2TMigrationGroupMembers.count)"
 
-write-host "SRC mailboxes total: " -NoNewline
-[array]$SrcMailboxesAll = Get-EXOMailbox -ResultSize Unlimited -PropertySets All
-write-host $SrcMailboxesAll.count
-[array]$SrcMailboxes = $SrcMailboxesAll | Where-Object { $_.ExternalDirectoryObjectId -in $T2TMigrationGroupMembers.id }
-write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
-Remove-Variable SrcMailboxesAll
-
-if ($SourceMailbox) {
-	$SrcMailboxes = $SrcMailboxes | Where-Object { $_.PrimarySmtpAddress -eq $SourceMailbox }
+	write-host "SRC mailboxes total: " -NoNewline
+	[array]$SrcMailboxesAll = Get-EXOMailbox -ResultSize Unlimited -PropertySets All
+	write-host $SrcMailboxesAll.count
+	[array]$SrcMailboxes = $SrcMailboxesAll | Where-Object { $_.ExternalDirectoryObjectId -in $T2TMigrationGroupMembers.id }
+	write-host "SRC mailboxes in T2T migration group: $($SrcMailboxes.count)"
+	Remove-Variable SrcMailboxesAll
+}
+else {
+	$SrcMailboxes = Get-EXOMailbox -Identity $SourceMailbox -PropertySets All
 	write-host "SRC mailboxes after filtering by PrimarySmtpAddress $($SourceMailbox): $($SrcMailboxes.count)"
 	if ($SrcMailboxes.count -eq 0) {
 		Write-Host "No source mailbox found with PrimarySmtpAddress $($SourceMailbox). Exiting."
@@ -100,7 +105,9 @@ if ($SourceMailbox) {
 	}
 }
 
+
 foreach ($SrcMailbox in $SrcMailboxes) {
+
 	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 	if ($SrcMailbox.RecipientTypeDetails -eq "UserMailbox") {
 		$Color = "Green"
@@ -164,6 +171,12 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 		}
 	}
 	If ($DstMailUser) {
+
+		$MigrationUser = Get-MigrationUser -Identity $DstMailUser.userPrincipalName -ErrorAction SilentlyContinue
+		if ($MigrationUser) {
+			Write-Host "User $($DstMailUser.userPrincipalName) is in migration batch $($MigrationUser.BatchId). Skipping property updates." -ForegroundColor Yellow
+			Continue
+		}
 		if ($DstMailUser.ExchangeGuid -ne $SrcMailbox.ExchangeGuid) {
 			write-host " setting ExchangeGUID to $($SrcMailbox.ExchangeGuid)"
 			Set-MailUser -Identity $DstUser.samAccountName -ExchangeGuid $SrcMailbox.ExchangeGuid
