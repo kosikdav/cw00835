@@ -1,5 +1,5 @@
 write-host "SRC mailboxes total: " -NoNewline
-$outputFolder = "D:\oexports"
+$outputFolder = "D:\exports"
 [array]$EXOMailboxes = Get-Mailbox -ResultSize Unlimited
 write-host $EXOMailboxes.count
 $report = @()
