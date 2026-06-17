@@ -12,8 +12,8 @@ $Certificate = $ClientCertificate
 $ApplicationId = $ClientId
 
 <#
-$appName = "UJV_LOG_READER"
-$CertYears = 10
+$appName = "UJVREZ_EXO_MGMT"
+$CertYears = 5
 $CertPassword = "123456789"
 $Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
 $StartDate = (Get-Date).AddDays(-1)

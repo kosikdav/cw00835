@@ -20,25 +20,9 @@ $daysBackOffset     = 30
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
-$timeDiffTolerance  = 60
-$sleepShort = 60
-$sleepLong = 120
-
-[array]$DoNotFixGuestList = @()
-[hashtable]$AuditLogEvents_DB = @{}
-[array]$ConflictingProxyAddresses = @()
-$ErrMsgProxyAddrConflict = "is already being used by the proxy addresses or LegacyExchangeDN"
-
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
-
-Write-Log "daysBackOffset: $($daysBackOffset) days"
-Write-Log "audit log events start date: $($strYesterdayUTCStart)"
-Write-Log "timeDiffTolerance: $($timeDiffTolerance) seconds"
-
-$guestsFixed = 0
-$XTSyncCounter = 0
 
 ##############################################################################################
 # read Guests from Graph 
