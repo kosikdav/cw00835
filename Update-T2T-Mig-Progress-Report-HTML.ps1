@@ -35,8 +35,6 @@ $Report = @()
 
 . $IncFile_StdLogStartBlock
 
-
-
 $Dst_AppReg_EXO_MGMT = $AppReg_EXO_MGMT
 
 Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 120
