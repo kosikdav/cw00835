@@ -172,7 +172,7 @@ All phases must log extensively. Requirements:
 - When substituting domains, only replace the domain portion (right of the last `@`). Never mutate the local part except when generating a collision-resolution suffix.
 - Wrap all OU-level processing in `try/catch` with typed catches for `ADServerDownException` and `ADIdentityNotFoundException` at minimum.
 - Include a `#Requires -Modules ActiveDirectory` statement at the top.
-- The script only ever reads from AD (`Get-ADObject` for discovery). All `Set-AD*` cmdlets appear only as generated text in the output scripts, never executed directly.
+- The script only ever reads from AD (`Get-ADObject` for discovery, including `msExchRecipientTypeDetails` for classification). All `Set-AD*` and Exchange `Set-*` cmdlets appear only as generated text in the output scripts, never executed directly — no live Exchange connection is needed to run the discovery script itself.
 
 ---
 
@@ -182,8 +182,10 @@ All phases must log extensively. Requirements:
 #Requires -Modules ActiveDirectory
 
 # --- Configuration ---
-# --- Helper Functions: Write-Log, Build-LDAPFilter, Get-DomainPattern, Get-PlannedValue, Get-UniqueValue, ConvertTo-PSLiteral, Get-CmdletLine ---
-# --- Invoke-Discover: scan AD, detect collisions, return rows ---
+# --- Recipient classification tables: $RecipientTypeMap, $ExchangeCmdletMap ---
+# --- Helper Functions: Write-Log, Build-LDAPFilter, Get-DomainPattern, Get-PlannedValue,
+#     Get-UniqueValue, ConvertTo-PSLiteral, Get-RecipientCategory, Get-ExchangeParameterName, Get-CmdletLine ---
+# --- Invoke-Discover: scan AD, classify recipients, detect collisions, return rows ---
 # --- New-CmdletScripts: write Apply.ps1 and Revert.ps1 from rows ---
 # --- Main: validate config, run discovery, generate scripts ---
 ```
