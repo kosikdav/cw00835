@@ -38,7 +38,7 @@ $Dst_AppReg_EXO_MGMT = $AppReg_EXO_MGMT
 Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 120
 
 $MigrationBatches = Get-MigrationBatch -Endpoint $MigrationEndpoint
-Write-host "Found $($MigrationBatches.Count) migration batches"
+Write-Log "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline
@@ -48,7 +48,6 @@ foreach ($Batch in $MigrationBatches) {
 }
 
 foreach ($User in $MigrationUsers) {
-	$ADUser = $targetAddress = $null
 	if (($User.Status -eq "Failed") -and ($User.StatusSummary -eq "Failed")) {
 		if ($User.ErrorSummary -like "$HoldApplieErrString*") {
 			Start-MigrationUser -Identity $User.Identity -Confirm:$false
