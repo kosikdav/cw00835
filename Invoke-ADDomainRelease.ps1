@@ -238,6 +238,9 @@ function Invoke-Discover {
     }
 
     # ---- Collision detection ----
+    # A collision is two DIFFERENT objects ending up with the same value.
+    # Multiple attributes on the SAME object sharing a value (e.g. mail and
+    # userPrincipalName) is normal and must not be flagged.
     Write-LogSection "COLLISION DETECTION"
     $valueGroups = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.List[PSCustomObject]]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($row in $allRows) {
@@ -247,23 +250,26 @@ function Invoke-Discover {
         $valueGroups[$row.PlannedValue].Add($row)
     }
 
-    $takenValues     = [System.Collections.Generic.HashSet[string]]::new([string[]]$valueGroups.Keys, [System.StringComparer]::OrdinalIgnoreCase)
-    $collisionGroups = $valueGroups.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
-    $collisionCount  = 0
+    $takenValues    = [System.Collections.Generic.HashSet[string]]::new([string[]]$valueGroups.Keys, [System.StringComparer]::OrdinalIgnoreCase)
+    $collisionCount = 0
 
-    foreach ($group in $collisionGroups) {
+    foreach ($group in $valueGroups.GetEnumerator()) {
         $naturalValue = $group.Key
-        $members      = $group.Value
-        Write-Log "Collision on '$naturalValue' across $($members.Count) object(s): $(($members | ForEach-Object { $_.sAMAccountName }) -join ', ')" -Level WARN
+        $dnGroups     = @($group.Value | Group-Object DistinguishedName)
+        if ($dnGroups.Count -le 1) { continue }
 
-        foreach ($row in $members) {
+        Write-Log "Collision on '$naturalValue' across $($dnGroups.Count) object(s): $(($dnGroups | ForEach-Object { $_.Group[0].sAMAccountName }) -join ', ')" -Level WARN
+
+        foreach ($dnGroup in $dnGroups) {
             $unique = Get-UniqueValue -Value $naturalValue -TakenValues $takenValues
             $null = $takenValues.Add($unique)
-            $row.NaturalValue  = $naturalValue
-            $row.CollisionFlag = 'TRUE'
-            $row.PlannedValue  = $unique
-            $collisionCount++
-            Write-Log "  -> $($row.DistinguishedName) [$($row.Attribute)] disabled; generated alternative: $unique" -Level WARN
+            foreach ($row in $dnGroup.Group) {
+                $row.NaturalValue  = $naturalValue
+                $row.CollisionFlag = 'TRUE'
+                $row.PlannedValue  = $unique
+                $collisionCount++
+            }
+            Write-Log "  -> $($dnGroup.Name) [$(($dnGroup.Group | ForEach-Object { $_.Attribute }) -join ', ')] disabled; generated alternative: $unique" -Level WARN
         }
     }
 

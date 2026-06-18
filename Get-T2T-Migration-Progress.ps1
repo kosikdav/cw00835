@@ -46,15 +46,19 @@ Write-host "Found $($MigrationBatches.Count) migration batches"
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline
 	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
-	write-host ": $($Result.Count)"
-	$TotalMigrationUsers += $Result.Count
+	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
 	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
+	write-host "total: $($Result.Count) " -NoNewline
+	write-host "synced: $($SyncedUsers.Count) " -NoNewline -ForegroundColor Green
+	write-host "failed: $($FailedUsers.Count) " -ForegroundColor Red
+	$TotalMigrationUsers += $Result.Count
 	$TotalSyncedUsers += $SyncedUsers.Count
 	$MigrationUsers += $Result
 }
 
-write-host "Total migration users: $TotalMigrationUsers"
-write-host "Total synced users: $TotalSyncedUsers"
+write-host "Migration users: $TotalMigrationUsers"
+write-host "Synced users: $TotalSyncedUsers"
+write-host "Pending users: $($TotalMigrationUsers - $TotalSyncedUsers)"
 write-host "Progress: $([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)) %"
 
 #######################################################################################################################
