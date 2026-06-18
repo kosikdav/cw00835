@@ -23,9 +23,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 [array]$Report = @()
 
-$BatchPrefix = "UJV"
 $MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
-$DstMailRoutingDomain = "cezdata.mail.onmicrosoft.com"
 $HoldApplieErrString = "Cross tenant move is not supported when source mailbox has a hold"
 
 $MigrationUsers = @()
@@ -37,13 +35,10 @@ $Report = @()
 
 $Dst_AppReg_EXO_MGMT = $AppReg_EXO_MGMT
 
-$DstMailRoutingDomain = "cezdata.mail.onmicrosoft.com"
-
 Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 120
 
-$MigrationBatches = Get-MigrationBatch
-$MigrationBatches = $MigrationBatches | Where-Object { $_.Identity -like "$BatchPrefix*" }
-Write-host "Found $($MigrationBatches.Count) migration batches with prefix '$BatchPrefix'"
+$MigrationBatches = Get-MigrationBatch -Endpoint $MigrationEndpoint
+Write-host "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline
@@ -57,7 +52,7 @@ foreach ($User in $MigrationUsers) {
 	if (($User.Status -eq "Failed") -and ($User.StatusSummary -eq "Failed")) {
 		if ($User.ErrorSummary -like "$HoldApplieErrString*") {
 			Start-MigrationUser -Identity $User.Identity -Confirm:$false
-			write-log "Resuming migration for user $($User.Identity)" -ForegroundColor Green
+			Write-Log "Resuming migration for user $($User.Identity)" -ForegroundColor Green
 		}
 	}
 }

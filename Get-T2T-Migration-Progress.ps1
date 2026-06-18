@@ -44,10 +44,10 @@ Write-host "Found $($MigrationBatches.Count) migration batches with prefix '$Bat
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline
-	$Result = Get-MigrationUser -BatchId $Batch.Identity
+	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
 	write-host ": $($Result.Count)"
 	$TotalMigrationUsers += $Result.Count
-	$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
+	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
 	$TotalSyncedUsers += $SyncedUsers.Count
 	$MigrationUsers += $Result
 }

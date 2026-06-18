@@ -186,7 +186,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 			Try {
 				Enable-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName -Alias $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
 				Write-Log "Enabled mailUser for $($DstUser.samAccountName) with PrimarySmtpAddress $($DstUser.userPrincipalName) and ExternalEmailAddress $($SrcMailbox.PrimarySmtpAddress)"
-				Start-Sleep -Seconds 30
+				Start-Sleep -Seconds 10
 				Try {
 					$DstMailUser = Get-MailUser -Identity $DstUser.samAccountName -ErrorAction Stop
 				}
