@@ -14,7 +14,7 @@ write-host "Script path: $ScriptPath"
 #######################################################################################################################
 
 $LogFolder			= "db"
-$LogFilePrefix		= "update-lic-report-html"
+$LogFilePrefix		= "update-t2t-report-html"
 
 #######################################################################################################################
 write-host 3
@@ -25,35 +25,55 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 [array]$LicReport = @()
 [hashtable]$MSLicData_DB = @{}
 [int]$TTL = 30
-$outFile = $M365LicFolder + "\default.htm"
-$HighlightedSKUs = @(
-    "Microsoft 365 E3",
-    "Microsoft 365 F3",
-    "Microsoft Copilot for Microsoft 365"
-)
+
+$outFile = "c:\inetpub\sites\t2texo" + "\default.htm"
+
+$MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
+$BatchPrefix = "UJV"
+$Report = @()
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
 
-Invoke-WebRequest $MSLicDataUrl -OutFile $MSLicDataPath
-$MSLicDataArray = Import-CSVtoArray -Path $MSLicDataPath
-$MSLicDataArray = $MSLicDataArray | Sort-Object -Property "GUID" -Unique
-foreach ($sku in $MSLicDataArray) {
-    $MSLicData_DB.Add($sku.GUID, $sku.Product_Display_Name)
+
+
+$Dst_AppReg_EXO_MGMT = $AppReg_EXO_MGMT
+
+Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 120
+
+$MigrationBatches = Get-MigrationBatch -Endpoint $MigrationEndpoint
+Write-host "Found $($MigrationBatches.Count) migration batches"
+
+foreach ($Batch in $MigrationBatches) {
+	write-host ($Batch.Identity.ToString()).PadRight(25) -NoNewline
+	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
+	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
+	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
+	write-host ("total: {0,3} " -f $Result.Count) -NoNewline
+	write-host ("synced: {0,3} " -f $SyncedUsers.Count) -NoNewline -ForegroundColor Green
+	write-host ("failed: {0,3}" -f $FailedUsers.Count) -ForegroundColor Red
+	$TotalMigrationUsers += $Result.Count
+	$TotalSyncedUsers += $SyncedUsers.Count
+	$MigrationUsers += $Result
+    $Report += [PSCustomObject]@{
+        BatchName = $Batch.Identity.ToString()
+        TotalUsers = $Result.Count
+        SyncedUsers = $SyncedUsers.Count
+        FailedUsers = $FailedUsers.Count
+        PercentageSynced = if ($Result.Count -gt 0) { "{0:N2}" -f (($SyncedUsers.Count / $Result.Count) * 100) } else { "0.00" }
+    }
 }
 
-Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL $TTL
-$subscriptionIds = $prepaidEnabled = $prepaidlockedOut = $prepaidSuspended = $prepaidWarning = $null
-$UriResource  = "subscribedSkus"
-$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-[array]$SKUs = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+$TotalProgress = [math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)
+$PendingUsers = $TotalMigrationUsers - $TotalSyncedUsers
+
 
 $DateGenerated = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 # Convert to HTML table with some styling
 $html = @"
 <html>
 <head>
-    <title>CEZ M365 Licensing</title>
+    <title>T2T EXO migration status</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         table { border-collapse: collapse; width: 60%; }
@@ -64,59 +84,38 @@ $html = @"
         .notice { background-color: #fff7cc; } /* light yellow */
     </style>
 </head>
+
 <body>
-    <h2>M365 Licensing Status Report</h2>
-    <p>Report updated: $DateGenerated</p>
+    <h1>T2T EXO Migration Status Report</h1>
+    <h3>Total Progress: $TotalProgress %</h3>
+    <p>Pending Users: $PendingUsers</p>
+    
     <table>
         <tr>
-            <th>Display Name</th>
-            <th>Total licenses</th>
-            <th>Consumed licenses</th>
-            <th>Remaining licenses</th>
+            <th>Batch name</th>
+            <th>Total</th>
+            <th>Synced</th>
+            <th>Failed</th>
+            <th>Percentage synced</th>
         </tr>
 "@
 
-foreach ($sku in $SKUs) {
-    $skuDisplayName = $appliesTo = $status = [string]::Empty
-    $prepaidEnabled = $consumedUnits = $remainingUnits = $null
-    if ($sku.prepaidUnits -and $sku.capabilityStatus -eq "Enabled" -and $sku.appliesTo -eq "User") {
-        if ($MSLicData_DB.ContainsKey($sku.skuId)) {
-            $DisplayName = $MSLicData_DB[$sku.skuId]
-            $appliesTo = $sku.appliesTo
-            $prepaidEnabled = $sku.prepaidUnits.enabled
-            $consumedUnits = $sku.consumedUnits
-            $remainingUnits = $prepaidEnabled - $sku.consumedUnits
-            $SKUObject = [PSCustomObject]@{
-                displayName     = $DisplayName
-                totalUnits      = $prepaidEnabled
-                consumedUnits   = $consumedUnits
-                remainingUnits  = $remainingUnits
-            }
-            $LicReport += $skuObject
-        }
-    }
-}
-$LicReport = $LicReport | Sort-Object -Property displayName
-foreach ($item in $LicReport) {
+foreach ($item in $Report) {
     $rowClass = ""
     $fontColor = "black"
     $fontStyle = "normal"
-    if ($HighlightedSKUs -contains $item.displayName) {
+    if ($HighlightedSKUs -contains $item.batchName) {
         $rowClass = "notice"
         $fontStyle = "bold"
-        if ($item.remainingUnits -le 10) {
-            $fontColor = "red"
-        } elseif ($item.remainingUnits -ge 60) {
-            $fontColor = "green"
-        }
     }
-    $html += "        <tr class='$rowClass'><td style='font-weight:$fontStyle;'>$($item.displayName)</td><td>$($item.totalUnits)</td><td>$($item.consumedUnits)</td><td style='color:$fontColor; font-weight:$fontStyle;'>$($item.remainingUnits)</td></tr>`n"
+    $html += "        <tr class='$rowClass'><td style='font-weight:$fontStyle;'>$($item.BatchName)</td><td>$($item.TotalUsers)</td><td>$($item.SyncedUsers)</td><td style='color:$fontColor; font-weight:$fontStyle;'>$($item.FailedUsers)</td><td>$($item.PercentageSynced)</td></tr>`n"
 }   
 
 # Close the HTML
 $html += @"
     </table>
-    <p>This report provides an overview of the licensing status for M365 services.</p>
+    <p>This report provides an overview of the migration status.</p>
+    <p>Report updated: $DateGenerated</p>
 </body>
 </html>
 "@
