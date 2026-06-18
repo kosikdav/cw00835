@@ -106,7 +106,7 @@ foreach ($item in $Report) {
     $fontColorFailed = "black"
     $fontStylePending = "normal"
     $fontStyleFailed = "normal"
-    if ($item.PendingUsers -gt 0) {
+    if ($item.PendingUsers -eq 0) {
         $fontStylePending = "bold"
         $fontColorPending = "green"
     }
