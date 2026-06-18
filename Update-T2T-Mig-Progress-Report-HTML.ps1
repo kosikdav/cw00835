@@ -102,18 +102,24 @@ $html = @"
 
 foreach ($item in $Report) {
     $rowClass = ""
-    $fontColor = "black"
-    $fontStyle = "normal"
-    if ($HighlightedSKUs -contains $item.batchName) {
-        $rowClass = "notice"
-        $fontStyle = "bold"
+    $fontColorPending = "black"
+    $fontColorFailed = "black"
+    $fontStylePending = "normal"
+    $fontStyleFailed = "normal"
+    if ($item.PendingUsers -gt 0) {
+        $fontStylePending = "bold"
+        $fontColorPending = "green"
+    }
+    if ($item.FailedUsers -gt 0) {
+        $fontStyleFailed = "bold"
+        $fontColorFailed = "red"
     }
     $html += "        <tr class='$rowClass'>
     <td style='font-weight:$fontStyle;'>$($item.BatchName)</td>
     <td>$($item.TotalUsers)</td>
     <td>$($item.SyncedUsers)</td>
-    <td>$($item.PendingUsers)</td>
-    <td style='color:$fontColor; font-weight:$fontStyle;'>$($item.FailedUsers)</td>
+    <td style='color:$fontColorPending; font-weight:$fontStylePending;'>$($item.PendingUsers)</td>
+    <td style='color:$fontColorFailed; font-weight:$fontStyleFailed;'>$($item.FailedUsers)</td>
     <td>$($item.PercentageSynced)</td></tr>`n"
 }   
 
