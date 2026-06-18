@@ -44,7 +44,7 @@ $MigrationBatches = Get-MigrationBatch -Endpoint $MigrationEndpoint
 Write-host "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
-	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline
+	write-host ($Batch.Identity.ToString()).PadRight(25) -NoNewline
 	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
 	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
 	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
@@ -60,8 +60,6 @@ write-host ("Migration users: {0,3}" -f $TotalMigrationUsers)
 write-host ("Synced users:    {0,3}" -f $TotalSyncedUsers)
 write-host ("Pending users:   {0,3}" -f ($TotalMigrationUsers - $TotalSyncedUsers))
 Write-Host
-write-host ("Progress: {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
+write-host ("Progress:        {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
 
-#######################################################################################################################
 
-. $IncFile_StdLogEndBlock
