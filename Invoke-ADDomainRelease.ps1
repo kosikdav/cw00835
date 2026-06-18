@@ -31,7 +31,7 @@ $AttributesToCheck = @(
     'mail',
     'proxyAddresses',
     'targetAddress',
-    'msExchTargetAddress',
+    #'msExchTargetAddress',
     'msExchArchiveAddress',
     'msExchShadowProxyAddresses'
 )
