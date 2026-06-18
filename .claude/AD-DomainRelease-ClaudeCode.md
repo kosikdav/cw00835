@@ -75,8 +75,34 @@ The following attributes must be checked on all `user`, `group`, and `contact` o
 - Use `-LDAPFilter` (not `-Filter`) to push filtering to the DC for performance. Build the LDAP filter to match any of the source domains across all relevant attributes combined with an objectClass filter for `user`, `group`, `contact`.
 - Process each OU in `$SearchBases` individually in a loop. Catch and log per-OU errors without aborting the whole run.
 - After retrieving objects via LDAP filter, apply a secondary client-side regex filter (compiled pattern from all source domains joined as alternation) to catch any near-matches the LDAP wildcard may have returned.
-- Retrieve all attributes listed above plus `DistinguishedName`, `ObjectClass`, `sAMAccountName`.
-- Produce one in-memory row per attribute value that needs to change (not one row per object): DistinguishedName, ObjectClass, sAMAccountName, Attribute, CurrentValue, PlannedValue, Action (`Replace` or `Remove`).
+- Retrieve all attributes listed above plus `DistinguishedName`, `ObjectClass`, `sAMAccountName`, `msExchRecipientTypeDetails`.
+- Produce one in-memory row per attribute value that needs to change (not one row per object): DistinguishedName, ObjectClass, sAMAccountName, RecipientCategory, Attribute, CurrentValue, PlannedValue, Action (`Replace` or `Remove`).
+
+---
+
+## Recipient Classification & Exchange Cmdlet Routing
+
+Exchange-schema attributes must be changed through Exchange Management Shell cmdlets, not raw AD edits, wherever Exchange exposes a public parameter for them — Exchange has its own validation/replication logic on top of these attributes. Raw `Set-ADObject`/`Set-ADUser` edits remain the fallback for everything else.
+
+- Classify each object once, from `msExchRecipientTypeDetails`, into a `RecipientCategory`:
+
+  | `msExchRecipientTypeDetails` | Category | Cmdlet |
+  |---|---|---|
+  | 1, 2, 4, 16, 32 (User/Legacy/Shared/Room/Equipment Mailbox) | `Mailbox` | `Set-Mailbox` |
+  | 64 (MailContact) | `MailContact` | `Set-MailContact` |
+  | 128 (MailUser) | `MailUser` | `Set-MailUser` |
+  | 256, 512, 1024 (Mail-enabled DL/security group) | `DistributionGroup` | `Set-DistributionGroup` |
+  | 8589934592, 17179869184, 34359738368, 68719476736 (Remote*Mailbox, hybrid) | `RemoteMailbox` | `Set-RemoteMailbox` |
+  | Anything else, or attribute absent | `Unknown` | none — fall back to direct AD edit |
+
+- Per-attribute EMS parameter, by category (only when category is not `Unknown`):
+  - `mail` → `-WindowsEmailAddress <new>` (all categories)
+  - `proxyAddresses` → `-EmailAddresses @{Remove=<old>; Add=<new>}` (all categories; `-EmailAddresses @{Remove=<old>}` only for a `Remove` action)
+  - `targetAddress` → `-RemoteRoutingAddress <new>` for `RemoteMailbox`; `-ExternalEmailAddress <new>` for `MailContact`/`MailUser`; no EMS parameter for `Mailbox`/`DistributionGroup` (fall back to AD edit)
+  - `userPrincipalName`, `msExchTargetAddress`, `msExchArchiveAddress`, `msExchShadowProxyAddresses` → no EMS parameter exists for any category; always a direct AD edit
+- `msExchTargetAddress` is auto-maintained by Exchange whenever `targetAddress` is changed through an EMS cmdlet on the same object. When that's the case, suppress the `msExchTargetAddress` cmdlet line entirely and emit an explanatory comment instead. Only fall back to a direct AD edit for `msExchTargetAddress` when there is no corresponding EMS-routed `targetAddress` change on that object (drift case).
+- If `$DomainController` is set, append `-DomainController <dc>` to generated EMS cmdlet lines (Exchange's parameter name), and `-Server <dc>` to generated AD cmdlet lines (the AD module's parameter name).
+- Cmdlet/parameter availability is based on standard on-prem Exchange 2016/2019 + Hybrid parameter sets — verify against the target environment's actual EMS version before running generated scripts.
 
 ---
 
@@ -108,13 +134,13 @@ Rules:
 - Group lines into blocks per attribute (e.g. all `mail` changes together, then all `proxyAddresses` changes, etc.), each preceded by a `# ===== <attribute> =====` header, in the order attributes are listed above.
 - Within a block, sort rows by `sAMAccountName` then `DistinguishedName` for readable, stable output.
 - Collision rows: comment out the cmdlet line and add a `# COLLISION: ...` note above it explaining the natural value and that a generated alternative is in use.
-- Cmdlet mapping per attribute:
-  - `userPrincipalName`: `Set-ADUser -Identity <DN> -UserPrincipalName <new>`
-  - `mail`: `Set-ADObject -Identity <DN> -Replace @{mail=<new>}` (or `-Clear mail` for a `Remove` action)
-  - `proxyAddresses`, `msExchShadowProxyAddresses` (multi-value): `Set-ADObject -Identity <DN> -Remove @{<attr>=<old>} -Add @{<attr>=<new>}` as a single call
-  - `targetAddress`, `msExchTargetAddress`, `msExchArchiveAddress`: `Set-ADObject -Identity <DN> -Replace @{<attr>=<new>}` (or `-Clear <attr>` for a `Remove` action)
+- Cmdlet mapping per attribute: use the Exchange cmdlet from the Recipient Classification section above when the object's category and attribute have an EMS parameter; otherwise fall back to direct AD edits:
+  - `userPrincipalName`: always `Set-ADUser -Identity <DN> -UserPrincipalName <new>`
+  - `mail` (AD fallback only): `Set-ADObject -Identity <DN> -Replace @{mail=<new>}` (or `-Clear mail` for a `Remove` action)
+  - `proxyAddresses`, `msExchShadowProxyAddresses` (AD fallback, multi-value): `Set-ADObject -Identity <DN> -Remove @{<attr>=<old>} -Add @{<attr>=<new>}` as a single call
+  - `targetAddress` (AD fallback only), `msExchTargetAddress`, `msExchArchiveAddress`: `Set-ADObject -Identity <DN> -Replace @{<attr>=<new>}` (or `-Clear <attr>` for a `Remove` action)
   - Skip and log a warning for any `userPrincipalName` row with `Action = Remove` — UPN cannot be cleared without a replacement.
-- If `$DomainController` is set, append `-Server <dc>` to every generated line.
+- If `$DomainController` is set, append `-Server <dc>` to AD fallback lines and `-DomainController <dc>` to Exchange cmdlet lines.
 - Both DN and attribute values must be emitted as single-quoted PowerShell string literals with embedded single quotes doubled (`'` → `''`).
 - Each generated script's header comment must reference its counterpart file by name (Apply references Revert, and vice versa) plus the source/target domains and generation timestamp.
 
