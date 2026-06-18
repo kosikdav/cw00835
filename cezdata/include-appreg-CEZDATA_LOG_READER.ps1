@@ -8,6 +8,11 @@ $TenantName = "cezdata.onmicrosoft.com"
 $TenantShortName = "CEZDATA"
 
 $ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
+if (-not $ClientCertificate) {
+    $AppName = $AppName.Replace("CEZ_", "CEZDATA_")
+    $ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
+}
+
 $Certificate = $ClientCertificate
 $Thumbprint = $ClientCertificate.Thumbprint
 $CertficateThumbprint = $Thumbprint

@@ -48,6 +48,36 @@ $MultiValueAttributes = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::OrdinalIgnoreCase
 )
 
+# msExchRecipientTypeDetails bitmask -> recipient category. Values taken from
+# the standard Exchange/Hybrid bit assignments. Anything not listed here
+# (including objects with no value at all) is classified 'Unknown' and falls
+# back to direct AD attribute edits instead of an Exchange cmdlet.
+$RecipientTypeMap = @{
+    [int64]1            = 'Mailbox'           # UserMailbox
+    [int64]2            = 'Mailbox'           # LegacyMailbox
+    [int64]4            = 'Mailbox'           # SharedMailbox
+    [int64]16           = 'Mailbox'           # RoomMailbox
+    [int64]32           = 'Mailbox'           # EquipmentMailbox
+    [int64]64           = 'MailContact'       # MailContact
+    [int64]128          = 'MailUser'          # MailUser
+    [int64]256          = 'DistributionGroup' # MailUniversalDistributionGroup
+    [int64]512          = 'DistributionGroup' # MailNonUniversalGroup
+    [int64]1024         = 'DistributionGroup' # MailUniversalSecurityGroup
+    [int64]8589934592   = 'RemoteMailbox'     # RemoteUserMailbox (hybrid)
+    [int64]17179869184  = 'RemoteMailbox'     # RemoteRoomMailbox (hybrid)
+    [int64]34359738368  = 'RemoteMailbox'     # RemoteEquipmentMailbox (hybrid)
+    [int64]68719476736  = 'RemoteMailbox'     # RemoteSharedMailbox (hybrid)
+}
+
+# Recipient category -> Exchange Management Shell cmdlet
+$ExchangeCmdletMap = @{
+    'Mailbox'           = 'Set-Mailbox'
+    'RemoteMailbox'     = 'Set-RemoteMailbox'
+    'MailUser'          = 'Set-MailUser'
+    'MailContact'       = 'Set-MailContact'
+    'DistributionGroup' = 'Set-DistributionGroup'
+}
+
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
@@ -158,19 +188,73 @@ function ConvertTo-PSLiteral {
     return "'" + ($Value -replace "'", "''") + "'"
 }
 
+function Get-RecipientCategory {
+    param($RecipientTypeDetails)
+    if ($null -eq $RecipientTypeDetails) { return 'Unknown' }
+    $key = [int64]$RecipientTypeDetails
+    if ($RecipientTypeMap.ContainsKey($key)) { return $RecipientTypeMap[$key] }
+    return 'Unknown'
+}
+
+# Returns the Exchange cmdlet parameter name for a given attribute and
+# recipient category, or $null if there is no public EMS parameter for it
+# (msExchTargetAddress, msExchArchiveAddress, msExchShadowProxyAddresses, and
+# userPrincipalName all fall back to direct AD attribute edits).
+function Get-ExchangeParameterName {
+    param([string]$Category, [string]$Attribute)
+    switch ($Attribute) {
+        'mail'           { return 'WindowsEmailAddress' }
+        'proxyAddresses' {
+            return 'EmailAddresses'
+        }
+        'targetAddress' {
+            switch ($Category) {
+                'RemoteMailbox' { return 'RemoteRoutingAddress' }
+                'MailContact'   { return 'ExternalEmailAddress' }
+                'MailUser'      { return 'ExternalEmailAddress' }
+                default         { return $null }
+            }
+        }
+        default { return $null }
+    }
+}
+
 function Get-CmdletLine {
     param([PSCustomObject]$Row)
 
-    $dn        = ConvertTo-PSLiteral $Row.DistinguishedName
-    $attr      = $Row.Attribute
-    $newVal    = ConvertTo-PSLiteral $Row.PlannedValue
-    $oldVal    = ConvertTo-PSLiteral $Row.CurrentValue
+    $dn       = ConvertTo-PSLiteral $Row.DistinguishedName
+    $attr     = $Row.Attribute
+    $newVal   = ConvertTo-PSLiteral $Row.PlannedValue
+    $oldVal   = ConvertTo-PSLiteral $Row.CurrentValue
+    $category = $Row.RecipientCategory
+
+    # userPrincipalName is an AD/Entra auth attribute, never Exchange-managed.
+    if ($attr -eq 'userPrincipalName') {
+        $serverArg = if (-not [string]::IsNullOrWhiteSpace($DomainController)) { " -Server $(ConvertTo-PSLiteral $DomainController)" } else { '' }
+        return "Set-ADUser -Identity $dn -UserPrincipalName $newVal$serverArg"
+    }
+
+    $exchParam = if ($category -ne 'Unknown') { Get-ExchangeParameterName -Category $category -Attribute $attr } else { $null }
+
+    if ($exchParam) {
+        $cmdlet = $ExchangeCmdletMap[$category]
+        $dcArg  = if (-not [string]::IsNullOrWhiteSpace($DomainController)) { " -DomainController $(ConvertTo-PSLiteral $DomainController)" } else { '' }
+
+        if ($exchParam -eq 'EmailAddresses') {
+            if ($Row.Action -eq 'Replace') {
+                return "$cmdlet -Identity $dn -EmailAddresses @{Remove=$oldVal; Add=$newVal}$dcArg"
+            } else {
+                return "$cmdlet -Identity $dn -EmailAddresses @{Remove=$oldVal}$dcArg"
+            }
+        } else {
+            return "$cmdlet -Identity $dn -$exchParam $newVal$dcArg"
+        }
+    }
+
+    # ---- Fallback: no EMS parameter for this attribute/category — edit AD directly ----
     $serverArg = if (-not [string]::IsNullOrWhiteSpace($DomainController)) { " -Server $(ConvertTo-PSLiteral $DomainController)" } else { '' }
 
     $line = switch ($attr) {
-        'userPrincipalName' {
-            "Set-ADUser -Identity $dn -UserPrincipalName $newVal"
-        }
         'mail' {
             if ($Row.Action -eq 'Replace') {
                 "Set-ADObject -Identity $dn -Replace @{mail=$newVal}"
@@ -210,13 +294,14 @@ function Invoke-Discover {
     $ldapFilter    = Build-LDAPFilter -Domains $SourceDomains
     $domainPattern = Get-DomainPattern -Domains $SourceDomains
     $adParams      = Get-ADCommonParams
-    $adProperties  = $AttributesToCheck + @('DistinguishedName', 'ObjectClass', 'sAMAccountName')
+    $adProperties  = $AttributesToCheck + @('DistinguishedName', 'ObjectClass', 'sAMAccountName', 'msExchRecipientTypeDetails')
 
     Write-Log "LDAP filter: $ldapFilter" -Level DEBUG
 
     $allRows             = [System.Collections.Generic.List[PSCustomObject]]::new()
     $totalObjectsScanned = 0
     $ouCounts            = [ordered]@{}
+    $categoryCounts      = [ordered]@{}
 
     foreach ($ou in $SearchBases) {
         Write-LogSection "Scanning OU: $ou"
@@ -233,6 +318,8 @@ function Invoke-Discover {
 
             foreach ($obj in $objects) {
                 $ouCount++
+                $category = Get-RecipientCategory -RecipientTypeDetails $obj.msExchRecipientTypeDetails
+                $categoryCounts[$category] = ($categoryCounts[$category] ?? 0) + 1
 
                 foreach ($attr in $AttributesToCheck) {
                     $raw = $obj.$attr
@@ -254,6 +341,7 @@ function Invoke-Discover {
                             DistinguishedName = $obj.DistinguishedName
                             ObjectClass       = $obj.ObjectClass
                             sAMAccountName    = $obj.sAMAccountName
+                            RecipientCategory = $category
                             Attribute         = $attr
                             CurrentValue      = $val
                             PlannedValue      = $planned
@@ -329,6 +417,10 @@ function Invoke-Discover {
     foreach ($ou in $SearchBases) {
         Write-Log "  $ou : $($ouCounts[$ou] ?? 0) objects"
     }
+    Write-Log "Recipient categories:"
+    foreach ($cat in $categoryCounts.Keys) {
+        Write-Log "  $cat : $($categoryCounts[$cat])"
+    }
     Write-Log "Attribute values flagged    : $($validRows.Count)"
     if ($collisionCount -gt 0) {
         Write-Log "Collisions requiring review : $collisionCount" -Level WARN
@@ -363,6 +455,9 @@ function New-CmdletScripts {
         "# Counterpart    : $revertName (run this to undo these changes)",
         "# Lines prefixed with '#' are disabled — typically a detected address",
         "# collision. Review the log file before enabling them.",
+        "# Requires: ActiveDirectory module AND an Exchange Management Shell",
+        "# session (on-prem) for the Set-Mailbox / Set-RemoteMailbox / Set-MailUser /",
+        "# Set-MailContact / Set-DistributionGroup lines below.",
         ('#' * 70),
         ''
     ))
@@ -377,9 +472,24 @@ function New-CmdletScripts {
         "# Counterpart    : $applyName (the script this undoes)",
         "# Lines prefixed with '#' are disabled — typically a detected address",
         "# collision. Review the log file before enabling them.",
+        "# Requires: ActiveDirectory module AND an Exchange Management Shell",
+        "# session (on-prem) for the Set-Mailbox / Set-RemoteMailbox / Set-MailUser /",
+        "# Set-MailContact / Set-DistributionGroup lines below.",
         ('#' * 70),
         ''
     ))
+
+    # msExchTargetAddress is auto-maintained by Exchange whenever targetAddress
+    # is changed through an Exchange cmdlet — suppress the redundant line for
+    # any DN where that's the case.
+    $targetAddressEmsDNs = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($row in $Rows) {
+        if ($row.Attribute -ne 'targetAddress') { continue }
+        if ($row.RecipientCategory -eq 'Unknown') { continue }
+        if (Get-ExchangeParameterName -Category $row.RecipientCategory -Attribute 'targetAddress') {
+            $null = $targetAddressEmsDNs.Add($row.DistinguishedName)
+        }
+    }
 
     foreach ($attr in $AttributesToCheck) {
         $attrRows = @($Rows | Where-Object { $_.Attribute -eq $attr } | Sort-Object sAMAccountName, DistinguishedName)
@@ -389,6 +499,13 @@ function New-CmdletScripts {
         $revertLines.Add("# ===== $attr =====")
 
         foreach ($row in $attrRows) {
+            if ($attr -eq 'msExchTargetAddress' -and $targetAddressEmsDNs.Contains($row.DistinguishedName)) {
+                $note = "# (msExchTargetAddress) auto-maintained by Exchange via the targetAddress change for $($row.sAMAccountName) — no separate cmdlet needed."
+                $applyLines.Add($note)
+                $revertLines.Add($note)
+                continue
+            }
+
             $forwardLine = Get-CmdletLine -Row $row
 
             $revertRow = [PSCustomObject]@{
@@ -397,6 +514,7 @@ function New-CmdletScripts {
                 CurrentValue      = $row.PlannedValue
                 PlannedValue      = $row.CurrentValue
                 Action            = $row.Action
+                RecipientCategory = $row.RecipientCategory
             }
             $revertLine = Get-CmdletLine -Row $revertRow
 

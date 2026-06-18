@@ -8,6 +8,11 @@ $ClientId   = "d51e8332-64e4-4478-985c-43b3e60a99e7"
 $Thumbprint = "605d5b70995f2f645afaeca13bb1a87fae2b414f"
 
 $ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
+if (-not $ClientCertificate) {
+    $AppName = $AppName.Replace("CEZ_", "CEZDATA_")
+    $ClientCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -eq "CN=$($AppName)" }
+}
+
 $Certificate = $ClientCertificate
 $Thumbprint = $ClientCertificate.Thumbprint
 $CertficateThumbprint = $Thumbprint
