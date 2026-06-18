@@ -11,7 +11,7 @@ $SourceDomains = @(
 )
 
 # Domain to replace source domain addresses with
-$TargetDomain = "northwind.com"
+$TargetDomain = "ujvgroup.com"
 
 # OUs to search — script processes each individually to prevent timeout
 $SearchBases = @(
@@ -21,14 +21,8 @@ $SearchBases = @(
     "OU=ServiceAccounts,DC=contoso,DC=com"
 )
 
-# Operating mode: "Analyze", "Apply", or "Rollback"
-$Mode = "Analyze"
-
-# Path to the analysis CSV (output in Analyze mode, input in Apply/Rollback mode)
-$PlanCsvPath = ".\DomainReleasePlan.csv"
-
-# Log file path (auto-timestamped if left as $null)
-$LogPath = $null
+# Folder where the log file and the two generated scripts are written
+$OutputFolder = "."
 
 # Optional: target a specific DC. Leave $null to use the default.
 $DomainController = $null
@@ -54,22 +48,12 @@ $MultiValueAttributes = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::OrdinalIgnoreCase
 )
 
-$CsvColumns = @(
-    'DistinguishedName', 'ObjectClass', 'sAMAccountName',
-    'Attribute', 'CurrentValue', 'PlannedValue',
-    'CollisionFlag', 'Action', 'ApplyChange', 'Notes'
-)
-
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
 
 function Initialize-Log {
-    param([string]$Path, [string]$ModeLabel)
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        $ts = Get-Date -Format 'yyyyMMdd_HHmmss'
-        $Path = ".\DomainRelease_${ModeLabel}_${ts}.log"
-    }
+    param([string]$Path)
     $script:LogFile = $Path
     [string]::Empty | Set-Content -Path $Path -Encoding UTF8
 }
@@ -145,15 +129,6 @@ function Get-PlannedValue {
     return $null
 }
 
-function Get-RollbackCsvPath {
-    param([string]$PlanPath)
-    $dir  = [System.IO.Path]::GetDirectoryName($PlanPath)
-    $stem = [System.IO.Path]::GetFileNameWithoutExtension($PlanPath)
-    $ext  = [System.IO.Path]::GetExtension($PlanPath)
-    if ([string]::IsNullOrWhiteSpace($dir)) { $dir = '.' }
-    return [System.IO.Path]::Combine($dir, "${stem}_Rollback${ext}")
-}
-
 function Get-ADCommonParams {
     $p = @{}
     if (-not [string]::IsNullOrWhiteSpace($DomainController)) {
@@ -162,16 +137,75 @@ function Get-ADCommonParams {
     return $p
 }
 
+function Get-UniqueValue {
+    param(
+        [string]$Value,
+        [System.Collections.Generic.HashSet[string]]$TakenValues
+    )
+    $atIdx = $Value.LastIndexOf('@')
+    $left  = $Value.Substring(0, $atIdx)
+    $right = $Value.Substring($atIdx)
+    $n = 2
+    do {
+        $candidate = "$left$n$right"
+        $n++
+    } while ($TakenValues.Contains($candidate))
+    return $candidate
+}
+
+function ConvertTo-PSLiteral {
+    param([string]$Value)
+    return "'" + ($Value -replace "'", "''") + "'"
+}
+
+function Get-CmdletLine {
+    param([PSCustomObject]$Row)
+
+    $dn        = ConvertTo-PSLiteral $Row.DistinguishedName
+    $attr      = $Row.Attribute
+    $newVal    = ConvertTo-PSLiteral $Row.PlannedValue
+    $oldVal    = ConvertTo-PSLiteral $Row.CurrentValue
+    $serverArg = if (-not [string]::IsNullOrWhiteSpace($DomainController)) { " -Server $(ConvertTo-PSLiteral $DomainController)" } else { '' }
+
+    $line = switch ($attr) {
+        'userPrincipalName' {
+            "Set-ADUser -Identity $dn -UserPrincipalName $newVal"
+        }
+        'mail' {
+            if ($Row.Action -eq 'Replace') {
+                "Set-ADObject -Identity $dn -Replace @{mail=$newVal}"
+            } else {
+                "Set-ADObject -Identity $dn -Clear mail"
+            }
+        }
+        { $MultiValueAttributes.Contains($_) } {
+            if ($Row.Action -eq 'Replace') {
+                "Set-ADObject -Identity $dn -Remove @{$attr=$oldVal} -Add @{$attr=$newVal}"
+            } else {
+                "Set-ADObject -Identity $dn -Remove @{$attr=$oldVal}"
+            }
+        }
+        default {
+            if ($Row.Action -eq 'Replace') {
+                "Set-ADObject -Identity $dn -Replace @{$attr=$newVal}"
+            } else {
+                "Set-ADObject -Identity $dn -Clear $attr"
+            }
+        }
+    }
+
+    return "$line$serverArg"
+}
+
 # ============================================================
-# ANALYZE MODE
+# DISCOVERY
 # ============================================================
 
-function Invoke-AnalyzeMode {
-    Write-LogSection "ANALYZE MODE — Domain Release Planning"
+function Invoke-Discover {
+    Write-LogSection "DISCOVERY — Domain Release Scan"
     Write-Log "Source domains : $($SourceDomains -join ', ')"
     Write-Log "Target domain  : $TargetDomain"
     Write-Log "Search bases   : $($SearchBases.Count)"
-    Write-Log "Output CSV     : $PlanCsvPath"
 
     $ldapFilter    = Build-LDAPFilter -Domains $SourceDomains
     $domainPattern = Get-DomainPattern -Domains $SourceDomains
@@ -204,7 +238,6 @@ function Invoke-AnalyzeMode {
                     $raw = $obj.$attr
                     if ($null -eq $raw) { continue }
 
-                    # Normalize to enumerable
                     $values = if ($raw -is [System.Collections.IEnumerable] -and $raw -isnot [string]) {
                         $raw
                     } else {
@@ -213,8 +246,6 @@ function Invoke-AnalyzeMode {
 
                     foreach ($val in $values) {
                         if ([string]::IsNullOrWhiteSpace($val)) { continue }
-
-                        # Secondary client-side filter — confirms domain match
                         if ($val -notmatch $domainPattern) { continue }
 
                         $planned = Get-PlannedValue -CurrentValue $val -DomainPattern $domainPattern -TargetDomain $TargetDomain
@@ -226,10 +257,9 @@ function Invoke-AnalyzeMode {
                             Attribute         = $attr
                             CurrentValue      = $val
                             PlannedValue      = $planned
+                            NaturalValue      = $null
                             CollisionFlag     = 'FALSE'
                             Action            = if ($planned) { 'Replace' } else { 'Remove' }
-                            ApplyChange       = 'TRUE'
-                            Notes             = ''
                         })
                     }
                 }
@@ -253,200 +283,140 @@ function Invoke-AnalyzeMode {
         $ouCounts[$ou]        = $ouCount
     }
 
-    # ---- Collision detection via HashSet ----
-    # First pass: find all planned values that appear more than once
-    $seenValues      = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    $collisionValues = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-
+    # ---- Collision detection ----
+    Write-LogSection "COLLISION DETECTION"
+    $valueGroups = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.List[PSCustomObject]]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($row in $allRows) {
-        if ([string]::IsNullOrWhiteSpace($row.PlannedValue)) { continue }
-        if ($row.Action -eq 'Remove') { continue }
-        if (-not $seenValues.Add($row.PlannedValue)) {
-            $null = $collisionValues.Add($row.PlannedValue)
+        if ($row.Action -ne 'Replace') { continue }
+        if (-not $valueGroups.ContainsKey($row.PlannedValue)) {
+            $valueGroups[$row.PlannedValue] = [System.Collections.Generic.List[PSCustomObject]]::new()
         }
+        $valueGroups[$row.PlannedValue].Add($row)
     }
 
-    # Second pass: mark collision rows
-    foreach ($row in $allRows) {
-        if (-not [string]::IsNullOrWhiteSpace($row.PlannedValue) -and
-            $collisionValues.Contains($row.PlannedValue)) {
+    $takenValues     = [System.Collections.Generic.HashSet[string]]::new([string[]]$valueGroups.Keys, [System.StringComparer]::OrdinalIgnoreCase)
+    $collisionGroups = $valueGroups.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
+    $collisionCount  = 0
+
+    foreach ($group in $collisionGroups) {
+        $naturalValue = $group.Key
+        $members      = $group.Value
+        Write-Log "Collision on '$naturalValue' across $($members.Count) object(s): $(($members | ForEach-Object { $_.sAMAccountName }) -join ', ')" -Level WARN
+
+        foreach ($row in $members) {
+            $unique = Get-UniqueValue -Value $naturalValue -TakenValues $takenValues
+            $null = $takenValues.Add($unique)
+            $row.NaturalValue  = $naturalValue
             $row.CollisionFlag = 'TRUE'
-            $row.PlannedValue  = 'COLLISION — MANUAL REVIEW REQUIRED'
+            $row.PlannedValue  = $unique
+            $collisionCount++
+            Write-Log "  -> $($row.DistinguishedName) [$($row.Attribute)] disabled; generated alternative: $unique" -Level WARN
         }
     }
 
-    $collisionCount = ($allRows | Where-Object { $_.CollisionFlag -eq 'TRUE' }).Count
+    # ---- Drop rows that cannot be expressed as a cmdlet ----
+    $validRows = [System.Collections.Generic.List[PSCustomObject]]::new()
+    foreach ($row in $allRows) {
+        if ($row.Attribute -eq 'userPrincipalName' -and $row.Action -eq 'Remove') {
+            Write-Log "Cannot remove UPN without a replacement value — excluding from generated scripts: $($row.DistinguishedName)" -Level WARN
+            continue
+        }
+        $validRows.Add($row)
+    }
 
-    # Write CSV
-    $allRows | Export-Csv -Path $PlanCsvPath -NoTypeInformation -Encoding UTF8
-
-    # Summary
-    Write-LogSection "ANALYZE SUMMARY"
+    Write-LogSection "DISCOVERY SUMMARY"
     Write-Log "Total objects scanned : $totalObjectsScanned"
     foreach ($ou in $SearchBases) {
         Write-Log "  $ou : $($ouCounts[$ou] ?? 0) objects"
     }
-    Write-Log "Attribute values flagged      : $($allRows.Count)"
+    Write-Log "Attribute values flagged    : $($validRows.Count)"
     if ($collisionCount -gt 0) {
-        Write-Log "Collisions requiring review   : $collisionCount" -Level WARN
-        Write-Log "ACTION REQUIRED: Edit '$PlanCsvPath' to resolve collision rows before running Apply mode." -Level WARN
+        Write-Log "Collisions requiring review : $collisionCount" -Level WARN
     } else {
-        Write-Log "Collisions requiring review   : 0" -Level SUCCESS
+        Write-Log "Collisions requiring review : 0" -Level SUCCESS
     }
-    Write-Log "Plan CSV written to: $PlanCsvPath" -Level SUCCESS
+
+    return $validRows
 }
 
 # ============================================================
-# APPLY / ROLLBACK SHARED LOGIC
+# SCRIPT GENERATION
 # ============================================================
 
-function Invoke-ApplyMode {
-    param([switch]$IsRollback)
+function New-CmdletScripts {
+    param(
+        [System.Collections.Generic.List[PSCustomObject]]$Rows,
+        [string]$ApplyPath,
+        [string]$RevertPath
+    )
 
-    $modeLabel = if ($IsRollback) { 'ROLLBACK' } else { 'APPLY' }
-    $csvPath   = if ($IsRollback) { Get-RollbackCsvPath -PlanPath $PlanCsvPath } else { $PlanCsvPath }
+    $applyName  = Split-Path -Leaf $ApplyPath
+    $revertName = Split-Path -Leaf $RevertPath
 
-    Write-LogSection "$modeLabel MODE"
-    Write-Log "Reading plan from: $csvPath"
+    $applyLines = [System.Collections.Generic.List[string]]::new()
+    $applyLines.AddRange([string[]]@(
+        ('#' * 70),
+        "# AD Domain Release — APPLY SCRIPT",
+        "# Generated      : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+        "# Source domains : $($SourceDomains -join ', ')",
+        "# Target domain  : $TargetDomain",
+        "# Counterpart    : $revertName (run this to undo these changes)",
+        "# Lines prefixed with '#' are disabled — typically a detected address",
+        "# collision. Review the log file before enabling them.",
+        ('#' * 70),
+        ''
+    ))
 
-    if (-not (Test-Path $csvPath)) {
-        Write-Log "Plan CSV not found: $csvPath" -Level ERROR
-        return
-    }
+    $revertLines = [System.Collections.Generic.List[string]]::new()
+    $revertLines.AddRange([string[]]@(
+        ('#' * 70),
+        "# AD Domain Release — REVERT SCRIPT",
+        "# Generated      : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+        "# Source domains : $($SourceDomains -join ', ')",
+        "# Target domain  : $TargetDomain",
+        "# Counterpart    : $applyName (the script this undoes)",
+        "# Lines prefixed with '#' are disabled — typically a detected address",
+        "# collision. Review the log file before enabling them.",
+        ('#' * 70),
+        ''
+    ))
 
-    $rows = Import-Csv -Path $csvPath -Encoding UTF8
+    foreach ($attr in $AttributesToCheck) {
+        $attrRows = @($Rows | Where-Object { $_.Attribute -eq $attr } | Sort-Object sAMAccountName, DistinguishedName)
+        if ($attrRows.Count -eq 0) { continue }
 
-    if (-not $rows -or @($rows).Count -eq 0) {
-        Write-Log "CSV is empty: $csvPath" -Level WARN
-        return
-    }
+        $applyLines.Add("# ===== $attr =====")
+        $revertLines.Add("# ===== $attr =====")
 
-    # Validate columns
-    $existingCols = $rows[0].PSObject.Properties.Name
-    $missingCols  = $CsvColumns | Where-Object { $_ -notin $existingCols }
-    if ($missingCols) {
-        Write-Log "CSV is missing required columns: $($missingCols -join ', ')" -Level ERROR
-        return
-    }
+        foreach ($row in $attrRows) {
+            $forwardLine = Get-CmdletLine -Row $row
 
-    # Generate rollback CSV before making any changes (Apply mode only)
-    if (-not $IsRollback) {
-        $rollbackPath = Get-RollbackCsvPath -PlanPath $PlanCsvPath
-        $rollbackRows = foreach ($row in $rows) {
-            [PSCustomObject]@{
+            $revertRow = [PSCustomObject]@{
                 DistinguishedName = $row.DistinguishedName
-                ObjectClass       = $row.ObjectClass
-                sAMAccountName    = $row.sAMAccountName
                 Attribute         = $row.Attribute
-                CurrentValue      = $row.PlannedValue   # swapped
-                PlannedValue      = $row.CurrentValue   # swapped
-                CollisionFlag     = $row.CollisionFlag
+                CurrentValue      = $row.PlannedValue
+                PlannedValue      = $row.CurrentValue
                 Action            = $row.Action
-                ApplyChange       = $row.ApplyChange
-                Notes             = $row.Notes
+            }
+            $revertLine = Get-CmdletLine -Row $revertRow
+
+            if ($row.CollisionFlag -eq 'TRUE') {
+                $applyLines.Add("# COLLISION: natural value '$($row.NaturalValue)' conflicts with another object — using generated alternative, review before enabling.")
+                $applyLines.Add("# $forwardLine")
+                $revertLines.Add("# COLLISION: counterpart of disabled $attr change for $($row.sAMAccountName) — review before enabling.")
+                $revertLines.Add("# $revertLine")
+            } else {
+                $applyLines.Add($forwardLine)
+                $revertLines.Add($revertLine)
             }
         }
-        $rollbackRows | Export-Csv -Path $rollbackPath -NoTypeInformation -Encoding UTF8
-        Write-Log "Rollback CSV written to: $rollbackPath"
+
+        $applyLines.Add('')
+        $revertLines.Add('')
     }
 
-    $adParams  = Get-ADCommonParams
-    $processed = 0; $succeeded = 0; $skipped = 0; $failed = 0
-
-    foreach ($row in $rows) {
-        $processed++
-
-        if ($row.ApplyChange -ne 'TRUE') {
-            Write-Log "SKIP (ApplyChange=FALSE): $($row.DistinguishedName) [$($row.Attribute)]" -Level DEBUG
-            $skipped++
-            continue
-        }
-
-        if ([string]::IsNullOrWhiteSpace($row.PlannedValue) -or $row.PlannedValue -like 'COLLISION*') {
-            Write-Log "SKIP (collision/blank): $($row.DistinguishedName) [$($row.Attribute)] CurrentValue='$($row.CurrentValue)'" -Level WARN
-            $skipped++
-            continue
-        }
-
-        $dn     = $row.DistinguishedName
-        $attr   = $row.Attribute
-        $oldVal = $row.CurrentValue
-        $newVal = $row.PlannedValue
-        $action = $row.Action
-
-        Write-Log "Applying: $dn [$attr] '$oldVal' -> '$newVal' (Action=$action)"
-
-        # UPN remove is not valid — check before entering try block
-        if ($attr -eq 'userPrincipalName' -and $action -eq 'Remove') {
-            Write-Log "Cannot remove UPN without a replacement value — skipping row." -Level WARN
-            $skipped++
-            continue
-        }
-
-        try {
-            switch ($attr) {
-                'userPrincipalName' {
-                    Set-ADUser -Identity $dn -UserPrincipalName $newVal @adParams -ErrorAction Stop
-                }
-                'mail' {
-                    if ($action -eq 'Replace') {
-                        Set-ADObject -Identity $dn -Replace @{ mail = $newVal } @adParams -ErrorAction Stop
-                    } else {
-                        Set-ADObject -Identity $dn -Clear mail @adParams -ErrorAction Stop
-                    }
-                }
-                { $MultiValueAttributes.Contains($_) } {
-                    Set-ADObject -Identity $dn -Remove @{ $attr = $oldVal } @adParams -ErrorAction Stop
-                    if ($action -eq 'Replace') {
-                        Set-ADObject -Identity $dn -Add @{ $attr = $newVal } @adParams -ErrorAction Stop
-                    }
-                }
-                default {
-                    # targetAddress, msExchTargetAddress, msExchArchiveAddress
-                    if ($action -eq 'Replace') {
-                        Set-ADObject -Identity $dn -Replace @{ $attr = $newVal } @adParams -ErrorAction Stop
-                    } else {
-                        Set-ADObject -Identity $dn -Clear $attr @adParams -ErrorAction Stop
-                    }
-                }
-            }
-
-            # Verify the change
-            $verified   = Get-ADObject -Identity $dn -Properties $attr @adParams -ErrorAction Stop
-            $verifyRaw  = $verified.$attr
-            $verifyVals = if ($verifyRaw -is [System.Collections.IEnumerable] -and $verifyRaw -isnot [string]) {
-                @($verifyRaw)
-            } else {
-                @($verifyRaw)
-            }
-
-            $oldGone     = $oldVal -notin $verifyVals
-            $newPresent  = ($action -eq 'Remove') -or ($newVal -in $verifyVals)
-
-            if ($oldGone -and $newPresent) {
-                Write-Log "VERIFIED: $dn [$attr]" -Level SUCCESS
-                $succeeded++
-            } else {
-                Write-Log "VERIFY FAILED: $dn [$attr] — oldGone=$oldGone newPresent=$newPresent" -Level WARN
-                $failed++
-            }
-        }
-        catch {
-            Write-Log "ERROR: $dn [$attr] — $($_.Exception.Message)" -Level ERROR
-            Write-Log $_.ScriptStackTrace -Level DEBUG
-            $failed++
-        }
-    }
-
-    Write-LogSection "$modeLabel SUMMARY"
-    Write-Log "Rows processed : $processed"
-    Write-Log "Succeeded      : $succeeded" -Level $(if ($succeeded -gt 0) { 'SUCCESS' } else { 'INFO' })
-    Write-Log "Skipped        : $skipped"
-    Write-Log "Failed         : $failed" -Level $(if ($failed -gt 0) { 'ERROR' } else { 'SUCCESS' })
-}
-
-function Invoke-RollbackMode {
-    Invoke-ApplyMode -IsRollback
+    $applyLines  | Set-Content -Path $ApplyPath  -Encoding UTF8
+    $revertLines | Set-Content -Path $RevertPath -Encoding UTF8
 }
 
 # ============================================================
@@ -462,24 +432,32 @@ if ([string]::IsNullOrWhiteSpace($TargetDomain)) {
 if (-not $SearchBases -or $SearchBases.Count -eq 0) {
     throw "SearchBases must contain at least one OU."
 }
+if (-not (Test-Path $OutputFolder)) {
+    New-Item -ItemType Directory -Path $OutputFolder -Force | Out-Null
+}
 
-Initialize-Log -Path $LogPath -ModeLabel $Mode
+$runTimestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+$logPath      = Join-Path $OutputFolder "DomainRelease_${runTimestamp}.log"
+$applyPath    = Join-Path $OutputFolder "DomainRelease_Apply_${runTimestamp}.ps1"
+$revertPath   = Join-Path $OutputFolder "DomainRelease_Revert_${runTimestamp}.ps1"
 
-Write-LogSection "AD DOMAIN RELEASE — $Mode"
+Initialize-Log -Path $logPath
+
+Write-LogSection "AD DOMAIN RELEASE — DISCOVERY & SCRIPT GENERATION"
 Write-Log "Script started   : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-Write-Log "Mode             : $Mode"
 Write-Log "Source domains   : $($SourceDomains -join ', ')"
 Write-Log "Target domain    : $TargetDomain"
 Write-Log "Search bases     : $($SearchBases -join ' | ')"
-Write-Log "Plan CSV path    : $PlanCsvPath"
-Write-Log "Log file         : $script:LogFile"
+Write-Log "Output folder    : $OutputFolder"
+Write-Log "Log file         : $logPath"
+Write-Log "Apply script     : $applyPath"
+Write-Log "Revert script    : $revertPath"
 Write-Log "Domain controller: $(if (-not [string]::IsNullOrWhiteSpace($DomainController)) { $DomainController } else { '(default)' })"
 
-switch ($Mode) {
-    'Analyze'  { Invoke-AnalyzeMode }
-    'Apply'    { Invoke-ApplyMode }
-    'Rollback' { Invoke-RollbackMode }
-    default    { Write-Log "Unknown mode: '$Mode'. Valid values: Analyze, Apply, Rollback" -Level ERROR }
-}
+$rows = Invoke-Discover
+New-CmdletScripts -Rows $rows -ApplyPath $applyPath -RevertPath $revertPath
 
+Write-Log "Apply script written : $applyPath" -Level SUCCESS
+Write-Log "Revert script written: $revertPath" -Level SUCCESS
+Write-Log "Review both scripts — lines prefixed with '#' need manual review before enabling." -Level WARN
 Write-Log "Script completed : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -Level SUCCESS
