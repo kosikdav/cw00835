@@ -48,18 +48,19 @@ foreach ($Batch in $MigrationBatches) {
 	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
 	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
 	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
-	write-host "total: $($Result.Count) " -NoNewline
-	write-host "synced: $($SyncedUsers.Count) " -NoNewline -ForegroundColor Green
-	write-host "failed: $($FailedUsers.Count) " -ForegroundColor Red
+	write-host ("total: {0,3} " -f $Result.Count) -NoNewline
+	write-host ("synced: {0,3} " -f $SyncedUsers.Count) -NoNewline -ForegroundColor Green
+	write-host ("failed: {0,3}" -f $FailedUsers.Count) -ForegroundColor Red
 	$TotalMigrationUsers += $Result.Count
 	$TotalSyncedUsers += $SyncedUsers.Count
 	$MigrationUsers += $Result
 }
 
-write-host "Migration users: $TotalMigrationUsers"
-write-host "Synced users: $TotalSyncedUsers"
-write-host "Pending users: $($TotalMigrationUsers - $TotalSyncedUsers)"
-write-host "Progress: $([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)) %"
+write-host ("Migration users: {0,3}" -f $TotalMigrationUsers)
+write-host ("Synced users:    {0,3}" -f $TotalSyncedUsers)
+write-host ("Pending users:   {0,3}" -f ($TotalMigrationUsers - $TotalSyncedUsers))
+Write-Host
+write-host ("Progress: {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
 
 #######################################################################################################################
 
