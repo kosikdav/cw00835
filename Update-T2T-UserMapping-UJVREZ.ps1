@@ -3,12 +3,19 @@
 #######################################################################################################################
 param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
-	[switch]$TestRun
+	[switch]$TestRun,
+	[string]$SourceUser,
+	[string]$SourceFile
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-Start-Generic.ps1
 . $ScriptPath\include-Script-Start-Include.ps1
+
+if ($SourceUser -and $SourceFile) {
+	Write-Host "Please specify either SourceUser or SourceFile parameter, not both." -ForegroundColor Red
+	Exit
+}
 
 $LogFolder				= "t2t-ujvrez"
 $LogFilePrefix			= "user-mapping"
@@ -194,6 +201,20 @@ foreach ($group in $duplicateSrcUsers) {
 	exit
 }
 write-host "done"
+
+if ($SourceUser) {
+	#single mailbox specified, get it
+	$SrcAADUsers = $SrcAADUsers | Where-Object { $_.userPrincipalName -eq $SourceUser }
+	if ($SrcAADUsers) {
+		Write-Host "Found $($SrcAADUsers.userPrincipalName)" -foregroundcolor Green
+	}
+}
+else {
+	#source file specified, import mailboxes from file
+	$SrcArray = Import-CsvToArray -Path $SourceFile
+	$SrcAADUsers = $SrcAADUsers | Where-Object { $SrcArray.Identity -contains $_.userPrincipalName }
+}
+write-host "Total source users to process: $($SrcAADUsers.count)"	
 
 #######################################################################################################################
 # get DST AD users
@@ -430,6 +451,10 @@ foreach ($user in $SrcAADUsers) {
 }
 
 
+if ($SourceUser -or $SourceFile) {
+	Exit
+}
+
 
 if ($DSTUsersMapped.Count -gt 0) {
 	$DSTUsersToClear = $DstADUsers.samAccountName | Where-Object { $DSTUsersMapped -notcontains $_ -and $_ -notlike 'QP*' }
@@ -455,6 +480,7 @@ if ($DSTUsersMapped.Count -gt 0) {
 }
 
 write-host $string_divider
+
 
 #######################################################################################################################
 # DST mapping

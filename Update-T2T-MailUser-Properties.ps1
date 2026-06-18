@@ -3,12 +3,18 @@
 #######################################################################################################################
 param(
     [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
-	[string]$SourceMailbox
+	[string]$SourceMailbox,
+	[string]$SourceFile
 )
 $ScriptName = $MyInvocation.MyCommand.Name
 $ScriptPath = Split-Path $MyInvocation.MyCommand.Path
 . $ScriptPath\include-Script-Start-Generic.ps1
 . $ScriptPath\include\include-functions-T2T.ps1
+
+if ($SourceMailbox -and $SourceFile) {
+	Write-Host "Please specify either SourceMailbox or SourceFile parameter, not both." -ForegroundColor Red
+	Exit
+}
 
 #######################################################################################################################
 
@@ -64,8 +70,6 @@ $Src_T2T_EXO_MIGRATION_GROUP 	= $UJVREZ_T2T_EXO_MIGRATION_GROUP
 
 Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 Connect-EXOService -AppRegName $Src_AppReg_EXO_MGMT  -TTL 120
-$ExchangeSession = New-PSSession -Name "OnPremExchange" -ConfigurationName "Microsoft.Exchange" -ConnectionUri "http://cw00616exch3.cezdata.corp/PowerShell/" -Authentication Kerberos
-Import-PSSession $ExchangeSession -DisableNameChecking -AllowClobber
 
 #get source T2T migration group
 $T2TMigrationGroupName = Get-GroupNameFromGraphById -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -Id $Src_T2T_EXO_MIGRATION_GROUP
@@ -77,7 +81,7 @@ if ($T2TMigrationGroupName) {
 	Exit
 }
 
-if (-not $SourceMailbox) {
+if (-not ($SourceMailbox -or $SourceFile)) {
 	$UriResource = "groups/$($Src_T2T_EXO_MIGRATION_GROUP)/members"
 	$Uri = New-GraphUri -Resource $UriResource -Version "v1.0"
 	[array]$T2TMigrationGroupMembers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken
@@ -91,17 +95,42 @@ if (-not $SourceMailbox) {
 	Remove-Variable SrcMailboxesAll
 }
 else {
-	$SrcMailboxes = Get-EXOMailbox -Identity $SourceMailbox -PropertySets All
-	if ($SrcMailboxes) {
-		Write-Host "Found $($SrcMailboxes.PrimarySmtpAddress)" -foregroundcolor Green
+	if ($SourceMailbox) {
+		#single mailbox specified, get it
+		$SrcMailboxes = Get-EXOMailbox -Identity $SourceMailbox -PropertySets All
+		if ($SrcMailboxes) {
+			Write-Host "Found $($SrcMailboxes.PrimarySmtpAddress)" -foregroundcolor Green
+		}
 	}
 	else {
-		Write-Host "Multiple SRC mailbox found with PrimarySmtpAddress $($SourceMailbox)"
-		Exit
-	}	
+		$SrcMailboxes = @()
+		#source file specified, import mailboxes from file
+		$SrcArray = Import-CsvToArray -Path $SourceFile
+		foreach ($Member in $SrcArray) {
+			$SrcMailbox = Get-EXOMailbox -Identity $Member.Identity -PropertySets All
+			if ($SrcMailbox) {
+				Write-Host "Found $($SrcMailbox.PrimarySmtpAddress)" -foregroundcolor Green
+				$SrcMailboxes += $SrcMailbox
+			}
+			else {
+				Write-Host "Mailbox not found for $($Src.PrimarySmtpAddress)" -foregroundcolor Red
+			}
+		}
+	}
+	write-host "Total source mailboxes to process: $($SrcMailboxes.count)"	
 }
 
+if ($SrcMailboxes.count -eq 0) {
+	Write-Host "No source mailboxes found to process. Exiting." -ForegroundColor Red
+	Exit
+}
 
+$ExchangeSession = New-PSSession -Name "OnPremExchange" -ConfigurationName "Microsoft.Exchange" -ConnectionUri "http://cw00616exch3.cezdata.corp/PowerShell/" -Authentication Kerberos
+Import-PSSession $ExchangeSession -DisableNameChecking -AllowClobber
+
+########################################################################################################################
+# MAIN PROCESSING LOOP
+########################################################################################################################
 foreach ($SrcMailbox in $SrcMailboxes) {
 
 	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
@@ -131,7 +160,6 @@ foreach ($SrcMailbox in $SrcMailboxes) {
     }
 
 	#Write-Host "Processing mailbox: $($SrcMailbox.UserPrincipalName)"
-	
 	#write-host "ExchangeObjectId: $($SrcMailbox.ExchangeObjectId)"
 	#write-host "ExchangeGuid: $($SrcMailbox.ExchangeGuid)"
 	#write-host "ArchiveStatus: $($SrcMailbox.ArchiveStatus)"
@@ -159,6 +187,14 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 				Enable-MailUser -Identity $DstUser.samAccountName -PrimarySmtpAddress $DstUser.userPrincipalName -Alias $DstUser.samAccountName -ExternalEmailAddress $SrcMailbox.PrimarySmtpAddress
 				Write-Log "Enabled mailUser for $($DstUser.samAccountName) with PrimarySmtpAddress $($DstUser.userPrincipalName) and ExternalEmailAddress $($SrcMailbox.PrimarySmtpAddress)"
 				Start-Sleep -Seconds 30
+				Try {
+					$DstMailUser = Get-MailUser -Identity $DstUser.samAccountName -ErrorAction Stop
+				}
+				Catch {
+					Write-Log "Failed to get mailUser for $($DstUser.samAccountName) after enabling. Error: $_" -messageType "ERR"
+					Continue
+				}
+			
 			}
 			Catch {
 				Write-Log "Failed to enable mailUser for $($DstUser.samAccountName). Error: $_" -messageType "ERR"

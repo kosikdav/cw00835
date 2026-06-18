@@ -74,8 +74,8 @@ $Src_T2T_EXO_MIGRATION_GROUP 	= $UJVREZ_T2T_EXO_MIGRATION_GROUP
 
 Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 Connect-EXOService -AppRegName $Src_AppReg_EXO_MGMT  -TTL 120
-$ExchangeSession = New-PSSession -Name "OnPremExchange" -ConfigurationName "Microsoft.Exchange" -ConnectionUri "http://cw00616exch3.cezdata.corp/PowerShell/" -Authentication Kerberos
-Import-PSSession $ExchangeSession -DisableNameChecking -AllowClobber
+#$ExchangeSession = New-PSSession -Name "OnPremExchange" -ConfigurationName "Microsoft.Exchange" -ConnectionUri "http://cw00616exch3.cezdata.corp/PowerShell/" -Authentication Kerberos
+#Import-PSSession $ExchangeSession -DisableNameChecking -AllowClobber
 
 #get source T2T migration group
 $T2TMigrationGroupName = Get-GroupNameFromGraphById -AccessToken $AuthDB[$Src_AppReg_LOG_READER].AccessToken -Id $Src_T2T_EXO_MIGRATION_GROUP
@@ -138,7 +138,6 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 
 	Request-MSALToken -AppRegName $Src_AppReg_LOG_READER -TTL 30
 	Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60
-	#Request-MSALToken -AppRegName $Dst_AppReg_LOG_READER -TTL 30
 
 	write-host "$($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Green
 	
@@ -189,7 +188,7 @@ foreach ($SrcMailbox in $SrcMailboxes) {
 				Write-Host "Multiple target mailUsers found for $($SrcMailbox.PrimarySmtpAddress)" -ForegroundColor Red
 			} 
 			else {
-				write-Host "Found target mailUser for $($SrcMailbox.UserPrincipalName): $($DstMailUser.ExternalEmailAddress)" -ForegroundColor Cyan
+				write-Host "Found target mailUser for $($SrcMailbox.UserPrincipalName): $($DstMailUser.ExternalEmailAddress) ($($DstMailUser.ExternalDirectoryObjectId))" -ForegroundColor Cyan
 			}
 		}
 		Catch {
