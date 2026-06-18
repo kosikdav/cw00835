@@ -4,8 +4,8 @@
 
 # Domains being released from the source M365 tenant
 $SourceDomains = @(
-    "contoso.com",
-    "fabrikam.com"
+    "cez.cz",
+    "cezdistribuce.cz"
 )
 
 # Domain to replace source domain addresses with
@@ -13,10 +13,8 @@ $TargetDomain = "ujvgroup.com"
 
 # OUs to search — script processes each individually to prevent timeout
 $SearchBases = @(
-    "OU=Users,DC=contoso,DC=com",
-    "OU=Groups,DC=contoso,DC=com",
-    "OU=Contacts,DC=contoso,DC=com",
-    "OU=ServiceAccounts,DC=contoso,DC=com"
+    "OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
+    "OU=M365,OU=AAD,OU=Cloud,OU=skupiny,DC=cezdata,DC=corp"
 )
 
 # Folder where the log file and the two generated scripts are written
@@ -278,7 +276,7 @@ function Invoke-Discover {
     Write-LogSection "DISCOVERY SUMMARY"
     Write-Log "Total objects scanned : $totalObjectsScanned"
     foreach ($ou in $SearchBases) {
-        Write-Log "  $ou : $($ouCounts[$ou] ?? 0) objects"
+        Write-Log "  $ou : $($ouCounts[$ou]) objects"
     }
     Write-Log "Attribute values flagged    : $($allRows.Count)"
     if ($collisionCount -gt 0) {
