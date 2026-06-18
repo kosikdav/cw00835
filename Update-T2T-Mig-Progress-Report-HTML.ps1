@@ -57,6 +57,7 @@ foreach ($Batch in $MigrationBatches) {
         BatchName = $Batch.Identity.ToString()
         TotalUsers = $Result.Count
         SyncedUsers = $SyncedUsers.Count
+        PendingUsers = $Result.Count - $SyncedUsers.Count
         FailedUsers = $FailedUsers.Count
         PercentageSynced = if ($Result.Count -gt 0) { "{0:N2}" -f (($SyncedUsers.Count / $Result.Count) * 100) } else { "0.00" }
     }
@@ -93,6 +94,7 @@ $html = @"
             <th>Batch name</th>
             <th>Total</th>
             <th>Synced</th>
+            <th>Pending</th>
             <th>Failed</th>
             <th>Percentage synced</th>
         </tr>
@@ -106,7 +108,13 @@ foreach ($item in $Report) {
         $rowClass = "notice"
         $fontStyle = "bold"
     }
-    $html += "        <tr class='$rowClass'><td style='font-weight:$fontStyle;'>$($item.BatchName)</td><td>$($item.TotalUsers)</td><td>$($item.SyncedUsers)</td><td style='color:$fontColor; font-weight:$fontStyle;'>$($item.FailedUsers)</td><td>$($item.PercentageSynced)</td></tr>`n"
+    $html += "        <tr class='$rowClass'>
+    <td style='font-weight:$fontStyle;'>$($item.BatchName)</td>
+    <td>$($item.TotalUsers)</td>
+    <td>$($item.SyncedUsers)</td>
+    <td>$($item.PendingUsers)</td>
+    <td style='color:$fontColor; font-weight:$fontStyle;'>$($item.FailedUsers)</td>
+    <td>$($item.PercentageSynced)</td></tr>`n"
 }   
 
 # Close the HTML
