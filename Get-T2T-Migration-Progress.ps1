@@ -27,7 +27,9 @@ $OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $Out
 
 [array]$Report = @()
 
+$MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
 $BatchPrefix = "UJV"
+
 $MigrationUsers = @()
 $TotalMigrationUsers = 0
 $TotalSyncedUsers = 0
@@ -38,9 +40,8 @@ $Dst_AppReg_EXO_MGMT = $AppReg_EXO_MGMT
 
 Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 120
 
-$MigrationBatches = Get-MigrationBatch
-$MigrationBatches = $MigrationBatches | Where-Object { $_.Identity -like "$BatchPrefix*" }
-Write-host "Found $($MigrationBatches.Count) migration batches with prefix '$BatchPrefix'"
+$MigrationBatches = Get-MigrationBatch -Endpoint $MigrationEndpoint
+Write-host "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline

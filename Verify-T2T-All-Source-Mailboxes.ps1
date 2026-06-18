@@ -30,6 +30,7 @@ $OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $Out
 [hashtable]$MigrationUsers_DB = @{}
 [hashtable]$MailUsers_DB_per_mail = @{}
 
+$MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
 $BatchPrefix = "UJV"
 
 $Src_PN_attr = "extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
@@ -202,9 +203,8 @@ Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 60 -ForceReconnect
 #######################################################################################################################
 # get migration batches and users in migration
 #######################################################################################################################
-$MigrationBatches = Get-MigrationBatch
-$MigrationBatches = $MigrationBatches | Where-Object { $_.Identity -like "$BatchPrefix*" }
-Write-host "Found $($MigrationBatches.Count) migration batches with prefix '$BatchPrefix'"
+$MigrationBatches = Get-MigrationBatch -Endpoint $MigrationEndpoint
+Write-host "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -NoNewline
