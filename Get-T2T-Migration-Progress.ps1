@@ -50,6 +50,7 @@ foreach ($Batch in $MigrationBatches) {
 	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
 	write-host ("total: {0,3} " -f $Result.Count) -NoNewline
 	write-host ("synced: {0,3} " -f $SyncedUsers.Count) -NoNewline -ForegroundColor Green
+	write-host ("pending: {0,3} " -f ($Result.Count - $SyncedUsers.Count)) -NoNewline -ForegroundColor Yellow
 	write-host ("failed: {0,3}" -f $FailedUsers.Count) -ForegroundColor Red
 	$TotalMigrationUsers += $Result.Count
 	$TotalSyncedUsers += $SyncedUsers.Count
@@ -60,6 +61,6 @@ write-host ("Migration users: {0,4}" -f $TotalMigrationUsers)
 write-host ("Synced users:    {0,4}" -f $TotalSyncedUsers)
 write-host ("Pending users:   {0,4}" -f ($TotalMigrationUsers - $TotalSyncedUsers)) -ForegroundColor cyan
 Write-Host
-write-host ("Progress:        {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
+write-host ("Progress:         {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
 
 
