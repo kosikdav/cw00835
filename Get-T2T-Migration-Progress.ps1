@@ -62,5 +62,3 @@ write-host ("Synced users:    {0,4}" -f $TotalSyncedUsers)
 write-host ("Pending users:   {0,4}" -f ($TotalMigrationUsers - $TotalSyncedUsers)) -ForegroundColor cyan
 Write-Host
 write-host ("Progress:         {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
-
-
