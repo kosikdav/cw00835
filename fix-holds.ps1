@@ -27,7 +27,6 @@ write-Log "SRC mailboxes total: " -NoNewline
 [array]$EXOMailboxes = Get-Mailbox -ResultSize Unlimited
 write-Log $EXOMailboxes.count
 
-write-Log "Removing holds for mailboxes..."
 foreach ($Mailbox in $EXOMailboxes) {
     #write-host "Processing mailbox: $($Mailbox.primarySMTPAddress)" -ForegroundColor Green
     if ($Mailbox.LitigationHoldEnabled) {
@@ -51,7 +50,6 @@ foreach ($Mailbox in $EXOMailboxes) {
         Set-Mailbox -Identity $Mailbox.primarySMTPAddress -RemoveComplianceTagHoldApplied -ProvideConsent
     }
 }
-Write-Log "Removing holds for mailboxes completed."
 
 #######################################################################################################################
 
