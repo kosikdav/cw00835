@@ -18,7 +18,7 @@ $SearchBases = @(
 )
 
 # Folder where the log file and the two generated scripts are written
-$OutputFolder = "."
+$OutputFolder = "d:\data\ad-domain-release"
 
 # ============================================================
 # INTERNALS — do not edit below this line
@@ -31,7 +31,6 @@ $AttributesToCheck = @(
     'mail',
     'proxyAddresses',
     'targetAddress',
-    #'msExchTargetAddress',
     'msExchArchiveAddress',
     'msExchShadowProxyAddresses'
 )
@@ -50,7 +49,6 @@ $CmdletTemplates = @{
     'userPrincipalName'          = 'Set-ADUser -Identity {0} -UserPrincipalName {1}'
     'mail'                       = 'Set-Recipient -Identity {0} -WindowsEmailAddress {1}'
     'proxyAddresses'             = 'Set-Recipient -Identity {0} -EmailAddresses @{{Remove={2}; Add={1}}}'
-    'targetAddress'              = 'Set-ADObject -Identity {0} -Replace @{{targetAddress={1}}}'
     'msExchTargetAddress'        = 'Set-ADObject -Identity {0} -Replace @{{msExchTargetAddress={1}}}'
     'msExchArchiveAddress'       = 'Set-ADObject -Identity {0} -Replace @{{msExchArchiveAddress={1}}}'
     'msExchShadowProxyAddresses' = 'Set-ADObject -Identity {0} -Remove @{{msExchShadowProxyAddresses={2}}} -Add @{{msExchShadowProxyAddresses={1}}}'
