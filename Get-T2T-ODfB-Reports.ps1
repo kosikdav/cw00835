@@ -82,7 +82,62 @@ write-log "$($OutputFileStatSPOUsr)"
 write-log "$($OutputFileStatODfBSte)"
 write-log "$($OutputFileStatODfBUsr)"
 
+############################################################
+# Get SPO site owners report
+############################################################
+Connect-SPOServicePnP -AppRegName $AppReg_SPO_REPORT_PnP 
+$SPOSiteCollections = Get-PnPTenantSite
 
+:main foreach ($SiteCollection in $SPOSiteCollections) {
+	if ($SiteOwners_IgnoredSites -Contains $SiteCollection.Url.TrimEnd("/")) {
+		continue
+	}
+	foreach ($Pattern in $SiteOwners_IgnoredUrlPatterns) {
+		if ($SiteCollection.Url -like $Pattern) {
+			continue main
+		}
+	}
+	foreach ($Pattern in $SiteOwners_IgnoredTemplatePatterns) {
+		if ($SiteCollection.Template -like $Pattern) {
+			continue main
+		}
+	}
+
+	Connect-SPOServicePnP -AppRegName $AppReg_SPO_REPORT_PnP -Url $SiteCollection.Url -Silent:$true
+	
+	$Admins = $Owners = [string]::Empty
+	$SiteAdmins = Get-PnPSiteCollectionAdmin
+	Try {
+		$SiteOwners  = Get-PnPGroupMember -Group (Get-PnPGroup -AssociatedOwnerGroup)
+	}
+	Catch {
+		$SiteOwners = [array]::Empty
+	}
+	foreach ($Admin in $SiteAdmins) {
+		if ($Admin.LoginName -match "[^|]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$") {
+			$Admins = $Admins + $Matches[0] + ","
+		}
+	}
+	$Admins = $Admins.TrimEnd(",")
+
+	foreach ($Owner in $SiteOwners) {
+		if ($Owner.LoginName -match "[^|]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$") {
+    		$Owners = $Owners + $Matches[0] + ","
+		}
+	}
+	$Owners = $Owners.TrimEnd(",")
+
+	$ReportSPOSiteOwners += [pscustomobject]@{
+		#id = $SiteCollection.Id
+		SiteTitle = $SiteCollection.Title
+		URL = $SiteCollection.Url
+		Owners = $Owners
+		Admins = $Admins
+		Template = $SiteCollection.Template
+	} 
+}
+
+Export-Report -Text "SPO sites owners report" -Report $ReportSPOSiteOwners -SortProperty "UserPrincipalName" -Path $OutputFileSPOSiteOwners -Delimiter ";"
 
 ############################################################
 # SPO site report
@@ -204,71 +259,10 @@ foreach ($Site in $SPOSites) {
 		$ReportSPOSites += $SiteObject
 	}
 }
-
 Export-Report -Text "SPO sites report" -Report $ReportSPOSites -SortProperty "UserPrincipalName" -Path $OutputFileSPOSites
 Export-Report -Text "SPO sites (DB folder)" -Report $ReportSPOSites -SortProperty "UserPrincipalName" -Path $DBFileSPOSites
 Export-Report -Text "ODfB sites report" -Report $ReportODfBSites -SortProperty "UserPrincipalName" -Path $OutputFileODfBSites
 Export-Report -Text "ODfB sites (DB folder)" -Report $ReportODfBSites -SortProperty "UserPrincipalName" -Path $DBFileODfBSites
-
-
-############################################################
-# Get SPO site owners report
-############################################################
-Connect-SPOServicePnP -AppRegName $AppReg_SPO_REPORT_PnP 
-$SPOSiteCollections = Get-PnPTenantSite
-
-:main foreach ($SiteCollection in $SPOSiteCollections) {
-	if ($SiteOwners_IgnoredSites -Contains $SiteCollection.Url.TrimEnd("/")) {
-		continue
-	}
-	foreach ($Pattern in $SiteOwners_IgnoredUrlPatterns) {
-		if ($SiteCollection.Url -like $Pattern) {
-			continue main
-		}
-	}
-	foreach ($Pattern in $SiteOwners_IgnoredTemplatePatterns) {
-		if ($SiteCollection.Template -like $Pattern) {
-			continue main
-		}
-	}
-
-	Connect-SPOServicePnP -AppRegName $AppReg_SPO_REPORT_PnP -Url $SiteCollection.Url -Silent:$true
-	
-	$Admins = $Owners = [string]::Empty
-	$SiteAdmins = Get-PnPSiteCollectionAdmin
-	Try {
-		$SiteOwners  = Get-PnPGroupMember -Group (Get-PnPGroup -AssociatedOwnerGroup)
-	}
-	Catch {
-		$SiteOwners = [array]::Empty
-	}
-	foreach ($Admin in $SiteAdmins) {
-		if ($Admin.LoginName -match "[^|]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$") {
-			$Admins = $Admins + $Matches[0] + ","
-		}
-	}
-	$Admins = $Admins.TrimEnd(",")
-
-	foreach ($Owner in $SiteOwners) {
-		if ($Owner.LoginName -match "[^|]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$") {
-    		$Owners = $Owners + $Matches[0] + ","
-		}
-	}
-	$Owners = $Owners.TrimEnd(",")
-
-	$ReportSPOSiteOwners += [pscustomobject]@{
-		#id = $SiteCollection.Id
-		SiteTitle = $SiteCollection.Title
-		URL = $SiteCollection.Url
-		Owners = $Owners
-		Admins = $Admins
-		Template = $SiteCollection.Template
-	} 
-}
-
-Export-Report -Text "SPO sites owners report" -Report $ReportSPOSiteOwners -SortProperty "UserPrincipalName" -Path $OutputFileSPOSiteOwners -Delimiter ";"
-
-
 
 ############################################################
 # Get per-site SPO statistics

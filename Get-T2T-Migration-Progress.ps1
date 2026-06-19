@@ -30,7 +30,6 @@ $OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $Out
 $MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
 $BatchPrefix = "UJV"
 
-[array]$PendingReport = @()
 [array]$MigrationUsers = @()
 $TotalMigrationUsers = $TotalSyncedUsers = $TotalPendingUsers = $TotalFinalizedUsers = $TotalFailedUsers = 0
 

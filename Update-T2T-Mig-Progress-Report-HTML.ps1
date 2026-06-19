@@ -31,6 +31,10 @@ $outFile = "c:\inetpub\sites\t2texo" + "\default.htm"
 $MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
 $BatchPrefix = "UJV"
 $Report = @()
+$FinalizedUsersHTML = [string]::Empty
+[array]$FinalizedUsersList = @()
+$TotalMigrationUsers = $TotalSyncedUsers = $TotalPendingUsers = $TotalFinalizedUsers = $TotalFailedUsers = 0
+
 #######################################################################################################################
 
 . $IncFile_StdLogStartBlock
@@ -44,30 +48,45 @@ Write-host "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -NoNewline
+	
 	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
-	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
+	
 	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
+	[array]$SyncingUsers = $Result | Where-Object { $_.Status -eq "Syncing" }
+	[array]$FinalizedUsers = $Result | Where-Object { $_.Status -eq "Completed" }
+	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
+	
 	write-host ("total: {0,3} " -f $Result.Count) -NoNewline
-	write-host ("synced: {0,3} " -f $SyncedUsers.Count) -NoNewline -ForegroundColor Green
+	write-host ("synced: {0,3} " -f $SyncedUsers.Count) -NoNewline -ForegroundColor Yellow
+	write-host ("syncing: {0,3} " -f $SyncingUsers.Count) -NoNewline -ForegroundColor Yellow
+	write-host ("finalized: {0,3} " -f $FinalizedUsers.Count) -NoNewline -ForegroundColor Green
 	write-host ("failed: {0,3}" -f $FailedUsers.Count) -ForegroundColor Red
 	$TotalMigrationUsers += $Result.Count
 	$TotalSyncedUsers += $SyncedUsers.Count
-	$MigrationUsers += $Result
+	$TotalPendingUsers += $PendingUsers.Count
+	$TotalFinalizedUsers += $FinalizedUsers.Count
+	$TotalFailedUsers += $FailedUsers.Count
     $Report += [PSCustomObject]@{
         BatchName = $Batch.Identity.ToString()
         TotalUsers = $Result.Count
         SyncedUsers = $SyncedUsers.Count
-        PendingUsers = $Result.Count - $SyncedUsers.Count
+        SyncingUsers = $SyncingUsers.Count
+        FinalizedUsers = $FinalizedUsers.Count
         FailedUsers = $FailedUsers.Count
-        PercentageSynced = if ($Result.Count -gt 0) { "{0:N2}" -f (($SyncedUsers.Count / $Result.Count) * 100) } else { "0.00" }
+    }
+	$MigrationUsers += $Result
+    foreach ($User in $FinalizedUsers) {
+        $FinalizedUsersList += $User.Identity
     }
 }
 
-$TotalProgress = [math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)
-$PendingUsers = $TotalMigrationUsers - $TotalSyncedUsers
-
+$TotalProgress = [math]::Round(($TotalFinalizedUsers / $TotalMigrationUsers) * 100, 2)
 
 $DateGenerated = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+foreach ($User in $FinalizedUsersList) {
+    $FinalizedUsersHTML += "<p>$User</p>`n"
+}
+
 # Convert to HTML table with some styling
 $html = @"
 <html>
@@ -86,29 +105,32 @@ $html = @"
 
 <body>
     <h1>T2T EXO Migration Status Report</h1>
-    <h3>Total Progress: $TotalProgress %</h3>
-    <p>Pending Users: $PendingUsers</p>
+    <h3>Total progress: $TotalProgress %</h3>
+    <p>Finalized users: $TotalFinalizedUsers</p>
     
     <table>
         <tr>
             <th>Batch name</th>
             <th>Total</th>
             <th>Synced</th>
-            <th>Pending</th>
+            <th>Syncing</th>
+            <th>Finalized</th>
+            <th>% finalized</th>
             <th>Failed</th>
-            <th>Percentage synced</th>
         </tr>
 "@
 
 foreach ($item in $Report) {
+    $FinalizedPercent = [math]::Round(($item.FinalizedUsers / $item.TotalUsers) * 100, 0)
+    $FinalizedPercentString = ("{0,2}" -f $FinalizedPercent)
     $rowClass = ""
-    $fontColorPending = "black"
+    $fontColorFinalized = "black"
     $fontColorFailed = "black"
-    $fontStylePending = "normal"
+    $fontStyleFinalized = "normal"
     $fontStyleFailed = "normal"
-    if ($item.PendingUsers -eq 0) {
-        $fontStylePending = "bold"
-        $fontColorPending = "green"
+    if ($item.FinalizedUsers -eq $item.TotalUsers) {
+        $fontStyleFinalized = "bold"
+        $fontColorFinalized = "green"
     }
     if ($item.FailedUsers -gt 0) {
         $fontStyleFailed = "bold"
@@ -116,17 +138,20 @@ foreach ($item in $Report) {
     }
     $html += "        <tr class='$rowClass'>
     <td style='font-weight:$fontStyle;'>$($item.BatchName)</td>
-    <td>$($item.TotalUsers)</td>
-    <td>$($item.SyncedUsers)</td>
-    <td style='color:$fontColorPending; font-weight:$fontStylePending;'>$($item.PendingUsers)</td>
-    <td style='color:$fontColorFailed; font-weight:$fontStyleFailed;'>$($item.FailedUsers)</td>
-    <td>$($item.PercentageSynced)</td></tr>`n"
-}   
+    <td style='text-align:right'>$($item.TotalUsers)</td>
+    <td style='text-align:right'>$($item.SyncedUsers)</td>
+    <td style='text-align:right'>$($item.SyncingUsers)</td>
+    <td style='text-align:right; color:$fontColorFinalized; font-weight:$fontStyleFinalized;'>$($item.FinalizedUsers)</td>
+    <td style='text-align:right; color:$fontColorFinalized; font-weight:$fontStyleFinalized;'>$FinalizedPercentString</td>
+    <td style='text-align:right; color:$fontColorFailed; font-weight:$fontStyleFailed;'>$($item.FailedUsers)</td>
+    </tr>`n"
+}
 
 # Close the HTML
 $html += @"
     </table>
-    <p>This report provides an overview of the migration status.</p>
+    $FinalizedUsersHTML
+    <p>
     <p>Report updated: $DateGenerated</p>
 </body>
 </html>
