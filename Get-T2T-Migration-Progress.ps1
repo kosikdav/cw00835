@@ -25,14 +25,14 @@ $OutputFilePrefix = "t2t-migration-users"
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Freq $LogFileFreq -Ext "log"
 $OutputFile = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Freq "YMDHM" -Ext "csv"
 
-[array]$PendingReport = @()
+
 
 $MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
 $BatchPrefix = "UJV"
 
-$MigrationUsers = @()
-$TotalMigrationUsers = 0
-$TotalSyncedUsers = 0
+[array]$PendingReport = @()
+[array]$MigrationUsers = @()
+$TotalMigrationUsers = $TotalSyncedUsers = $TotalPendingUsers = $TotalFinalizedUsers = $TotalFailedUsers = 0
 
 #######################################################################################################################
 
@@ -45,27 +45,32 @@ Write-host "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -NoNewline
+	
 	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
-	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
+	
 	[array]$SyncedUsers = $Result | Where-Object { $_.Status -eq "Synced" }
-	[array]$PendingUsers = $Result | Where-Object { $_.Status -ne "Synced" }
+	[array]$SyncingUsers = $Result | Where-Object { $_.Status -eq "Syncing" }
+	[array]$FinalizedUsers = $Result | Where-Object { $_.Status -eq "Completed" }
+	[array]$FailedUsers = $Result | Where-Object { $_.Status -eq "Failed" }
+	
 	write-host ("total: {0,3} " -f $Result.Count) -NoNewline
-	write-host ("synced: {0,3} " -f $SyncedUsers.Count) -NoNewline -ForegroundColor Green
-	write-host ("pending: {0,3} " -f ($Result.Count - $SyncedUsers.Count)) -NoNewline -ForegroundColor Yellow
+	write-host ("synced: {0,3} " -f $SyncedUsers.Count) -NoNewline -ForegroundColor Yellow
+	write-host ("syncing: {0,3} " -f $SyncingUsers.Count) -NoNewline -ForegroundColor Yellow
+	write-host ("finalized: {0,3} " -f $FinalizedUsers.Count) -NoNewline -ForegroundColor Green
 	write-host ("failed: {0,3}" -f $FailedUsers.Count) -ForegroundColor Red
 	$TotalMigrationUsers += $Result.Count
 	$TotalSyncedUsers += $SyncedUsers.Count
+	$TotalPendingUsers += $PendingUsers.Count
+	$TotalFinalizedUsers += $FinalizedUsers.Count
+	$TotalFailedUsers += $FailedUsers.Count
+
 	$MigrationUsers += $Result
-	$PendingReport += $PendingUsers
 }
 write-host
 write-host ("Migration users: {0,4}" -f $TotalMigrationUsers)
 write-host ("Synced users:    {0,4}" -f $TotalSyncedUsers)
-write-host ("Failed users:    {0,4}" -f ($TotalMigrationUsers - $TotalSyncedUsers - $PendingReport.Count)) -ForegroundColor Red
-write-host ("Pending users:   {0,4}" -f ($TotalMigrationUsers - $TotalSyncedUsers)) -ForegroundColor cyan
+write-host ("Finalized users: {0,4}" -f $TotalFinalizedUsers) -ForegroundColor Green
+write-host ("Failed users:    {0,4}" -f $TotalFailedUsers) -ForegroundColor Red
 Write-Host
-write-host ("Progress:         {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
+write-host ("Progress:         {0,6:N2} %" -f ($([math]::Round(($TotalFinalizedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
 write-host
-foreach ($User in $PendingReport) {
-	write-host $User.Identity -ForegroundColor Yellow
-}
