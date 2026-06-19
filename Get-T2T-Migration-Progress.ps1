@@ -61,10 +61,11 @@ foreach ($Batch in $MigrationBatches) {
 write-host
 write-host ("Migration users: {0,4}" -f $TotalMigrationUsers)
 write-host ("Synced users:    {0,4}" -f $TotalSyncedUsers)
+write-host ("Failed users:    {0,4}" -f ($TotalMigrationUsers - $TotalSyncedUsers - $PendingReport.Count)) -ForegroundColor Red
 write-host ("Pending users:   {0,4}" -f ($TotalMigrationUsers - $TotalSyncedUsers)) -ForegroundColor cyan
 Write-Host
 write-host ("Progress:         {0,6:N2} %" -f ($([math]::Round(($TotalSyncedUsers / $TotalMigrationUsers) * 100, 2)))) -ForegroundColor Yellow
 write-host
 foreach ($User in $PendingReport) {
-	write-host ("Pending: {0} ({1})" -f $User.Identity, $User.Status) -ForegroundColor Yellow
+	write-host $User.Identity -ForegroundColor Yellow
 }
