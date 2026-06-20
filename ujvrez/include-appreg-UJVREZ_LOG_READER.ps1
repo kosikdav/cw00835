@@ -20,5 +20,6 @@ $Password = ConvertTo-SecureString $CertPassword -AsPlainText -Force
 $StartDate = (Get-Date).AddDays(-1)
 $EndDate = (Get-Date).AddYears($CertYears)
 Create-SelfSignedCertificate.ps1 -CommonName $AppName -StartDate $StartDate -EndDate $EndDate -Password $Password -Force
-Write-Host $env:computername.ToUpper() -ForegroundColor Green  
+Write-Host $env:computername.ToUpper() -ForegroundColor Green
+
 #>
