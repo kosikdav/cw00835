@@ -79,7 +79,7 @@ foreach ($Batch in $MigrationBatches) {
         $FinalizedUsersList += $User.Identity
     }
 }
-
+$TotalTOBEFinalizedUsers = $TotalMigrationUsers - $TotalFinalizedUsers
 $TotalProgress = [math]::Round(($TotalFinalizedUsers / $TotalMigrationUsers) * 100, 2)
 
 $DateGenerated = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -95,7 +95,7 @@ $html = @"
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         table { border-collapse: collapse; width: 60%; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
         t    /* Highlight styles */
         .low { background-color: #ffdddd; }    /* light red */
         .high { background-color: #ddffdd; }   /* light green */
@@ -107,6 +107,7 @@ $html = @"
     <h1>T2T EXO Migration Status Report</h1>
     <h3>Total progress: $TotalProgress %</h3>
     <p>Finalized users: $TotalFinalizedUsers</p>
+    <p>TOBE finalized users: $TotalTOBEFinalizedUsers</p>
     
     <table>
         <tr>
@@ -161,4 +162,5 @@ $html += @"
 
 $html | Out-File -FilePath $outFile -Encoding UTF8
     
+#######################################################################################################################
 . $IncFile_StdLogEndBlock

@@ -44,8 +44,7 @@ if ($IncludeMailboxPermissions) {
 }
 
 #######################################################################################################################
-
-. $ScriptPath\include-Script-StartLog-Generic.ps1
+. $IncFile_StdLogStartBlock
 
 Write-Log "Output file - quota 80% full: $($OutputFileQF)"
 if ($EXOMbxReportTNR) {
@@ -55,16 +54,22 @@ if ($EXOMbxReportTNR) {
 #$AADUsers_DB = Import-CSVtoHashDB -Path $DBFileUsersMemMin -KeyName "userPrincipalName"
 Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "users"
-$UriFilter = "userType+eq+'Member'"
-$UriSelect = "id,companyName,department,userPrincipalName"
+$UriFilter = "userType eq 'Member'"
+$UriSelect1 = "id,companyName,department,userPrincipalName,onPremisesSamAccountName,onPremisesDistinguishedName"
+$UriSelect2 = "onPremisesExtensionAttributes,extension_008a5d3f841f4052ac1283ff4782c560_employeeNumber"
+$UriSelect = $UriSelect1,$UriSelect2 -join ","
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Select $UriSelect -Top 999
 [array]$AADUsers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "AAD users" -ProgressDots
 foreach ($AADUser in $AADUsers) {
     $UserObject = [pscustomobject]@{
-        Id              = $AADUser.id;
-        CompanyName     = $AADUser.companyName;
-        Department      = $AADUser.department;
-        UserPrincipalName = $AADUser.userPrincipalName;
+        id              = $AADUser.id
+        companyName     = $AADUser.companyName
+        department      = $AADUser.department
+        employeeNumber  = $AADUser.extension_008a5d3f841f4052ac1283ff4782c560_employeeNumber
+        ext10           = $AADUser.onPremisesExtensionAttributes.ExtensionAttribute10
+        samAccountName  = $AADUser.onPremisesSamAccountName
+        dn              = $AADUser.onPremisesDistinguishedName
+        OU              = $AADUser.onPremisesDistinguishedName -replace '^CN=[^,]+,'
     }
     $AADUsers_DB.Add($AADUser.userPrincipalName, $UserObject)
 }
@@ -105,6 +110,9 @@ Write-Log "$($Mailboxes.Count) mailboxes returned by query"
 Write-Log "EXOMbxReportPermissions: $($EXOMbxReportPermissions)"
 
 ForEach ($Mailbox in $Mailboxes) {
+    if ($InteractiveRun) {
+        write-host $mailbox.UserPrincipalName
+    }
     $proxyAddresses = $smtpAddresses = $x500Addresses = $sipAddresses = $SPOAddresses = [string]::Empty
     $ArchiveGuid = $SMTPDomain = $FullAccessPerms = $SendAsPerms = [string]::Empty
     $user = $stat = $qtaBytes = $quotaPctUsed =  $null
@@ -192,8 +200,15 @@ ForEach ($Mailbox in $Mailboxes) {
         x500Addresses               = $x500Addresses
         sipAddresses                = $sipAddresses
         SPOAddresses                = $SPOAddresses
-        CompanyName                 = $User.CompanyName
-        Department                  = $User.Department
+        userId                      = $User.id
+        companyName                 = $User.companyName
+        department                  = $User.department
+        employeeNumber              = $User.employeeNumber
+        ext10                       = $User.ext10
+        dn                          = $User.dn
+        OU                          = $User.OU
+        SamAccountName              = $User.samAccountName
+
         IsDirSynced                 = $mailbox.IsDirSynced
         Alias                       = $mailbox.Alias
 
@@ -206,8 +221,7 @@ ForEach ($Mailbox in $Mailboxes) {
         LegacyExchangeDN            = $mailbox.LegacyExchangeDN
         WindowsLiveId               = $mailbox.WindowsLiveId
         NetId                       = $mailbox.NetId
-        SamAccountName              = $mailbox.SamAccountName
-
+       
         RecipientType               = $mailbox.RecipientType
         RecipientTypeDetails        = $mailbox.RecipientTypeDetails
         WhenCreated                 = $mailbox.WhenCreated
@@ -253,8 +267,6 @@ ForEach ($Mailbox in $Mailboxes) {
         RulesQuota                      = $mailbox.RulesQuota.Replace(",","")
         RecipientLimits                 = $mailbox.RecipientLimits
         UseDatabaseQuotaDefaults        = $mailbox.UseDatabaseQuotaDefaults
-
-
 
         ArchiveStatus               = $mailbox.ArchiveStatus
         ArchiveGuid                 = $ArchiveGuid
@@ -312,12 +324,12 @@ ForEach ($Mailbox in $Mailboxes) {
 
 }
 
-#######################################################################################################################
-
 Export-Report "mailbox report" -Report $MailboxReport -Path $OutputFile -SortProperty "UserPrincipalName"
 Export-Report "mailbox report - quota 80% full" -Report $MailboxReport.Where({$_.QuotaPercentUsed -ge 80}) -Path $OutputFileQF -SortProperty "UserPrincipalName"
 if ($EXOMbxReportTNR) {
     Export-Report "mailbox report - TENAUR" -Report $MailboxReportTNR -Path $OutputFileTNR -SortProperty "UserPrincipalName"
+
 }
 
-. $ScriptPath\include-Script-EndLog-generic.ps1
+#######################################################################################################################
+. $IncFile_StdLogEndBlock
