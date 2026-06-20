@@ -18,6 +18,8 @@ $OutputFilePrefix			= "xt-moves"
 
 
 $PartnerCrossTenantHostUrl = "https://cezdata-my.sharepoint.com"
+$skuId_E5 = "06ebc4ee-1bb5-47dd-8120-11324bc54e06"
+
 $XTMoves = @()
 
 #######################################################################################################################
@@ -33,18 +35,29 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 
 $UriResource = "users"
 $UriFilter = "userType eq 'Member'"
-$UriSelect = "id,UserPrincipalName,mail,DisplayName"
+$UriSelect = "id,UserPrincipalName,mail,DisplayName,assignedLicenses,accountEnabled,extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Filter $UriFilter -Top 999 -Select $UriSelect
 [array]$Users = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON -Text "users" -ProgressDots
-
+$counter = 0
 foreach ($User in $Users) {
     write-host $User.UserPrincipalName -NoNewline
     $XTMove = $null
+    $E5licensed = $false
+    if ($User.assignedLicenses) {
+        foreach ($License in $User.assignedLicenses) {
+            if ($License.SkuId -eq $skuId_E5) {
+                $E5licensed = $true
+            }
+        }
+    }
     $ReportObject = [PSCustomObject]@{
         id = $User.id
+        enabled = $User.accountEnabled
+        E5lic = $E5licensed
         UserPrincipalName = $User.UserPrincipalName
         mail = $User.mail
         DisplayName = $User.DisplayName
+        employeeNumber = $User.extension_93b54ce056df45bd8f5f398753fa17c0_employeeNumber
         SourceSiteUrl = $null    
         TargetSiteUrl = $null
         MoveJobId = $null
@@ -80,3 +93,7 @@ foreach ($User in $Users) {
 }
 
 Export-Report "XT Moves" -Report $XTMoves -Path $OutputFile
+
+#######################################################################################################################
+
+. $IncFile_StdLogEndBlock
