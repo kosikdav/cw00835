@@ -69,14 +69,14 @@ foreach ($OldMailbox in $OldMailboxes) {
 	$CurrentSMTPAddresses = $CurrentSMTPAddresses -replace "^smtp:", ""
 	if ($CurrentPrimarySMTPAddress -ne $OldMailbox.PrimarySMTPAddress) {
 		write-log "$($ExchangeGuid)  changing primary SMTP to: $($OldMailbox.PrimarySMTPAddress)" -ForegroundColor Green
-		#Set-RemoteMailbox -Identity $ExchangeGuid -PrimarySmtpAddress $OldMailbox.PrimarySMTPAddress -ErrorAction SilentlyContinue
+		Set-RemoteMailbox -Identity $ExchangeGuid -PrimarySmtpAddress $OldMailbox.PrimarySMTPAddress -ErrorAction SilentlyContinue
 	}
 	
 	$MissingSMTPAddresses = $OldSMTPAddresses | Where-Object { $_ -notin $CurrentSMTPAddresses -and $_ -ne $OldMailbox.PrimarySMTPAddress }
 	if ($MissingSMTPAddresses) {
 		foreach ($MissingSMTP in $MissingSMTPAddresses) {
 			write-log "$($ExchangeGuid)  adding missing SMTP address: $MissingSMTP" -ForegroundColor Green
-			#Set-RemoteMailbox -Identity $ExchangeGuid -EmailAddresses @{Add="smtp:"+$MissingSMTP} -ErrorAction SilentlyContinue
+			Set-RemoteMailbox -Identity $ExchangeGuid -EmailAddresses @{Add="smtp:"+$MissingSMTP} -ErrorAction SilentlyContinue
 		}
 	}
 }
