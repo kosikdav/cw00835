@@ -97,7 +97,7 @@ foreach ($Guest in $AllAADGuests) {
                     write-host $_.Exception.Message
                 }
             }
-
+            Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$true
         }
     }
 }

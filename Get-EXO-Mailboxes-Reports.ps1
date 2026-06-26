@@ -15,8 +15,8 @@ $LogFolder		= "exports"
 $LogFilePrefix  = "exo-reports"
 
 $OutputFolder       = "exo\reports"
-$OutputFilePrefix	= "exo"
-$OutputFileSuffix	= "mbx-list"
+$OutputFilePrefixMbx	= "exo"
+$OutputFileSuffixMbx	= "mbx-list"
 
 $OutputFolderQF		= "exo-80pct-full"
 $OutputFilePrefixQF	= "exo-mbx-quota-80-pct-full"
@@ -30,9 +30,10 @@ $OutputFilePrefixTNR	= "exo-mbx-list-tenaur"
 
 $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
-$OutputFile     = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefix -Suffix $OutputFileSuffix -Ext "csv"
-$OutputFileQF   = New-OutputFile -RootFolder $ROF -Folder $OutputFolderQF -Prefix $OutputFilePrefixQF -Ext "csv"
-$OutputFileTNR  = New-OutputFile -RootFolder $ROF -Folder $OutputFolderTNR -Prefix $OutputFilePrefixTNR -Ext "csv"
+$OutputFileMbx     = New-OutputFile -RootFolder $ROF -Folder $OutputFolder -Prefix $OutputFilePrefixMbx -Suffix $OutputFileSuffixMbx -Ext "csv"
+
+$OutputFileMbxQF   = New-OutputFile -RootFolder $ROF -Folder $OutputFolderQF -Prefix $OutputFilePrefixQF -Ext "csv"
+$OutputFileMbxTNR  = New-OutputFile -RootFolder $ROF -Folder $OutputFolderTNR -Prefix $OutputFilePrefixTNR -Ext "csv"
 
 [hashtable]$MailboxStats_DB = @{}
 [hashtable]$AADUsers_DB = @{}
@@ -321,14 +322,14 @@ ForEach ($Mailbox in $Mailboxes) {
             $MailboxReportTNR += $MailboxObject
         }
     }
-
 }
 
-Export-Report "mailbox report" -Report $MailboxReport -Path $OutputFile -SortProperty "UserPrincipalName"
-Export-Report "mailbox report - quota 80% full" -Report $MailboxReport.Where({$_.QuotaPercentUsed -ge 80}) -Path $OutputFileQF -SortProperty "UserPrincipalName"
-if ($EXOMbxReportTNR) {
-    Export-Report "mailbox report - TENAUR" -Report $MailboxReportTNR -Path $OutputFileTNR -SortProperty "UserPrincipalName"
+#######################################################################################################################
 
+Export-Report "mailbox report" -Report $MailboxReport -Path $OutputFileMbx -SortProperty "UserPrincipalName"
+Export-Report "mailbox report - quota 80% full" -Report $MailboxReport.Where({$_.QuotaPercentUsed -ge 80}) -Path $OutputFileMbxQF -SortProperty "UserPrincipalName"
+if ($EXOMbxReportTNR) {
+    Export-Report "mailbox report - TENAUR" -Report $MailboxReportTNR -Path $OutputFileMbxTNR -SortProperty "UserPrincipalName"
 }
 
 #######################################################################################################################

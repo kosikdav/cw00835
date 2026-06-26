@@ -34,7 +34,7 @@ Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
 $UriResource = "devices"
 $UriSelect1 = "id,accountEnabled,approximateLastSignInDateTime,complianceExpirationDateTime,deviceCategory,deviceId,deviceOwnership,deviceVersion"
 $UriSelect2 = "displayName,enrollmentProfileName,isCompliant,isManaged,manufacturer,mdmAppId,model,onPremisesLastSyncDateTime,onPremisesSyncEnabled"
-$UriSelect3 = "operatingSystem,operatingSystemVersion,physicalIds,profileType,registrationDateTime,systemLabels,trustType"
+$UriSelect3 = "operatingSystem,operatingSystemVersion,physicalIds,profileType,registrationDateTime,systemLabels,trustType,extensionAttributes"
 $UriSelect = $UriSelect1,$UriSelect2,$UriSelect3 -join ","
 $Expand = "registeredOwners"
 $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Expand $Expand
@@ -43,9 +43,7 @@ $Devices = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER
 
 Write-Log "Total devices: $($Devices.Count)"
 
-Initialize-ProgressBarMain -Activity "Building AAD device report" -Total $Devices.Count
 ForEach ($Device in $Devices) {
-	Update-ProgressBarMain
     $Owners = [string]::Empty
     $LastSignInDateTime,$mdmAppName = $null
     $DaysSinceLastSignIn = "n/a"
@@ -53,16 +51,14 @@ ForEach ($Device in $Devices) {
 
     if ($device.physicalIds) {
         foreach ($id in $device.physicalIds) {
-            $index = $id.IndexOf(":")
-            $prefix = $id.Substring(0,($Index))
-            $value = $id.Substring($Index + 1)
+            $prefix, $value = $id -split ':', 2
             switch ($prefix) {
-                "[GID]" { $GID = $value }
-                "[HWID]" { $HWID = $value }
-                "[USER-GID]" { $USER_GID = $value }
+                "[GID]"       { $GID      = $value }
+                "[HWID]"      { $HWID     = $value }
+                "[USER-GID]"  { $USER_GID  = $value }
                 "[USER-HWID]" { $USER_HWID = $value }
-                "[ZTDID]" { $ZTDID = $value }
-                "[OrderId]" { $OrderId = $value }
+                "[ZTDID]"     { $ZTDID    = $value }
+                "[OrderId]"   { $OrderId  = $value }
             }
         }
     }
@@ -108,6 +104,21 @@ ForEach ($Device in $Devices) {
         onPremisesSyncEnabled = $Device.onPremisesSyncEnabled
         operatingSystem = $Device.operatingSystem
         operatingSystemVersion  = $Device.operatingSystemVersion
+        ext1 = $Device.extensionAttributes.extensionAttribute1
+        ext2 = $Device.extensionAttributes.extensionAttribute2
+        ext3 = $Device.extensionAttributes.extensionAttribute3
+        ext4 = $Device.extensionAttributes.extensionAttribute4
+        ext5 = $Device.extensionAttributes.extensionAttribute5
+        ext6 = $Device.extensionAttributes.extensionAttribute6
+        ext7 = $Device.extensionAttributes.extensionAttribute7
+        ext8 = $Device.extensionAttributes.extensionAttribute8
+        ext9 = $Device.extensionAttributes.extensionAttribute9
+        ext10 = $Device.extensionAttributes.extensionAttribute10
+        ext11 = $Device.extensionAttributes.extensionAttribute11
+        ext12 = $Device.extensionAttributes.extensionAttribute12
+        ext13 = $Device.extensionAttributes.extensionAttribute13
+        ext14 = $Device.extensionAttributes.extensionAttribute14
+        ext15 = $Device.extensionAttributes.extensionAttribute15
         GID = $GID
         HWID = $HWID
         USER_GID = $USER_GID

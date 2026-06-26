@@ -17,17 +17,37 @@ $LogFileFreq		= "Y"
 
 $LogFile 	= New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Ext "log"
 
+$t2tscopegroup = "4f23ce7b-6ca1-4fa9-9f3b-549c62313e04"
+
 #######################################################################################################################
 . $IncFile_StdLogStartBlock
 
-$Src_AppReg_EXO_MGMT = $AppReg_UJVREZ_EXO_MGMT   
-Connect-EXOService -AppRegName $Src_AppReg_EXO_MGMT  -TTL 120
 
+Request-MSALToken -AppRegName $AppReg_LOG_READER -TTL 30
+$UriResource = "groups/$t2tscopegroup/members"
+$UriSelect = "id,displayName,userPrincipalName,mail"
+$Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -Top 999
+[array]$T2TGroupMembers = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_LOG_READER].AccessToken -ContentType $ContentTypeJSON
+write-interactive "T2T group members total: $($T2TGroupMembers.Count)"
+
+Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 120
+
+<#
 write-Log "SRC mailboxes total: " -NoNewline
 [array]$EXOMailboxes = Get-Mailbox -ResultSize Unlimited
 write-Log $EXOMailboxes.count
+#>
 
-foreach ($Mailbox in $EXOMailboxes) {
+
+foreach ($User in $T2TGroupMembers) {
+
+    Try{
+    $mailbox = Get-Mailbox -Identity $User.userPrincipalName -ErrorAction Stop
+    }
+    Catch {
+        write-Log "Mailbox not found for user: $($User.userPrincipalName)"
+        continue
+    }
     #write-host "Processing mailbox: $($Mailbox.primarySMTPAddress)" -ForegroundColor Green
     if ($Mailbox.LitigationHoldEnabled) {
         write-Log " Removing Litigation Hold for mailbox: $($Mailbox.primarySMTPAddress)"

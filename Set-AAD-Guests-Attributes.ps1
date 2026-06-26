@@ -202,6 +202,7 @@ foreach ($Guest in $AllAADGuests) {
                 }
             }
             
+            <#
             ######################################################################
             ######################################################################
             ######################################################################
@@ -245,7 +246,7 @@ foreach ($Guest in $AllAADGuests) {
                 $MailUser = Get-MailUser -Identity $Guest.Mail
                 if ($MailUser.HiddenFromAddressListsEnabled -eq $false) {
                     Try {
-                        Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$true
+                        #Set-MailUser -Identity $Guest.Mail -HiddenFromAddressListsEnabled:$true
                         Write-Log "$($Guest.mail) SUCCESS hideFromAddressList" -ForegroundColor "Cyan"
                     }
                     Catch {
@@ -258,6 +259,7 @@ foreach ($Guest in $AllAADGuests) {
             ######################################################################
             ######################################################################
             ######################################################################
+            #>
         }
         else {
             Write-Log "$($Guest.mail) ERR ext15 attribute set but T2TTenant_DB does not contain id `"$($ExtTenant.tenantId)`"" -MessageType Error
