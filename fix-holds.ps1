@@ -69,6 +69,10 @@ foreach ($User in $T2TGroupMembers) {
         write-Log " Removing Compliance Tag Hold for mailbox: $($Mailbox.primarySMTPAddress)"
         Set-Mailbox -Identity $Mailbox.primarySMTPAddress -RemoveComplianceTagHoldApplied -ProvideConsent
     }
+    if ($Mailbox.InPlaceHolds) {
+        write-Log " In-Place Holds exist for mailbox: $($Mailbox.primarySMTPAddress)" -foregroundcolor Red
+        write-Log $Mailbox.InPlaceHolds -join ","
+    }
 }
 
 #######################################################################################################################

@@ -147,18 +147,28 @@ if ($UpdatePhishSimPolicy -and ($PhishSimSenderIPs -or $SenderDomains)) {
 
         $diffIP = Compare-Object -ReferenceObject ($CurrentSenderIPRanges | Sort-Object) -DifferenceObject ($PhishSimSenderIPs | Sort-Object)
         $diffDomain = Compare-Object -ReferenceObject ($CurrentSenderDomains | Sort-Object) -DifferenceObject ($PhishSimSenderDomains | Sort-Object)
-
         if ($diffIP -or $diffDomain) {
             Write-log "Removing existing phishing simulation override rule: $($PhishSimOverrideRule.Identity)"
             Remove-ExoPhishSimOverrideRule -Identity $PhishSimOverrideRule.id -Confirm:$false
-            Write-log "Creating new phishing simulation override rule with updated settings"
-            New-ExoPhishSimOverrideRule -Policy $PhishSimOverridePolicy.id -SenderIPRanges $PhishSimSenderIPs -Domains $PhishSimSenderDomains
-        } 
-        else {
-            write-log "No changes needed for phishing simulation override rule."
         }
     }
+    else {
+        write-log "No existing phishing simulation override policy or rule found. A new rule will be created."
+        $CurrentSenderIPRanges = $null
+        $CurrentSenderDomains = $null
+        $diffIP = $PhishSimSenderIPs
+        $diffDomain = $PhishSimSenderDomains
+    }
+
+    if ($diffIP -or $diffDomain) {
+        write-log "Creating new phishing simulation override rule with updated settings"
+        New-ExoPhishSimOverrideRule -Policy $PhishSimOverridePolicy.id -SenderIPRanges $PhishSimSenderIPs -Domains $PhishSimSenderDomains
+    }
+    else {
+        write-log "No changes needed for phishing simulation override rule."
+    }
 }
+
 
 #########################################################################################
 # Process Tenant Allow/Block list

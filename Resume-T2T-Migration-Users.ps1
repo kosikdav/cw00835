@@ -51,8 +51,13 @@ foreach ($User in $MigrationUsers) {
 	if (($User.Status -eq "Failed") -and ($User.StatusSummary -eq "Failed")) {
 		#write-host "User $($User.Identity) has failed migration with status summary: $($User.StatusSummary)" -ForegroundColor Yellow
 		if ($User.ErrorSummary -like "$HoldApplieErrString*") {
-			Start-MigrationUser -Identity $User.Identity -Confirm:$false
-			Write-Log "Resuming migration for user $($User.Identity)" -ForegroundColor Green
+			Try {
+				Start-MigrationUser -Identity $User.Identity -Confirm:$false -ErrorAction Stop
+				Write-Log "Resuming migration for user $($User.Identity)" -ForegroundColor Green
+			}
+			Catch {
+				Write-Log "Failed to resume migration for user $($User.Identity): $($_.Exception.Message)" -ForegroundColor Red
+			}
 		}
 	}
 }

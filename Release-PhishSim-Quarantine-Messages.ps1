@@ -1,0 +1,123 @@
+#######################################################################################################################
+# Release-PhishSim-Quarantine-Messages.ps1
+#######################################################################################################################
+param(
+    [Alias("Definitions","IniFile")][string]$VariableDefinitionFile,
+    [switch]$ProcessWholeBacklog
+)
+
+$ScriptName = $MyInvocation.MyCommand.Name
+$ScriptPath = Split-Path $MyInvocation.MyCommand.Path
+. $ScriptPath\include-Script-Start-Init.ps1
+
+#######################################################################################################################
+
+$LogFolder          = "cybeready"
+$LogFilePrefix      = "release-phishsim-quarantine-messages"
+$LogFileFreq        = "YMD"
+
+#######################################################################################################################
+
+. $ScriptPath\include-Script-Start-Include.ps1
+
+$LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePrefix -Suffix $LogFileSuffix -Ext "log"
+
+$folder = "d:\scripts-m365\cezdata\"
+$IntervalMinutes = 30
+$PhishSim_SenderDomains_File    = $folder + "phishsim-sender-domains.txt"
+$PhishSim_SenderIPs_File        = $folder + "phishsim-sender-IPs.txt"
+[array]$QuarantineMessages = @()
+Function Get-PolicyConfigFileEntries {
+    param(
+        [string]$FilePath
+    )
+    if (Test-Path -Path $FilePath) {
+        $entries = Get-Content -Path $FilePath
+        $entries = $entries | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $entries = $entries | ForEach-Object { $_.Trim() }
+        return $entries | Sort-Object -Unique
+    } else {
+        write-log "File not found: $FilePath" -ForegroundColor Red
+        return @()
+    }
+}
+
+#######################################################################################################################
+
+. $IncFile_StdLogStartBlock
+
+if ($ProcessWholeBacklog) {
+    write-log "ProcessWholeBacklog: $ProcessWholeBacklog" -ForegroundColor Green
+    write-log "IntervalMinutes: $IntervalMinutes" -ForegroundColor Green
+}
+
+$PhishSimSenderDomains  = Get-PolicyConfigFileEntries -FilePath $PhishSim_SenderDomains_File
+$PhishSimSenderIPs      = Get-PolicyConfigFileEntries -FilePath $PhishSim_SenderIPs_File
+
+# load DB mailbox-mgmt-db from file or initialize empty
+if (test-path $DBFileEXOQuarantineMgmt) {
+    Try {
+        $EXOQuarantineMgmt_DB = Import-Clixml -Path $DBFileEXOQuarantineMgmt
+        Write-Log "DB file $($DBFileEXOQuarantineMgmt) imported successfully, $($EXOQuarantineMgmt_DB.count) records found"
+    } 
+    Catch {
+        Write-Log "Error importing $($DBFileEXOQuarantineMgmt), creating empty DB" -MessageType "Error"
+        [hashtable]$EXOQuarantineMgmt_DB = @{}
+        $DB_changed = $true
+    }
+}
+else {
+    Write-Log "DB file $($DBFileEXOQuarantineMgmt) not found, creating empty DB" -MessageType "Error"
+    [hashtable]$EXOQuarantineMgmt_DB = @{}
+    $DB_changed = $true
+}
+
+
+Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 60
+
+#########################################################################################
+# Process quarantined Messages
+
+If ($ProcessWholeBacklog) {
+    write-log "Processing whole backlog of quarantined messages" -ForegroundColor Green
+    $EndTime = Get-Date
+    $MaxDate = $EndTime.AddDays(-30)
+    $StartTime = $EndTime.AddMinutes(-$IntervalMinutes)
+    Do {
+        $StartTime = $EndTime.AddMinutes(-$IntervalMinutes)
+        write-interactive "Reading messages received between $($StartTime) and $($EndTime): " -NoNewLine
+        [array]$CurrentQuarantineMessages  = Get-QuarantineMessage -ReleaseStatus "NOTRELEASED" -PolicyType "HostedContentFilterPolicy" -StartReceivedDate $StartTime -EndReceivedDate $EndTime
+        $QuarantineMessages += $CurrentQuarantineMessages
+        write-interactive "$($CurrentQuarantineMessages.Count) ($($QuarantineMessages.Count))" -ForegroundColor Green
+        $EndTime = $StartTime
+    } Until ($StartTime -lt $MaxDate)
+} else {
+    write-log "Processing only top 100 quarantined messages" -ForegroundColor Green
+    [array]$QuarantineMessages  = Get-QuarantineMessage -ReleaseStatus "NOTRELEASED" -PolicyType "HostedContentFilterPolicy"
+}
+
+write-log "Quarantine messages to process: $($QuarantineMessages.Count)" -ForegroundColor Green
+$ReleaseCounter = 0
+
+foreach ($Message in $QuarantineMessages) {
+    Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 30
+    $HeaderIPs = $HeaderDomains = $null
+    $Header = Get-QuarantineMessageHeader -Identity $Message.Identity 
+    $HeaderIPs = $PhishSimSenderIPs | Where-Object { $Header.Header -like "*$_*" }
+    $HeaderDomains = $PhishSimSenderDomains | Where-Object { $Header.Header -like "*$_*" }
+    if ($HeaderIPs -and $HeaderDomains) {
+        try {
+            Release-QuarantineMessage -Identity $Message.Identity -ReleaseToAll -Force -Confirm:$false -ErrorAction Stop
+            write-log "releasing id:$($Message.MessageId) received:$($Message.ReceivedTime) recipient:$($Message.RecipientAddress -join ',') matched IPs:$($HeaderIPs -join ',') matched domains:$($HeaderDomains -join ',')" -ForegroundColor Yellow
+            $ReleaseCounter++
+
+        }
+        catch {
+            write-log "Failed to release message from quarantine: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress). Error: $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+}
+write-log "Total messages released from quarantine: $ReleaseCounter" -ForegroundColor Green
+#######################################################################################################################
+
+. $IncFile_StdLogEndBlock
