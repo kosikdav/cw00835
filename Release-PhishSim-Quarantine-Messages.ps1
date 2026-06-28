@@ -27,6 +27,7 @@ $IntervalMinutes = 30
 $PhishSim_SenderDomains_File    = $folder + "phishsim-sender-domains.txt"
 $PhishSim_SenderIPs_File        = $folder + "phishsim-sender-IPs.txt"
 [array]$QuarantineMessages = @()
+$DB_changed = $false
 Function Get-PolicyConfigFileEntries {
     param(
         [string]$FilePath
@@ -97,23 +98,55 @@ If ($ProcessWholeBacklog) {
 
 write-log "Quarantine messages to process: $($QuarantineMessages.Count)" -ForegroundColor Green
 $ReleaseCounter = 0
+$IgnoredMessagesCount++
 
 foreach ($Message in $QuarantineMessages) {
-    Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 30
+    if ($EXOQuarantineMgmt_DB.ContainsKey($message.Identity)) {
+        Write-Interactive "skipping $($message.Identity)" -ForegroundColor Yellow -BackgroundColor DarkGray
+        $IgnoredMessagesCount++
+        continue
+    }
+
+    $EXOError = $False
     $HeaderIPs = $HeaderDomains = $null
-    $Header = Get-QuarantineMessageHeader -Identity $Message.Identity 
+
+    $MessageRecord = [PSCustomObject]@{
+        Identity = $message.Identity
+        Id = $message.MessageId
+        ReceivedTime = $message.ReceivedTime
+        processedDate       = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+        ReleaseStatus = "IGNORED"
+    }
+    $DB_changed = $true
+    
+    Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 30
+
+    Try {
+        $Header = Get-QuarantineMessageHeader -Identity $Message.Identity -ErrorAction Stop
+    }
+    Catch {
+        write-log "Failed to get message header: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress). Error: $($_.Exception.Message)" -ForegroundColor Red
+        $EXOError = $True
+        Continue
+    }
+    
     $HeaderIPs = $PhishSimSenderIPs | Where-Object { $Header.Header -like "*$_*" }
     $HeaderDomains = $PhishSimSenderDomains | Where-Object { $Header.Header -like "*$_*" }
+    
     if ($HeaderIPs -and $HeaderDomains) {
-        try {
+        Try {
             Release-QuarantineMessage -Identity $Message.Identity -ReleaseToAll -Force -Confirm:$false -ErrorAction Stop
             write-log "releasing id:$($Message.MessageId) received:$($Message.ReceivedTime) recipient:$($Message.RecipientAddress -join ',') matched IPs:$($HeaderIPs -join ',') matched domains:$($HeaderDomains -join ',')" -ForegroundColor Yellow
             $ReleaseCounter++
-
+            $MessageRecord.ReleaseStatus = "RELEASED"
         }
-        catch {
+        Catch {
             write-log "Failed to release message from quarantine: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress). Error: $($_.Exception.Message)" -ForegroundColor Red
+            $EXOError = $True            
         }
+    }
+    if (-not $EXOError) {
+   		$EXOQuarantineMgmt_DB.Add($message.Identity, $MessageRecord)
     }
 }
 write-log "Total messages released from quarantine: $ReleaseCounter" -ForegroundColor Green
@@ -128,7 +161,6 @@ if (($EXOQuarantineMgmt_DB.count -gt 0) -and ($DB_changed)){
         Write-Log "Error exporting $($DBFileEXOQuarantineMgmt)" -MessageType "Error"
     }
 }
-
 
 #######################################################################################################################
 
