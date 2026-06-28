@@ -180,6 +180,7 @@ $DBFileMGMTAPI_Audit_SPO    = "d:\data\o365-mgmt-api\audit-spo-blobs-db.xml"
 $DBFileEXOMboxMgmt          = "d:\data\exo-mailbox-mgmt\mailbox-mgmt-db.xml"
 $DBFileEXOMobileDeviceMgmt  = "d:\data\exo-mobile-device-mgmt\mobile-device-mgmt-db.xml"
 $DBFileMFAMgmt              = "d:\data\entra-mfa-mgmt\mfa-mgmt-db.xml"
+$DBFileEXOQuarantineMgmt    = "d:\data\exo-quarantine-mgmt\quarantine-mgmt-db.xml"
 
 $outputFileReportSuffix     = "report"
 $outputFileAuditSuffix 	    = "audit"

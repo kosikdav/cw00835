@@ -72,7 +72,6 @@ else {
     $DB_changed = $true
 }
 
-
 Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 60
 
 #########################################################################################
@@ -118,6 +117,19 @@ foreach ($Message in $QuarantineMessages) {
     }
 }
 write-log "Total messages released from quarantine: $ReleaseCounter" -ForegroundColor Green
+
+#saving DB XML if needed
+if (($EXOQuarantineMgmt_DB.count -gt 0) -and ($DB_changed)){
+    Try {
+        $EXOQuarantineMgmt_DB | Export-Clixml -Path $DBFileEXOQuarantineMgmt
+        Write-Log "DB file $($DBFileEXOQuarantineMgmt) exported successfully, $($EXOQuarantineMgmt_DB.count) records saved"
+    }
+    Catch {
+        Write-Log "Error exporting $($DBFileEXOQuarantineMgmt)" -MessageType "Error"
+    }
+}
+
+
 #######################################################################################################################
 
 . $IncFile_StdLogEndBlock
