@@ -27,6 +27,7 @@ $IntervalMinutes = 30
 $PhishSim_SenderDomains_File    = $folder + "phishsim-sender-domains.txt"
 $PhishSim_SenderIPs_File        = $folder + "phishsim-sender-IPs.txt"
 [array]$QuarantineMessages = @()
+[array]$ToBeDeletedRecords = @()
 $DB_changed = $false
 Function Get-PolicyConfigFileEntries {
     param(
@@ -114,7 +115,7 @@ foreach ($Message in $QuarantineMessages) {
         Identity = $message.Identity
         Id = $message.MessageId
         ReceivedTime = $message.ReceivedTime
-        processedDate       = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+        processedDate = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
         ReleaseStatus = "IGNORED"
     }
     $DB_changed = $true
@@ -125,7 +126,8 @@ foreach ($Message in $QuarantineMessages) {
         $Header = Get-QuarantineMessageHeader -Identity $Message.Identity -ErrorAction Stop
     }
     Catch {
-        write-log "Failed to get message header: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress). Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Log "Failed to get message header: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress)" -ForegroundColor Magenta
+        Write-Interactive $_.Exception.Message -ForegroundColor Red
         $EXOError = $True
         Continue
     }
@@ -136,12 +138,13 @@ foreach ($Message in $QuarantineMessages) {
     if ($HeaderIPs -and $HeaderDomains) {
         Try {
             Release-QuarantineMessage -Identity $Message.Identity -ReleaseToAll -Force -Confirm:$false -ErrorAction Stop
-            write-log "releasing id:$($Message.MessageId) received:$($Message.ReceivedTime) recipient:$($Message.RecipientAddress -join ',') matched IPs:$($HeaderIPs -join ',') matched domains:$($HeaderDomains -join ',')" -ForegroundColor Yellow
+            Write-Log "releasing id:$($Message.MessageId) received:$($Message.ReceivedTime) recipient:$($Message.RecipientAddress -join ',') matched IPs:$($HeaderIPs -join ',') matched domains:$($HeaderDomains -join ',')" -ForegroundColor Yellow
             $ReleaseCounter++
             $MessageRecord.ReleaseStatus = "RELEASED"
         }
         Catch {
-            write-log "Failed to release message from quarantine: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress). Error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Log "Failed to release message from quarantine: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress)" -ForegroundColor Magenta
+            Write-Interactive $_.Exception.Message -ForegroundColor Red
             $EXOError = $True            
         }
     }
@@ -149,7 +152,26 @@ foreach ($Message in $QuarantineMessages) {
    		$EXOQuarantineMgmt_DB.Add($message.Identity, $MessageRecord)
     }
 }
-write-log "Total messages released from quarantine: $ReleaseCounter" -ForegroundColor Green
+Write-Log "Total messages released from quarantine: $ReleaseCounter" -ForegroundColor Green
+
+#find expired blobs in DB
+[datetime]$date = (get-date).AddDays(-40)
+foreach ($Identity in $EXOQuarantineMgmt_DB.Keys) {
+    if ($EXOQuarantineMgmt_DB[$Identity].receivedTime -lt $date) {
+        $ToBeDeletedRecords += $Identity
+        Write-Interactive "Expired record: $($EXOQuarantineMgmt_DB[$Identity].identity) received: $($EXOQuarantineMgmt_DB[$Identity].receivedTime) processed: $($EXOQuarantineMgmt_DB[$Identity].processedDate) " -ForegroundColor Red
+    }
+}
+Write-Log "Expired records in DB: $($ToBeDeletedRecords.Count)"
+
+#delete expired blobs from DB
+if ($ToBeDeletedRecords.Count -gt 0) {
+	Write-Log "Deleting expired records from DB..."
+	foreach ($Identity in $ToBeDeletedRecords) {
+		$EXOQuarantineMgmt_DB.Remove($Identity)
+		$DB_changed = $true
+	}
+}
 
 #saving DB XML if needed
 if (($EXOQuarantineMgmt_DB.count -gt 0) -and ($DB_changed)){
