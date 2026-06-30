@@ -61,11 +61,11 @@ foreach ($Message in $QuarantineMessages) {
     Connect-EXOService -AppRegName $AppReg_EXO_MGMT -TTL 30
     Try {
         Delete-QuarantineMessage -Identity $Message.Identity -Confirm:$false -ErrorAction Stop
-        Write-Log "deleting id:$($Message.MessageId) received:$($Message.ReceivedTime) recipient:$($Message.RecipientAddress -join ',') matched IPs:$($HeaderIPs -join ',') matched domains:$($HeaderDomains -join ',')" -ForegroundColor Yellow
+        Write-Log "deleting id:$($Message.MessageId) received:$($Message.ReceivedTime) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress -join ',')" -ForegroundColor Yellow
         $DeleteCounter++
     }
     Catch {
-        Write-Log "Failed to delete message from quarantine: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress)" -ForegroundColor Magenta
+        Write-Log "Failed to delete message from quarantine: id:$($Message.MessageId) sender:$($Message.SenderAddress) recipient:$($Message.RecipientAddress -join ',')" -ForegroundColor Magenta
         Write-Interactive $_.Exception.Message -ForegroundColor Red
         $EXOError = $True            
     }

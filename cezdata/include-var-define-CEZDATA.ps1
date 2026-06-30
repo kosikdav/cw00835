@@ -370,7 +370,8 @@ $OUSyncToAzureDN = "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=cor
 $SyncToAAD_App_OUs = @(
     "OU=Resources,OU=Groupware,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
     "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
-    "OU=UJV,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
+    "OU=UJV,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
+    "OU=Tenaur,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corps"
 )
 
 $phoneNumberRemoveChars = (" ","-","(",")","#","+")
