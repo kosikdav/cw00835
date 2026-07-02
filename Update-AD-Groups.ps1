@@ -379,6 +379,9 @@ foreach ($OU in $SyncToAAD_App_OUs) {
 	$members = Get-ADUser -Credential $ADCredential -SearchBase $OU -SearchScope Subtree -Filter * -Properties *
 	$TOBEOUSyncToAADUsers += $members
 }
+
+$TOBEOUSyncToAADUsers = $TOBEOUSyncToAADUsers | SortObject -Unique
+
 [array]$ASISOUSyncToAADUsers = Get-ADGroupMember -Credential $ADCredential -Identity $OUSyncToAADADGroup -ErrorAction Stop
 Update-ADGroupMembersByOU -TargetGroupName $OUSyncToAADGroup -ASISUsers $ASISOUSyncToAADUsers -TOBEUsers $TOBEOUSyncToAADUsers -Credential $ADCredential
 
