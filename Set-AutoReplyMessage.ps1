@@ -62,7 +62,6 @@ $UserData = Import-CsvToArray -Path $SourceFile
 
 if ($UserData) {
     foreach ($user in $UserData) {
-        Write-Interactive "----------------------------------------------------------------------------"
         Write-Log  "Setting autoreply for $($user.mailbox)" -NoNewLine
         $htmlBody = Get-HTMLBody -OldAddress $user.old_address -NewAddress $user.new_address -DisplayName $user.display_name
         Try {
