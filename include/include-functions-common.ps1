@@ -7,6 +7,23 @@
 #
 #
 ########################################################################################
+# Write-Interactive
+########################################################################################
+function Write-Interactive {
+	param (
+		[Parameter(Position=0)]$String,
+		[string]$ForegroundColor = "Gray",
+		[string]$BackgroundColor = "Black",
+		[switch]$NoNewLine
+	)
+	# main function body ##################################
+	if ([Environment]::UserInteractive) {
+		Write-Host $String -ForegroundColor $ForegroundColor -BackgroundColor $BackgroundColor -NoNewline:$NoNewLine
+	}
+}
+
+
+########################################################################################
 # Get-DateTimeStamp
 ########################################################################################
 function Get-DateTimeStamp {

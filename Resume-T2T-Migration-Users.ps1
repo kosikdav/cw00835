@@ -23,7 +23,7 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 [array]$Report = @()
 
-$MigrationEndpoint = "UJVREZ_T2T_EXO_MIGRATION_ENDPOINT"
+$MigrationEndpoint = "EXO_CROSS_TENANT_ENDPOINT"
 $HoldApplieErrString = "Cross tenant move is not supported when source mailbox has a hold"
 
 $MigrationUsers = @()
@@ -33,7 +33,7 @@ $Report = @()
 
 . $IncFile_StdLogStartBlock
 
-$Dst_AppReg_EXO_MGMT = $AppReg_EXO_MGMT
+$Dst_AppReg_EXO_MGMT = $AppReg_AIRPLUS_EXO_MGMT
 
 Connect-EXOService -AppRegName $Dst_AppReg_EXO_MGMT  -TTL 120
 
@@ -42,16 +42,22 @@ Write-Log "Found $($MigrationBatches.Count) migration batches"
 
 foreach ($Batch in $MigrationBatches) {
 	write-host ($Batch.Identity.ToString()).PadRight(25) -ForegroundColor Green -NoNewline
-	$Result = Get-MigrationUser -BatchId $Batch.Identity
+	[array]$Result = Get-MigrationUser -BatchId $Batch.Identity
 	write-host ": $($Result.Count)"
 	$MigrationUsers += $Result
 }
 
 foreach ($User in $MigrationUsers) {
 	if (($User.Status -eq "Failed") -and ($User.StatusSummary -eq "Failed")) {
+		#write-host "User $($User.Identity) has failed migration with status summary: $($User.StatusSummary)" -ForegroundColor Yellow
 		if ($User.ErrorSummary -like "$HoldApplieErrString*") {
-			Start-MigrationUser -Identity $User.Identity -Confirm:$false
-			Write-Log "Resuming migration for user $($User.Identity)" -ForegroundColor Green
+			Try {
+				Start-MigrationUser -Identity $User.Identity -Confirm:$false -ErrorAction Stop
+				Write-Log "Resuming migration for user $($User.Identity)" -ForegroundColor Green
+			}
+			Catch {
+				Write-Log "Failed to resume migration for user $($User.Identity): $($_.Exception.Message)" -ForegroundColor Red
+			}
 		}
 	}
 }

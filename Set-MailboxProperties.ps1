@@ -381,7 +381,7 @@ Write-Log "Ignored mailboxes: $($IgnoredMailboxesCount)"
 Write-Log "Processed mailboxes: $($ProcessedMailboxesCount)"
 
 #find expired blobs in DB
-[datetime]$date = (get-date).AddDays(-$DaysBack-2)
+[datetime]$date = (get-date).AddDays(-$DaysBack-10)
 foreach ($ExchangeGuid in $EXOMboxMgmt_DB.Keys) {
     if ($EXOMboxMgmt_DB[$ExchangeGuid].processedDate -lt $date) {
         $ToBeDeletedRecords += $ExchangeGuid
@@ -391,10 +391,10 @@ foreach ($ExchangeGuid in $EXOMboxMgmt_DB.Keys) {
 Write-Log "Expired records in DB: $($ToBeDeletedRecords.Count)"
 
 #delete expired blobs from DB
-if (ToBeDeletedRecords.Count -gt 0) {
+if ($ToBeDeletedRecords.Count -gt 0) {
 	Write-Log "Deleting expired records from DB..."
 	foreach ($ExchangeGuid in $ToBeDeletedRecords) {
-		#$EXOMboxMgmt_DB.Remove($ExchangeGuid)
+		$EXOMboxMgmt_DB.Remove($ExchangeGuid)
 		$DB_changed = $true
 	}
 }

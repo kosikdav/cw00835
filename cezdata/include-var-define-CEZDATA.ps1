@@ -75,6 +75,7 @@ $AppReg_TMS_MGMT            = "CEZDATA_TEAMS_MGMT"
 $AppReg_USR_MGMT            = "CEZDATA_AAD_USR_MGMT"
 $AppReg_APP_MGMT            = "CEZDATA_AAD_APP_MGMT"
 $AppReg_EXO_MGMT            = "CEZDATA_EXO_MGMT"
+$AppReg_AIRPLUS_EXO_MGMT    = "CEZDATA_AIRPLUS_EXO_MGMT"
 $AppReg_SPO_REPORT_PnP      = "CEZDATA_SPO_REPORTS_PnP"
 $AppReg_SPO_MGMT            = "CEZDATA_SPO_MGMT"
 $AppReg_ICTS_Fabric_Mgmt    = "CEZDATA_ICTS_Fabric_Mgmt"
@@ -85,6 +86,7 @@ $AppReg_CEZDATA_TMS_MGMT            = $AppReg_TMS_MGMT
 $AppReg_CEZDATA_USR_MGMT            = $AppReg_USR_MGMT
 $AppReg_CEZDATA_APP_MGMT            = $AppReg_APP_MGMT
 $AppReg_CEZDATA_EXO_MGMT            = $AppReg_EXO_MGMT
+$AppReg_CEZDATA_AIRPLUS_EXO_MGMT    = $AppReg_AIRPLUS_EXO_MGMT
 $AppReg_CEZDATA_SPO_REPORT_PnP      = $AppReg_SPO_REPORT_PnP
 $AppReg_CEZDATA_SPO_MGMT            = $AppReg_SPO_MGMT
 $AppReg_CEZDATA_ICTS_Fabric_Mgmt    = $AppReg_ICTS_Fabric_Mgmt
@@ -178,6 +180,7 @@ $DBFileMGMTAPI_Audit_SPO    = "d:\data\o365-mgmt-api\audit-spo-blobs-db.xml"
 $DBFileEXOMboxMgmt          = "d:\data\exo-mailbox-mgmt\mailbox-mgmt-db.xml"
 $DBFileEXOMobileDeviceMgmt  = "d:\data\exo-mobile-device-mgmt\mobile-device-mgmt-db.xml"
 $DBFileMFAMgmt              = "d:\data\entra-mfa-mgmt\mfa-mgmt-db.xml"
+$DBFileEXOQuarantineMgmt    = "d:\data\exo-quarantine-mgmt\quarantine-mgmt-db.xml"
 
 $outputFileReportSuffix     = "report"
 $outputFileAuditSuffix 	    = "audit"
@@ -367,7 +370,8 @@ $OUSyncToAzureDN = "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=cor
 $SyncToAAD_App_OUs = @(
     "OU=Resources,OU=Groupware,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
     "OU=SYNC_to_AZURE,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
-    "OU=UJV,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp"
+    "OU=UJV,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corp",
+    "OU=Tenaur,OU=aplikacni,OU=uzivatele,DC=cezdata,DC=corps"
 )
 
 $phoneNumberRemoveChars = (" ","-","(",")","#","+")

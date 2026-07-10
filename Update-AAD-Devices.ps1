@@ -22,13 +22,15 @@ $LogFile = New-OutputFile -RootFolder $RLF -Folder $LogFolder -Prefix $LogFilePr
 
 $ADCredentialPath = $aad_grp_mgmt_cred
 
-[hashtable]$AADDevice_DB = @{}
+[hashtable]$HAADJDevice_DB = @{}
 
 [array]$ASIS_VPN_ADM_Devices = @()
 [array]$TOBE_VPN_ADM_Devices = @()
 [array]$TOBE_VPN_ADM_Devices_Whitelist = @(
     #NB319420-VM
-    "398bb09f-54fd-4aab-b087-86eec7b78b25"     
+    "398bb09f-54fd-4aab-b087-86eec7b78b25",
+    #NB322215 Tomas Fornusek
+    "3916f4c8-6713-4f7b-b5ab-cf7bf488e060"
 )
 
 #######################################################################################################################
@@ -48,21 +50,11 @@ $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource -Select $UriSelect -T
 [array]$AllAADDevices = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_USR_MGMT].AccessToken -ContentType $ContentTypeJSON -text "AAD devices" -ProgressDots
 Write-Log "Total AAD devices: $($AllAADDevices.Count)"
 
-$HAADJ_Devices = $AllAADDevices | Where-Object { $_.operatingSystem -eq "Windows" -and $_.trustType -eq "serverAd" }
-Write-Log "Total HAADJ devices: $($HAADJ_Devices.Count)"
-
-foreach ($device in $HAADJ_Devices) {
-    $deviceObject = [PSCustomObject]@{
-        deviceId    = $device.deviceId
-        displayName = $device.displayName.Trim()
-    }
-    $AADDevice_DB.Add($device.deviceId, $deviceObject)
-    if ($device.extensionAttributes.extensionAttribute14 -eq "vpn-adm") {
-        $ASIS_VPN_ADM_Devices += $device.deviceId
-    }
-}
-
-write-host "Total AAD devices in DB: $($AADDevice_DB.Count)"
+$HAADJDevices = $AllAADDevices | Where-Object { $_.operatingSystem -eq "Windows" -and $_.trustType -eq "serverAd" }
+$ASIS_VPN_ADM_Devices = ($HAADJDevices | Where-Object { $_.extensionAttributes.extensionAttribute14 -eq "vpn-adm" }).deviceId
+$HAADJDevices = $HAADJDevices.deviceId
+Write-Log "Total HAADJ devices: $($HAADJDevices.Count)"
+Write-Log "ASIS_VPN_ADM_Devices (cloud): $($ASIS_VPN_ADM_Devices.Count)"
 
 if (-not $interactiveRun) {
     $TOBE_VPN_ADM_Devices = (Get-ADGroupMember -Identity $VPN_ADM_DeviceGroup -Credential $ADCredential).objectGuid
@@ -70,43 +62,43 @@ if (-not $interactiveRun) {
 else {
     $TOBE_VPN_ADM_Devices = (Get-ADGroupMember -Identity $VPN_ADM_DeviceGroup).objectGuid
 }
+
 $TOBE_VPN_ADM_Devices = $TOBE_VPN_ADM_Devices + $TOBE_VPN_ADM_Devices_Whitelist
+Write-Log "TOBE_VPN_ADM_Devices (AD): $($TOBE_VPN_ADM_Devices.Count)"
+$TOBE_VPN_ADM_Devices = $TOBE_VPN_ADM_Devices | where-object { $_ -in $AllAADDevices.deviceId }
+Write-Log "TOBE_VPN_ADM_Devices (AAD): $($TOBE_VPN_ADM_Devices.Count)"
+
 $missingDevices = $TOBE_VPN_ADM_Devices | Where-Object { $_ -notin $ASIS_VPN_ADM_Devices }
 $extraDevices = $ASIS_VPN_ADM_Devices | Where-Object { $_ -notin $TOBE_VPN_ADM_Devices }
 $devicesToProcess = $missingDevices + $extraDevices
-
-Write-Log "ASIS_VPN_ADM_Devices: $($ASIS_VPN_ADM_Devices.Count)"
-Write-Log "TOBE_VPN_ADM_Devices: $($TOBE_VPN_ADM_Devices.Count)"
 Write-Log "missingDevices: $($missingDevices.Count)"
 Write-Log "extraDevices: $($extraDevices.Count)"
+Write-Log "devices to process: $($devicesToProcess.Count)"
 
 foreach ($deviceId in $devicesToProcess) {
+    write-host "Processing deviceId: $($deviceId)" -noNewline
     if ($missingDevices.contains($deviceId)) {
         $ext14 = "vpn-adm"
+        write-host " $($ext14)" -ForegroundColor "Yellow"
     }
     else {
         $ext14 = $null
     }
-    if ($AADDevice_DB.ContainsKey($deviceId)) {
-        $device = $AADDevice_DB[$deviceId]
-        $UriResource = "/devices(deviceId='$($deviceId)')"
-        $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
-        $Body = @{
-            extensionAttributes = @{
-                extensionAttribute14 = $ext14
-            }
-        } | ConvertTo-Json
-        $Body = [System.Text.Encoding]::UTF8.GetBytes($Body)
-        Try {
-            $ResultPATCH = Invoke-RestMethod -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $Body -Method "PATCH" -ContentType $ContentTypeJSON
-            Write-Log "$($device.displayName) - ext14 set to `"$($ext14)`"" -ForegroundColor "Green"
+    $UriResource = "/devices(deviceId='$($deviceId)')"
+    $Uri = New-GraphUri -Version "v1.0" -Resource $UriResource
+    $Device = Get-GraphOutputREST -Uri $Uri -AccessToken $AuthDB[$AppReg_USR_MGMT].AccessToken -ContentType $ContentTypeJSON
+    $Body = @{
+        extensionAttributes = @{
+            extensionAttribute14 = $ext14
         }
-        Catch {
-            Write-Log $_.Exception.Message -MessageType "Error"
-        }
+    } | ConvertTo-Json
+    $Body = [System.Text.Encoding]::UTF8.GetBytes($Body)
+    Try {
+        $ResultPATCH = Invoke-RestMethod -Headers $AuthDB[$AppReg_USR_MGMT].AuthHeaders -Uri $Uri -Body $Body -Method "PATCH" -ContentType $ContentTypeJSON
+        Write-Log "$($Device.displayName) - ext14 set to `"$($ext14)`"" -ForegroundColor "Green"
     }
-    else {
-        Write-Log "$($deviceId) - not found in HAADJ devices" -ForegroundColor "Red"
+    Catch {
+        Write-Log $_.Exception.Message -MessageType "Error"
     }
 }
 
