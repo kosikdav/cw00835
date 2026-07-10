@@ -6,7 +6,9 @@
       "WebFetch(domain:www.studiomarteena.cz)",
       "WebFetch(domain:www.smsbrana.cz)",
       "Bash(curl:*)",
-      "PowerShell($null = [System.Management.Automation.Language.Parser]::ParseFile\\(\"D:\\\\scripts-m365\\\\Invoke-ADDomainRelease.ps1\", [ref]$null, [ref]$errors\\); if \\($errors\\) { $errors | Format-List } else { \"OK - no parse errors\" })"
+      "PowerShell($null = [System.Management.Automation.Language.Parser]::ParseFile\\(\"D:\\\\scripts-m365\\\\Invoke-ADDomainRelease.ps1\", [ref]$null, [ref]$errors\\); if \\($errors\\) { $errors | Format-List } else { \"OK - no parse errors\" })",
+      "Bash(grep:*)",
+      "Bash(wc:*)"
     ]
   }
 }
